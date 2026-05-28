@@ -1,0 +1,25 @@
+/**
+ * Locale primitives shared across the public surface of the app.
+ *
+ * The Arabic locale is the default and the marketing/checkout surface is
+ * Arabic-first. The admin panel is intentionally English-only and lives
+ * outside the `/[locale]/...` segment.
+ */
+
+export type Locale = "ar" | "en"
+
+export const LOCALES = ["ar", "en"] as const satisfies readonly Locale[]
+
+export const DEFAULT_LOCALE: Locale = "ar"
+
+export function isLocale(value: string): value is Locale {
+  return (LOCALES as readonly string[]).includes(value)
+}
+
+/**
+ * The text direction associated with a locale. Used to set `<html dir>` and
+ * for any code that needs to branch on writing direction.
+ */
+export function localeDirection(locale: Locale): "rtl" | "ltr" {
+  return locale === "ar" ? "rtl" : "ltr"
+}

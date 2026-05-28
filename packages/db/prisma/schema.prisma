@@ -1,0 +1,178 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Product {
+  id            String           @id @default(cuid())
+  slug          String           @unique
+  nameAr        String
+  nameEn        String
+  descAr        String?          @db.Text
+  descEn        String?          @db.Text
+  priceFils     Int
+  compareAtFils Int?
+  isActive      Boolean          @default(true)
+  isFinalSale   Boolean          @default(false)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  variants      ProductVariant[]
+  images        ProductImage[]
+
+  @@index([isActive, createdAt])
+}
+
+model ProductVariant {
+  id          String      @id @default(cuid())
+  productId   String
+  product     Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  colorNameAr String?
+  colorNameEn String?
+  colorHex    String?
+  size        Size
+  stock       Int         @default(0)
+  sku         String?     @unique
+  orderItems  OrderItem[]
+
+  @@unique([productId, colorHex, size])
+  @@index([productId])
+}
+
+model ProductImage {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  url       String
+  altAr     String?
+  altEn     String?
+  position  Int     @default(0)
+
+  @@index([productId, position])
+}
+
+model Order {
+  id            String       @id @default(cuid())
+  orderNumber   String       @unique
+  status        OrderStatus  @default(PENDING_VERIFICATION)
+  customerName  String
+  phone         String // E.164, e.g. +971501234567
+  phoneVerified Boolean      @default(false)
+  email         String?
+  emirate       Emirate
+  city          String
+  addressLine1  String
+  addressLine2  String?
+  notes         String?      @db.Text
+  subtotalFils  Int
+  shippingFils  Int
+  totalFils     Int
+  locale        String // "ar" or "en"
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  confirmedAt   DateTime?
+  shippedAt     DateTime?
+  deliveredAt   DateTime?
+  cancelledAt   DateTime?
+  cancelReason  String?
+  items         OrderItem[]
+  events        OrderEvent[]
+
+  @@index([status, createdAt])
+  @@index([phone])
+}
+
+model OrderItem {
+  // snapshot all fields at order time — never read from current Product
+  id            String         @id @default(cuid())
+  orderId       String
+  order         Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  variantId     String
+  variant       ProductVariant @relation(fields: [variantId], references: [id])
+  productNameAr String
+  productNameEn String
+  colorNameAr   String?
+  colorNameEn   String?
+  size          Size
+  unitPriceFils Int
+  quantity      Int
+
+  @@index([orderId])
+}
+
+model OrderEvent {
+  id        String   @id @default(cuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  type      String // "status_change" | "note" | "courier_assigned" | "system"
+  payload   Json
+  actorId   String? // AdminUser.id, null = system
+  createdAt DateTime @default(now())
+
+  @@index([orderId, createdAt])
+}
+
+model AdminUser {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  name         String
+  role         AdminRole @default(STAFF)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model OtpAttempt {
+  id        String   @id @default(cuid())
+  phone     String
+  ip        String
+  success   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([phone, createdAt])
+  @@index([ip, createdAt])
+}
+
+model Setting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+}
+
+enum Size {
+  XS
+  S
+  M
+  L
+  XL
+  XXL
+  FREE
+}
+
+enum Emirate {
+  ABU_DHABI
+  DUBAI
+  SHARJAH
+  AJMAN
+  UMM_AL_QUWAIN
+  RAS_AL_KHAIMAH
+  FUJAIRAH
+}
+
+enum AdminRole {
+  OWNER
+  STAFF
+}
+
+enum OrderStatus {
+  PENDING_VERIFICATION
+  NEW
+  CONFIRMED
+  SHIPPED
+  DELIVERED
+  REFUSED
+  CANCELLED
+}

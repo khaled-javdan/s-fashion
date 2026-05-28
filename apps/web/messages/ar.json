@@ -1,0 +1,124 @@
+{
+  "common": {
+    "currency": "د.إ",
+    "loading": "...جاري التحميل",
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "back": "رجوع"
+  },
+  "header": {
+    "brand": "S FASHION",
+    "shop_all": "كل المنتجات",
+    "cart": "السلة",
+    "language": "English",
+    "open_menu": "فتح القائمة",
+    "close_menu": "إغلاق القائمة"
+  },
+  "footer": {
+    "tagline": "أناقة تليق بك",
+    "shop_heading": "المتجر",
+    "help_heading": "المساعدة",
+    "shop_all": "كل المنتجات",
+    "shipping": "الشحن والتوصيل",
+    "returns": "الإرجاع والاستبدال",
+    "contact": "تواصل معنا",
+    "about": "من نحن",
+    "follow_us": "تابعينا",
+    "instagram": "إنستغرام",
+    "tiktok": "تيك توك",
+    "snapchat": "سناب شات",
+    "business_hours_heading": "ساعات العمل",
+    "business_hours": "السبت – الخميس، 10ص – 10م",
+    "rights": "جميع الحقوق محفوظة",
+    "made_with_care": "صُنع بعناية في الإمارات"
+  },
+  "home": {
+    "title": "S Fashion — مخاور فاخرة بالتوصيل",
+    "coming_soon": "قريباً — تجربة تسوق جديدة",
+    "hero_tagline": "مخاور تليق بحضورك",
+    "shop_heading": "أحدث القطع",
+    "empty": "لا توجد منتجات متاحة حالياً"
+  },
+  "product": {
+    "select_size": "اختاري المقاس",
+    "select_color": "اختاري اللون",
+    "size_chart": "جدول المقاسات",
+    "in_stock": "متوفر",
+    "low_stock": "قطعة واحدة فقط متبقية",
+    "out_of_stock": "نفذت الكمية",
+    "add_to_cart": "أضيفي للسلة",
+    "ask_on_whatsapp": "اسألي عن المنتج",
+    "stub_heading": "صفحة المنتج (مؤقتة)",
+    "stub_slug_label": "المعرّف"
+  },
+  "cart": {
+    "empty": "السلة فارغة",
+    "subtotal": "المجموع الفرعي",
+    "checkout": "إتمام الطلب",
+    "items_label": "{count, plural, zero {لا توجد قطع} one {قطعة واحدة} two {قطعتان} few {{count} قطع} many {{count} قطعة} other {{count} قطعة}}"
+  },
+  "checkout": {
+    "contact_heading": "بيانات التواصل",
+    "delivery_heading": "بيانات التوصيل",
+    "name": "الاسم الكامل",
+    "phone": "رقم الجوال",
+    "emirate": "الإمارة",
+    "city": "المدينة",
+    "address_1": "العنوان",
+    "address_2": "تفاصيل إضافية",
+    "notes": "ملاحظات",
+    "shipping_fee": "رسوم التوصيل",
+    "total": "الإجمالي",
+    "place_order": "تأكيد الطلب",
+    "otp_heading": "تأكيد رقم الجوال",
+    "otp_helper": "أدخلي الرمز المكون من 6 أرقام",
+    "resend_otp": "إعادة الإرسال"
+  },
+  "order": {
+    "success_heading": "تم استلام طلبك",
+    "order_number": "رقم الطلب",
+    "expected_delivery": "التوصيل خلال 1-3 أيام عمل"
+  },
+  "cookie": {
+    "message": "نستخدم ملفات تعريف الارتباط لتحسين تجربتك.",
+    "accept": "موافقة",
+    "decline": "رفض"
+  },
+  "whatsapp": {
+    "open_label": "تواصلي معنا على واتساب",
+    "prefill_message": "مرحباً، لدي استفسار عن منتجاتكم."
+  },
+  "admin": {
+    "brand": "S Fashion",
+    "panel_label": "لوحة التحكم",
+    "soon": "قريباً",
+    "logout": "تسجيل الخروج",
+    "language_label": "اللغة",
+    "language_toggle": "English",
+    "nav": {
+      "dashboard": "لوحة المعلومات",
+      "orders": "الطلبات",
+      "products": "المنتجات",
+      "settings": "الإعدادات"
+    },
+    "login": {
+      "title": "تسجيل دخول المسؤول",
+      "page_title": "لوحة التحكم · تسجيل الدخول",
+      "email_label": "البريد الإلكتروني",
+      "password_label": "كلمة المرور",
+      "submit": "تسجيل الدخول",
+      "submitting": "جاري الدخول…",
+      "error_title": "فشل تسجيل الدخول",
+      "error_invalid": "البريد الإلكتروني أو كلمة المرور غير صحيحة.",
+      "validation_email": "أدخل بريداً إلكترونياً صحيحاً.",
+      "validation_password": "يجب أن تكون كلمة المرور 8 أحرف على الأقل."
+    },
+    "dashboard": {
+      "welcome": "أهلاً، {name}",
+      "subtitle": "هذه نسخة تجريبية. المؤشرات الفعلية ضمن المرحلة الثانية.",
+      "orders_today": "طلبات اليوم",
+      "pending_orders": "طلبات قيد المراجعة",
+      "low_stock": "مخزون منخفض"
+    }
+  }
+}

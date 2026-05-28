@@ -1,0 +1,124 @@
+{
+  "common": {
+    "currency": "AED",
+    "loading": "Loading...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "back": "Back"
+  },
+  "header": {
+    "brand": "S FASHION",
+    "shop_all": "All Products",
+    "cart": "Cart",
+    "language": "العربية",
+    "open_menu": "Open menu",
+    "close_menu": "Close menu"
+  },
+  "footer": {
+    "tagline": "Elegance, made for you.",
+    "shop_heading": "Shop",
+    "help_heading": "Help",
+    "shop_all": "All Products",
+    "shipping": "Shipping & Delivery",
+    "returns": "Returns & Exchanges",
+    "contact": "Contact",
+    "about": "About",
+    "follow_us": "Follow Us",
+    "instagram": "Instagram",
+    "tiktok": "TikTok",
+    "snapchat": "Snapchat",
+    "business_hours_heading": "Business Hours",
+    "business_hours": "Sat–Thu, 10am – 10pm",
+    "rights": "All rights reserved",
+    "made_with_care": "Made with care in the UAE"
+  },
+  "home": {
+    "title": "S Fashion — Luxury mukhawar, delivered.",
+    "coming_soon": "Coming soon — a new shopping experience.",
+    "hero_tagline": "Mukhawar made for you.",
+    "shop_heading": "New arrivals",
+    "empty": "No products available yet."
+  },
+  "product": {
+    "select_size": "Select size",
+    "select_color": "Select color",
+    "size_chart": "Size chart",
+    "in_stock": "In stock",
+    "low_stock": "Only one left",
+    "out_of_stock": "Out of stock",
+    "add_to_cart": "Add to cart",
+    "ask_on_whatsapp": "Ask on WhatsApp",
+    "stub_heading": "Product page (placeholder)",
+    "stub_slug_label": "Slug"
+  },
+  "cart": {
+    "empty": "Your cart is empty",
+    "subtotal": "Subtotal",
+    "checkout": "Checkout",
+    "items_label": "{count, plural, =0 {No items} one {1 item} other {# items}}"
+  },
+  "checkout": {
+    "contact_heading": "Contact details",
+    "delivery_heading": "Delivery details",
+    "name": "Full name",
+    "phone": "Phone number",
+    "emirate": "Emirate",
+    "city": "City",
+    "address_1": "Address",
+    "address_2": "Apartment, building, etc.",
+    "notes": "Notes",
+    "shipping_fee": "Shipping",
+    "total": "Total",
+    "place_order": "Place order",
+    "otp_heading": "Verify your phone",
+    "otp_helper": "Enter the 6-digit code we sent you",
+    "resend_otp": "Resend code"
+  },
+  "order": {
+    "success_heading": "We've received your order",
+    "order_number": "Order number",
+    "expected_delivery": "Delivery in 1–3 business days"
+  },
+  "cookie": {
+    "message": "We use cookies to improve your experience.",
+    "accept": "Accept",
+    "decline": "Decline"
+  },
+  "whatsapp": {
+    "open_label": "Chat with us on WhatsApp",
+    "prefill_message": "Hello, I have a question about your products."
+  },
+  "admin": {
+    "brand": "S Fashion",
+    "panel_label": "Admin",
+    "soon": "Soon",
+    "logout": "Log out",
+    "language_label": "Language",
+    "language_toggle": "العربية",
+    "nav": {
+      "dashboard": "Dashboard",
+      "orders": "Orders",
+      "products": "Products",
+      "settings": "Settings"
+    },
+    "login": {
+      "title": "Admin sign in",
+      "page_title": "Admin · Log in",
+      "email_label": "Email",
+      "password_label": "Password",
+      "submit": "Sign in",
+      "submitting": "Signing in…",
+      "error_title": "Sign in failed",
+      "error_invalid": "Invalid email or password.",
+      "validation_email": "Enter a valid email.",
+      "validation_password": "Password must be at least 8 characters."
+    },
+    "dashboard": {
+      "welcome": "Welcome, {name}",
+      "subtitle": "Round 1 scaffold. Real dashboards land in Round 2.",
+      "orders_today": "Orders today",
+      "pending_orders": "Pending orders",
+      "low_stock": "Low stock"
+    }
+  }
+}
