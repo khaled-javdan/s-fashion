@@ -20,10 +20,10 @@ model Product {
   additionalInfoEn  String?          @db.Text
   priceFils         Int
   compareAtFils     Int?
-  // Unit cost (what we pay the supplier), in fils. Optional — used only for
-  // profit analytics. Snapshotted onto OrderItem at checkout, so changing it
-  // here never rewrites the profit of past orders.
-  costPriceFils     Int?
+  // Unit cost (what we pay the supplier), in fils. Required. Snapshotted onto
+  // OrderItem at checkout, so changing it here never rewrites the profit of
+  // past orders.
+  costPriceFils     Int
   isActive          Boolean          @default(true)
   isFinalSale       Boolean          @default(false)
   createdAt         DateTime         @default(now())

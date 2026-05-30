@@ -47,7 +47,7 @@ export type ProductFormPayload = {
   additionalInfoEn?: string | null
   priceAed: number
   compareAtAed?: number | null
-  costPriceAed?: number | null
+  costPriceAed: number
   isActive: boolean
   isFinalSale: boolean
   variants: Array<{
@@ -160,10 +160,7 @@ function toCreateInput(payload: ProductFormPayload): ProductCreateInput {
       payload.compareAtAed != null && payload.compareAtAed > 0
         ? aedToFils(payload.compareAtAed)
         : null,
-    costPriceFils:
-      payload.costPriceAed != null && payload.costPriceAed > 0
-        ? aedToFils(payload.costPriceAed)
-        : null,
+    costPriceFils: aedToFils(payload.costPriceAed),
     isActive: payload.isActive,
     isFinalSale: payload.isFinalSale,
     variants: payload.variants.map((v) => ({
@@ -200,10 +197,7 @@ function toUpdateInput(payload: ProductFormPayload): ProductUpdateInput {
       payload.compareAtAed != null && payload.compareAtAed > 0
         ? aedToFils(payload.compareAtAed)
         : null,
-    costPriceFils:
-      payload.costPriceAed != null && payload.costPriceAed > 0
-        ? aedToFils(payload.costPriceAed)
-        : null,
+    costPriceFils: aedToFils(payload.costPriceAed),
     isActive: payload.isActive,
     isFinalSale: payload.isFinalSale,
     variants: payload.variants.map((v) => ({

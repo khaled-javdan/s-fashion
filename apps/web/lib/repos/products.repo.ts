@@ -244,7 +244,7 @@ export async function createProduct(
         additionalInfoEn: input.additionalInfoEn ?? null,
         priceFils: input.priceFils,
         compareAtFils: input.compareAtFils ?? null,
-        costPriceFils: input.costPriceFils ?? null,
+        costPriceFils: input.costPriceFils,
         isActive: input.isActive,
         isFinalSale: input.isFinalSale,
         variants: {

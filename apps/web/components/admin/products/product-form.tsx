@@ -322,6 +322,9 @@ export function ProductForm(props: Props) {
     const price = Number(state.priceAed)
     if (!Number.isFinite(price) || price < 0)
       return t("validation.price_invalid")
+    const cost = Number(state.costPriceAed)
+    if (state.costPriceAed.trim() === "" || !Number.isFinite(cost) || cost < 0)
+      return t("validation.cost_price_invalid")
     if (state.compareAtAed.trim() !== "") {
       const cmp = Number(state.compareAtAed)
       if (!Number.isFinite(cmp) || cmp < 0)
@@ -348,8 +351,7 @@ export function ProductForm(props: Props) {
     priceAed: Number(state.priceAed),
     compareAtAed:
       state.compareAtAed.trim() === "" ? null : Number(state.compareAtAed),
-    costPriceAed:
-      state.costPriceAed.trim() === "" ? null : Number(state.costPriceAed),
+    costPriceAed: Number(state.costPriceAed),
     isActive: state.isActive,
     isFinalSale: state.isFinalSale,
     variants: state.variants.map((v) => ({
@@ -641,6 +643,7 @@ export function ProductForm(props: Props) {
               step="0.01"
               value={state.costPriceAed}
               onChange={(e) => set("costPriceAed", e.target.value)}
+              required
             />
           </Field>
         </div>

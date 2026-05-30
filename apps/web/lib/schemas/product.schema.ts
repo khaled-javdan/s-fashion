@@ -51,7 +51,7 @@ const productBase = z.object({
   additionalInfoEn: z.string().trim().max(20000).nullish(),
   priceFils: z.number().int().min(0),
   compareAtFils: z.number().int().min(0).nullish(),
-  costPriceFils: z.number().int().min(0).nullish(),
+  costPriceFils: z.number().int().min(0),
   isActive: z.boolean().default(true),
   isFinalSale: z.boolean().default(false),
 });

@@ -557,7 +557,7 @@
         "additional_info_placeholder": "Care, materials, fit notes…",
         "price": "Price (AED)",
         "compare_at": "Compare-at price (AED, optional)",
-        "cost_price": "Cost price (AED, optional)",
+        "cost_price": "Cost price (AED)",
         "final_sale": "Final sale",
         "final_sale_desc": "No returns or exchanges",
         "active": "Active",
@@ -601,6 +601,7 @@
         "name_ar_required": "Arabic name is required.",
         "slug_invalid": "Slug must be lowercase letters, digits, and dashes.",
         "price_invalid": "Price must be a valid amount.",
+        "cost_price_invalid": "Cost price is required and must be 0 or more.",
         "compare_at_invalid": "Compare-at price must be a valid amount.",
         "variants_required": "Add at least one variant.",
         "variant_unique": "Each colour + size combination must be unique."
