@@ -1,0 +1,201 @@
+"use client"
+
+import { ChevronLeft, ChevronRight } from "lucide-react"
+import { useTranslations } from "next-intl"
+import Image from "next/image"
+import Link from "next/link"
+import { useRef, useState } from "react"
+
+import { cn } from "@workspace/ui/lib/utils"
+
+export type CardSlide = { url: string; alt: string }
+/** `index` is the slide to scroll to, or -1 for a decorative (no-image) color. */
+export type CardSwatch = { hex: string; label: string; index: number }
+
+/** Distinct color dots shown before collapsing the rest into a "+N" chip. */
+const MAX_SWATCHES = 4
+
+type Props = {
+  href: string
+  slides: CardSlide[]
+  swatches: CardSwatch[]
+  sizes: string
+  priority?: boolean
+  dimmed?: boolean
+  /** Non-interactive overlays (sale/stock badges) rendered over the image. */
+  overlay?: React.ReactNode
+}
+
+/**
+ * Swipeable product-card media: a horizontal, scroll-snapping carousel of the
+ * product's photos grouped by color, with hover arrows, dot indicators, and a
+ * swatch row that jumps to each color's first photo.
+ */
+export function ProductCardMedia({
+  href,
+  slides,
+  swatches,
+  sizes,
+  priority = false,
+  dimmed = false,
+  overlay,
+}: Props) {
+  const t = useTranslations("product")
+  const scroller = useRef<HTMLDivElement>(null)
+  const [active, setActive] = useState(0)
+  const multi = slides.length > 1
+
+  const goTo = (i: number) => {
+    const el = scroller.current?.children[i] as HTMLElement | undefined
+    el?.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" })
+  }
+
+  // Direction-agnostic active-slide detection (works in LTR and RTL).
+  const onScroll = () => {
+    const c = scroller.current
+    if (!c) return
+    const center = c.getBoundingClientRect().left + c.clientWidth / 2
+    let best = 0
+    let bestDist = Infinity
+    for (let i = 0; i < c.children.length; i++) {
+      const r = (c.children[i] as HTMLElement).getBoundingClientRect()
+      const dist = Math.abs(r.left + r.width / 2 - center)
+      if (dist < bestDist) {
+        bestDist = dist
+        best = i
+      }
+    }
+    setActive(best)
+  }
+
+  // Which jumpable swatch the active slide belongs to (highest index ≤ active).
+  let activeSwatch = -1
+  swatches.forEach((s, i) => {
+    if (s.index >= 0 && s.index <= active) activeSwatch = i
+  })
+
+  if (slides.length === 0) {
+    return <div className="bg-muted aspect-[3/4] w-full" />
+  }
+
+  const visibleSwatches = swatches.slice(0, MAX_SWATCHES)
+  const extra = swatches.length - MAX_SWATCHES
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="bg-muted relative aspect-[3/4] w-full overflow-hidden">
+        <div
+          ref={scroller}
+          onScroll={onScroll}
+          className="flex h-full w-full snap-x snap-mandatory overflow-x-auto overflow-y-hidden [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        >
+          {slides.map((s, i) => (
+            <Link
+              key={`${s.url}-${i}`}
+              href={href}
+              aria-hidden={i !== 0}
+              tabIndex={i === 0 ? undefined : -1}
+              className="relative block h-full w-full shrink-0 snap-center"
+            >
+              <Image
+                src={s.url}
+                alt={i === 0 ? s.alt : ""}
+                fill
+                priority={priority && i === 0}
+                sizes={sizes}
+                className={cn(
+                  "object-cover transition duration-500 group-hover:scale-105",
+                  dimmed && "opacity-50 grayscale",
+                )}
+              />
+            </Link>
+          ))}
+        </div>
+
+        {/* Badges / stock — must not capture pointer events so swipe + tap pass
+            through to the slides. */}
+        {overlay ? (
+          <div className="pointer-events-none absolute inset-0">{overlay}</div>
+        ) : null}
+
+        {multi ? (
+          <>
+            {active > 0 ? (
+              <button
+                type="button"
+                aria-label={t("carousel_prev")}
+                onClick={() => goTo(active - 1)}
+                className="bg-background/80 text-foreground hover:bg-background absolute start-2 top-1/2 hidden -translate-y-1/2 place-items-center rounded-full p-1.5 opacity-0 shadow transition group-hover:opacity-100 sm:grid"
+              >
+                <ChevronLeft className="size-4 rtl:hidden" />
+                <ChevronRight className="size-4 ltr:hidden" />
+              </button>
+            ) : null}
+            {active < slides.length - 1 ? (
+              <button
+                type="button"
+                aria-label={t("carousel_next")}
+                onClick={() => goTo(active + 1)}
+                className="bg-background/80 text-foreground hover:bg-background absolute end-2 top-1/2 hidden -translate-y-1/2 place-items-center rounded-full p-1.5 opacity-0 shadow transition group-hover:opacity-100 sm:grid"
+              >
+                <ChevronRight className="size-4 rtl:hidden" />
+                <ChevronLeft className="size-4 ltr:hidden" />
+              </button>
+            ) : null}
+
+            <div className="pointer-events-none absolute inset-x-0 bottom-2 flex justify-center gap-1">
+              {slides.map((_, i) => (
+                <span
+                  key={i}
+                  className={cn(
+                    "size-1.5 rounded-full transition-colors",
+                    i === active ? "bg-foreground" : "bg-foreground/30",
+                  )}
+                />
+              ))}
+            </div>
+          </>
+        ) : null}
+      </div>
+
+      {swatches.length > 0 ? (
+        <ul className="flex items-center gap-1.5">
+          {visibleSwatches.map((s, i) =>
+            s.index >= 0 ? (
+              <li key={s.hex}>
+                <button
+                  type="button"
+                  onClick={() => goTo(s.index)}
+                  aria-label={s.label}
+                  aria-pressed={activeSwatch === i}
+                  title={s.label || undefined}
+                  className={cn(
+                    "block size-3.5 rounded-full border transition",
+                    activeSwatch === i
+                      ? "ring-foreground border-background ring-2"
+                      : "border-border/70",
+                  )}
+                  style={{ backgroundColor: s.hex }}
+                />
+              </li>
+            ) : (
+              <li key={s.hex}>
+                <span
+                  className="border-border/70 block size-3.5 rounded-full border"
+                  style={{ backgroundColor: s.hex }}
+                  title={s.label || undefined}
+                  aria-hidden
+                />
+              </li>
+            ),
+          )}
+          {extra > 0 ? (
+            <li className="text-muted-foreground text-[11px] leading-none">
+              {t("more_colors", { count: extra })}
+            </li>
+          ) : null}
+        </ul>
+      ) : null}
+    </div>
+  )
+}

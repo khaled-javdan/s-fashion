@@ -1,6 +1,8 @@
 import { prisma, Prisma } from "@workspace/db";
 import type { Setting } from "@workspace/db";
 
+import type { GridConfig } from "@/lib/grid-config";
+
 /**
  * Known settings registry — keep in sync with the seed file and SPEC §4.
  * Each entry maps a key to its TypeScript shape; getSetting overloads use these.
@@ -23,6 +25,24 @@ export type KnownSettings = {
   };
   "order.max_items": number;
   "order.max_qty_per_variant": number;
+  /** Gateway model id for the admin AI copilot (see AI_MODEL_OPTIONS). */
+  "ai.model": string;
+  /** Storefront product-grid columns per breakpoint. */
+  "home.grid": GridConfig;
+};
+
+/**
+ * One approved product-copy example used to prime the AI's brand voice.
+ * Stored as a JSON array under the `ai.few_shot_examples` setting and edited
+ * via Prisma Studio for now (admin UI is a Phase 2 follow-up). Intentionally
+ * NOT part of `KnownSettings` — it isn't editable through the settings form,
+ * so the few-shot getter reads it via the generic `getSetting` overload.
+ */
+export type FewShotExample = {
+  nameEn: string;
+  nameAr: string;
+  descEn: string;
+  descAr: string;
 };
 
 export type SettingKey = keyof KnownSettings;
@@ -54,6 +74,27 @@ export async function setSetting(
     update: { value: value as Prisma.InputJsonValue },
     create: { key, value: value as Prisma.InputJsonValue },
   });
+}
+
+/**
+ * Typed getter for the AI few-shot priming examples. Returns `null` when the
+ * setting is absent or malformed — the prompt builders treat null as "no
+ * examples" and fall back to the generic brand-voice prompt. Additive helper;
+ * does not change any existing function.
+ */
+export async function getAiFewShotExamples(): Promise<FewShotExample[] | null> {
+  const raw = await getSetting<unknown>("ai.few_shot_examples");
+  if (!Array.isArray(raw)) return null;
+  const examples = raw.filter(
+    (e): e is FewShotExample =>
+      !!e &&
+      typeof e === "object" &&
+      typeof (e as FewShotExample).nameEn === "string" &&
+      typeof (e as FewShotExample).nameAr === "string" &&
+      typeof (e as FewShotExample).descEn === "string" &&
+      typeof (e as FewShotExample).descAr === "string",
+  );
+  return examples.length > 0 ? examples : null;
 }
 
 /** Returns all settings as a key → value map (raw JSON values). */

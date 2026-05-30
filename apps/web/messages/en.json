@@ -12,7 +12,8 @@
     "cart": "Cart",
     "language": "العربية",
     "open_menu": "Open menu",
-    "close_menu": "Close menu"
+    "close_menu": "Close menu",
+    "track": "Track order"
   },
   "footer": {
     "tagline": "Elegance, made for you.",
@@ -21,6 +22,7 @@
     "shop_all": "All Products",
     "shipping": "Shipping & Delivery",
     "returns": "Returns & Exchanges",
+    "track_order": "Track your order",
     "contact": "Contact",
     "about": "About",
     "follow_us": "Follow Us",
@@ -35,9 +37,29 @@
   "home": {
     "title": "S Fashion — Luxury mukhawar, delivered.",
     "coming_soon": "Coming soon — a new shopping experience.",
+    "eyebrow": "Mukhawar · United Arab Emirates",
     "hero_tagline": "Mukhawar made for you.",
+    "social_proof": "Loved by 160,000+ on Instagram",
+    "shop_cta": "Shop the collection",
+    "hero_slide_eyebrow": "New arrival",
+    "hero_carousel_label": "Featured pieces",
+    "hero_prev": "Previous slide",
+    "hero_next": "Next slide",
+    "hero_goto": "Go to slide {number}",
     "shop_heading": "New arrivals",
-    "empty": "No products available yet."
+    "shop_subheading": "Handcrafted mukhawar, ready to ship.",
+    "empty": "No products available yet.",
+    "density_label": "Grid density",
+    "density_option": "{count, plural, one {# column} other {# columns}}",
+    "trust_aria": "Why shop with us",
+    "trust_free_shipping_title": "Free shipping",
+    "trust_free_shipping_desc": "On orders over {amount}",
+    "trust_cod_title": "Cash on delivery",
+    "trust_cod_desc": "Pay when it arrives",
+    "trust_delivery_title": "Fast delivery",
+    "trust_delivery_desc": "1–3 business days",
+    "trust_support_title": "WhatsApp support",
+    "trust_support_desc": "We're a message away"
   },
   "product": {
     "select_size": "Select size",
@@ -49,35 +71,168 @@
     "add_to_cart": "Add to cart",
     "ask_on_whatsapp": "Ask on WhatsApp",
     "stub_heading": "Product page (placeholder)",
-    "stub_slug_label": "Slug"
+    "stub_slug_label": "Slug",
+    "added_to_cart_toast": "Added to cart",
+    "view_cart_action": "View cart",
+    "share": "Share",
+    "quantity_label": "Quantity",
+    "single_color_label": "Color: {color}",
+    "variant_unavailable": "This combination is unavailable",
+    "sale_badge": "Sale",
+    "discount_badge": "Save {percent}%",
+    "final_sale": "Final sale",
+    "low_stock_count": "{count, plural, one {Only 1 left} other {Only # left}}",
+    "more_colors": "+{count}",
+    "carousel_prev": "Previous image",
+    "carousel_next": "Next image",
+    "free_shipping_badge": "Free shipping over {amount}",
+    "share_whatsapp_text": "I'm interested in {name}: {url}",
+    "select_size_first": "Select a size",
+    "select_color_first": "Select a color",
+    "description_heading": "Description",
+    "read_more": "Read more",
+    "read_less": "Read less",
+    "size_chart_heading": "Size chart",
+    "size_chart_unit": "All measurements in centimetres",
+    "size_chart_size": "Size",
+    "size_chart_bust": "Bust",
+    "size_chart_waist": "Waist",
+    "size_chart_hips": "Hips",
+    "size_chart_length": "Length",
+    "thumbnail_label": "View image {number}",
+    "open_image": "Open image",
+    "close": "Close",
+    "previous_image": "Previous image",
+    "next_image": "Next image",
+    "you_may_also_like": "You may also like",
+    "recently_viewed": "Recently viewed"
   },
   "cart": {
     "empty": "Your cart is empty",
+    "empty_hint": "Browse our latest pieces and add something you love.",
+    "title": "Your cart",
+    "drawer_title": "Cart",
     "subtotal": "Subtotal",
     "checkout": "Checkout",
+    "view_full_cart": "View full cart",
+    "continue_shopping": "Continue shopping",
+    "remove": "Remove",
+    "remove_confirm": "Remove this item from your cart?",
+    "remove_confirm_title": "Remove item",
+    "remove_confirm_action": "Remove",
+    "increase_qty": "Increase quantity",
+    "decrease_qty": "Decrease quantity",
+    "quantity": "Quantity",
+    "max_qty_reached": "Maximum quantity reached",
+    "shipping_note": "Shipping calculated at checkout",
     "items_label": "{count, plural, =0 {No items} one {1 item} other {# items}}"
   },
   "checkout": {
+    "title": "Checkout",
     "contact_heading": "Contact details",
     "delivery_heading": "Delivery details",
+    "order_summary": "Order summary",
+    "show_summary": "Show order summary",
+    "hide_summary": "Hide order summary",
     "name": "Full name",
     "phone": "Phone number",
+    "phone_hint": "We'll send a verification code by SMS",
+    "email": "Email (optional)",
     "emirate": "Emirate",
+    "emirate_placeholder": "Select an emirate",
     "city": "City",
     "address_1": "Address",
-    "address_2": "Apartment, building, etc.",
-    "notes": "Notes",
+    "address_2": "Apartment, building, etc. (optional)",
+    "notes": "Notes (optional)",
+    "subtotal": "Subtotal",
     "shipping_fee": "Shipping",
+    "shipping_free": "Free",
     "total": "Total",
     "place_order": "Place order",
+    "placing_order": "Sending code…",
+    "verifying": "Verifying…",
+    "empty_cart": "Your cart is empty.",
+    "back_to_cart": "Back to cart",
     "otp_heading": "Verify your phone",
-    "otp_helper": "Enter the 6-digit code we sent you",
-    "resend_otp": "Resend code"
+    "otp_helper": "Enter the 6-digit code we sent to {phone}",
+    "otp_submit": "Verify & place order",
+    "resend_otp": "Resend code",
+    "resend_in": "Resend in {seconds}s",
+    "edit_details": "Edit details",
+    "free_shipping_remaining": "Spend {amount} more for free shipping",
+    "free_shipping_unlocked": "You've unlocked free shipping!",
+    "error_generic": "Something went wrong. Please try again.",
+    "error_too_many": "Too many attempts. Please try again later.",
+    "error_invalid_code": "Invalid code. Please check and try again.",
+    "error_out_of_stock": "Sorry, one or more items just went out of stock.",
+    "field_required": "This field is required.",
+    "invalid_phone": "Enter a valid phone number.",
+    "invalid_email": "Enter a valid email address.",
+    "name_too_short": "Please enter your full name.",
+    "address_too_short": "Please enter a complete address.",
+    "marketing_consent": "Send me offers & new arrivals on WhatsApp"
   },
   "order": {
     "success_heading": "We've received your order",
+    "success_subtitle": "Thank you! We'll confirm your order shortly.",
     "order_number": "Order number",
-    "expected_delivery": "Delivery in 1–3 business days"
+    "customer": "Customer",
+    "items_heading": "Order details",
+    "subtotal": "Subtotal",
+    "shipping_fee": "Shipping",
+    "shipping_free": "Free",
+    "total": "Total",
+    "delivery_to": "Delivery address",
+    "expected_delivery": "Delivery in 1–3 business days",
+    "whatsapp_button": "Ask about this order on WhatsApp",
+    "whatsapp_prefill": "Hello, I have a question about order {orderNumber}.",
+    "continue_shopping": "Continue shopping",
+    "quantity_short": "Qty",
+    "status_heading": "Order status",
+    "status": {
+      "PENDING_VERIFICATION": "Awaiting confirmation",
+      "NEW": "Order received",
+      "CONFIRMED": "Confirmed",
+      "SHIPPED": "Shipped",
+      "DELIVERED": "Delivered",
+      "REFUSED": "Refused",
+      "CANCELLED": "Cancelled"
+    }
+  },
+  "tracking": {
+    "title": "Track your order",
+    "subtitle": "Enter your order number and the phone number you used at checkout.",
+    "order_number_label": "Order number",
+    "order_number_placeholder": "SF-2026-00001",
+    "phone_label": "Phone number",
+    "phone_placeholder": "05X XXX XXXX",
+    "submit": "Track order",
+    "searching": "Searching…",
+    "not_found": "We couldn't find an order matching that number and phone. Please check both and try again.",
+    "result_heading": "Order {orderNumber}",
+    "placed_on": "Placed on {date}",
+    "items_count": "{count, plural, one {# item} other {# items}}",
+    "total": "Total",
+    "cancelled_note": "This order was cancelled. If you have questions, contact us on WhatsApp.",
+    "refused_note": "This order was refused. If you have questions, contact us on WhatsApp.",
+    "step_placed": "Order received",
+    "step_confirmed": "Confirmed",
+    "step_shipped": "Shipped",
+    "step_delivered": "Delivered",
+    "awaiting_verification_note": "We're still awaiting confirmation of your phone number for this order.",
+    "view_details": "View full order details",
+    "home_heading": "Already ordered?",
+    "home_subheading": "Check the status of your order any time.",
+    "home_cta": "Track your order"
+  },
+  "emirate": {
+    "ABU_DHABI": "Abu Dhabi",
+    "DUBAI": "Dubai",
+    "SHARJAH": "Sharjah",
+    "AJMAN": "Ajman",
+    "UMM_AL_QUWAIN": "Umm Al Quwain",
+    "RAS_AL_KHAIMAH": "Ras Al Khaimah",
+    "FUJAIRAH": "Fujairah"
   },
   "cookie": {
     "message": "We use cookies to improve your experience.",
@@ -88,16 +243,135 @@
     "open_label": "Chat with us on WhatsApp",
     "prefill_message": "Hello, I have a question about your products."
   },
+  "shipping": {
+    "title": "Shipping & Delivery",
+    "intro": "We deliver to all seven emirates of the UAE. Here's everything you need to know about getting your order to your door.",
+    "fees_heading": "Delivery fees",
+    "fees_flat": "A flat delivery fee of {flat} applies to every order, anywhere in the UAE.",
+    "fees_free": "Enjoy free delivery on orders over {threshold}.",
+    "sections": [
+      {
+        "heading": "Delivery times",
+        "body": [
+          "Orders placed before 4pm are processed the same business day; orders after that are processed the next business day.",
+          "Delivery then takes 1–3 business days depending on your emirate."
+        ],
+        "items": [
+          "Dubai, Sharjah & Ajman: 1–2 business days.",
+          "Abu Dhabi, Al Ain, Ras Al Khaimah, Fujairah & Umm Al Quwain: 2–3 business days."
+        ]
+      },
+      {
+        "heading": "Cash on delivery",
+        "body": [
+          "Pay in cash when your order arrives — no card needed. Please have the exact amount ready, as our couriers may not carry change."
+        ]
+      },
+      {
+        "heading": "Order confirmation",
+        "body": [
+          "After you place an order, we'll reach out on WhatsApp to confirm your details before dispatch. This keeps your delivery smooth and avoids failed attempts."
+        ]
+      }
+    ],
+    "track_blurb": "Already placed an order? Follow its journey anytime.",
+    "track_cta": "Track your order"
+  },
+  "returns": {
+    "title": "Returns & Exchanges",
+    "intro": "Not quite right? We want you to love what you wear. You can return or exchange most items within 14 days of delivery.",
+    "sections": [
+      {
+        "heading": "Return window",
+        "body": [
+          "You have 14 days from the day your order arrives to request a return or exchange. Reach out before the window closes and we'll take care of the rest."
+        ]
+      },
+      {
+        "heading": "Condition of items",
+        "body": ["To be eligible for a return, items must be:"],
+        "items": [
+          "Unworn, unwashed and undamaged.",
+          "With all original tags still attached.",
+          "In their original packaging."
+        ]
+      },
+      {
+        "heading": "Non-returnable items",
+        "body": ["For hygiene and fairness, the following can't be returned:"],
+        "items": [
+          "Pierced jewellery such as earrings.",
+          "Items marked as final sale."
+        ]
+      },
+      {
+        "heading": "How to request a return",
+        "body": [
+          "Message us on WhatsApp or use our contact page with your order number and a quick note on what you'd like to do. We'll arrange a pickup or guide you through the next steps."
+        ]
+      },
+      {
+        "heading": "Refunds",
+        "body": [
+          "Once we receive and inspect your return, we'll let you know it's approved. Cash-on-delivery orders are refunded by bank transfer within 5–7 business days of approval."
+        ]
+      },
+      {
+        "heading": "Exchanges",
+        "body": [
+          "Need a different size or colour? Let us know and, subject to availability, we'll arrange the swap. If your new choice differs in price, we'll settle the difference with you directly."
+        ]
+      }
+    ]
+  },
+  "contact": {
+    "title": "Contact Us",
+    "intro": "Have a question about an order, a product, or anything else? We're always happy to help.",
+    "whatsapp_heading": "WhatsApp",
+    "whatsapp_desc": "The fastest way to reach us. Tap below and we'll reply during business hours.",
+    "whatsapp_cta": "Chat on WhatsApp",
+    "email_heading": "Email",
+    "email_desc": "Prefer to write? Send us a message and we'll get back to you within one business day.",
+    "hours_heading": "Business hours",
+    "hours_note": "Messages received outside these hours will be answered the next business day.",
+    "hours_fallback": "Sat–Thu, 10am – 10pm"
+  },
+  "about": {
+    "title": "About S Fashion",
+    "intro": "Elegance, made for you.",
+    "sections": [
+      {
+        "heading": "Our story",
+        "body": [
+          "S Fashion began in the UAE with a simple idea: timeless, elegant pieces that feel made for the women who wear them. We curate every collection with intention — fewer, better things you'll reach for again and again."
+        ]
+      },
+      {
+        "heading": "What we stand for",
+        "body": [
+          "Carefully chosen fabrics, considered fits, and details built to last beyond a single season. We'd rather earn your trust with quality than chase fleeting trends."
+        ]
+      },
+      {
+        "heading": "Made for the UAE",
+        "body": [
+          "From Dubai to Fujairah, we design and deliver with our community in mind: quick local delivery, the comfort of cash on delivery, and a real person on WhatsApp whenever you need us."
+        ]
+      }
+    ]
+  },
   "admin": {
     "brand": "S Fashion",
     "panel_label": "Admin",
     "soon": "Soon",
     "logout": "Log out",
+    "view_store": "View store",
     "language_label": "Language",
     "language_toggle": "العربية",
     "nav": {
       "dashboard": "Dashboard",
       "orders": "Orders",
+      "customers": "Customers",
       "products": "Products",
       "settings": "Settings"
     },
@@ -115,10 +389,448 @@
     },
     "dashboard": {
       "welcome": "Welcome, {name}",
-      "subtitle": "Round 1 scaffold. Real dashboards land in Round 2.",
+      "subtitle": "Your store at a glance.",
       "orders_today": "Orders today",
       "pending_orders": "Pending orders",
       "low_stock": "Low stock"
+    },
+    "analytics": {
+      "heading": "Analytics",
+      "period": "Last 30 days",
+      "n_days": "{days} days",
+      "apply": "Apply",
+      "from": "From",
+      "to": "To",
+      "total_sales": "Total sales",
+      "net_revenue": "Net revenue",
+      "collected": "Collected",
+      "orders": "Orders",
+      "avg_order_value": "Average order value",
+      "units_sold": "Units sold",
+      "sales_over_time": "Sales vs collected",
+      "top_products": "Top products",
+      "revenue": "Revenue",
+      "no_sales": "No sales in this period yet."
+    },
+    "orders": {
+      "list": {
+        "title": "Orders",
+        "count": "{count, plural, one {# order} other {# orders}}",
+        "unverified_suffix": " · unverified",
+        "view_unverified": "View unverified",
+        "back_to_all": "Back to all orders"
+      },
+      "pagination": {
+        "page_of": "Page {page} of {total}",
+        "previous": "Previous",
+        "next": "Next"
+      },
+      "tabs": {
+        "all": "All"
+      },
+      "search": {
+        "placeholder": "Search order # or phone",
+        "aria_label": "Search orders"
+      },
+      "table": {
+        "empty": "No orders match this view.",
+        "order_number": "Order #",
+        "customer": "Customer",
+        "phone": "Phone",
+        "emirate": "Emirate",
+        "total": "Total",
+        "status": "Status",
+        "created": "Created",
+        "item": "Item",
+        "size": "Size",
+        "qty": "Qty",
+        "unit": "Unit"
+      },
+      "detail": {
+        "back": "← Back to orders",
+        "print": "Print",
+        "notes": "Notes",
+        "items": "Items",
+        "summary": "Summary",
+        "subtotal": "Subtotal",
+        "shipping": "Shipping",
+        "free": "Free",
+        "total_cod": "Total (COD)",
+        "whatsapp_message": "Hi {name}, regarding your order {orderNumber}"
+      },
+      "customer": {
+        "heading": "Customer",
+        "copy": "Copy",
+        "copied": "Copied",
+        "copy_address": "Copy address"
+      },
+      "actions": {
+        "heading": "Actions",
+        "final_state": "This order is in a final state. No further transitions are available.",
+        "confirm": "Confirm",
+        "cancel": "Cancel",
+        "ship": "Ship",
+        "mark_delivered": "Mark delivered",
+        "refused": "Refused",
+        "cancel_reason_prompt": "Reason for cancelling (optional):",
+        "refuse_reason_prompt": "Reason for refusal (optional):"
+      },
+      "timeline": {
+        "heading": "Timeline",
+        "transition": "{from} → {to}",
+        "set_to": "Set to {to}",
+        "status_changed": "Status changed",
+        "note_added": "Note added",
+        "courier_assigned": "Courier assigned",
+        "system_event": "System event"
+      },
+      "print": {
+        "hand_off": "Order hand-off",
+        "order_number": "Order #",
+        "deliver_to": "Deliver to",
+        "notes": "Notes",
+        "items": "Items",
+        "collect_cod": "Collect (COD)"
+      },
+      "status": {
+        "PENDING_VERIFICATION": "Unverified",
+        "NEW": "New",
+        "CONFIRMED": "Confirmed",
+        "SHIPPED": "Shipped",
+        "DELIVERED": "Delivered",
+        "REFUSED": "Refused",
+        "CANCELLED": "Cancelled"
+      }
+    },
+    "products": {
+      "list": {
+        "title": "Products",
+        "count": "{count, plural, one {# product} other {# products}}",
+        "new": "New product",
+        "empty": "No products yet. Create your first product to see it here."
+      },
+      "nav": {
+        "back": "Back to products"
+      },
+      "status": {
+        "active": "Active",
+        "hidden": "Hidden"
+      },
+      "table": {
+        "image": "Image",
+        "name": "Name",
+        "price": "Price",
+        "stock": "Stock",
+        "active": "Active",
+        "edit": "Edit",
+        "out_of_stock": "Out",
+        "toggle_active": "Toggle active"
+      },
+      "sections": {
+        "images": "Images",
+        "basics": "Basics",
+        "variants": "Variants"
+      },
+      "form": {
+        "new_title": "New product",
+        "name_en": "Name (English)",
+        "name_ar": "Name (Arabic)",
+        "slug": "Slug",
+        "desc_en": "Description (English)",
+        "desc_ar": "Description (Arabic)",
+        "price": "Price (AED)",
+        "compare_at": "Compare-at price (AED, optional)",
+        "final_sale": "Final sale",
+        "final_sale_desc": "No returns or exchanges",
+        "active": "Active",
+        "active_desc": "Visible to customers",
+        "hide": "Hide product",
+        "restore": "Restore product"
+      },
+      "variants": {
+        "color": "Colour",
+        "color_en": "Colour (EN)",
+        "color_ar": "Colour (AR)",
+        "size": "Size",
+        "stock": "Stock",
+        "sku": "SKU",
+        "sku_placeholder": "optional",
+        "remove": "Remove variant",
+        "add": "Add variant",
+        "duplicate": "Duplicate colour + size. Each combination must be unique."
+      },
+      "images": {
+        "dropzone": "Drag & drop images, or click to browse",
+        "uploading": "Uploading {count}…",
+        "hint": "JPEG, PNG, or WebP · up to 8 MB each",
+        "error_type": "{name}: unsupported type. Use JPEG, PNG, or WebP.",
+        "error_size": "{name}: larger than 8 MB.",
+        "error_delete": "Could not delete image from storage: {error}",
+        "remove": "Remove image",
+        "move_earlier": "Move earlier",
+        "move_later": "Move later",
+        "color_for": "Color for image {index}",
+        "no_color": "No color"
+      },
+      "ai": {
+        "analyzing": "Analyzing {count, plural, one {image} other {# images}}… detecting colour and copy.",
+        "hint": "Each image you upload is analyzed — its colour is added as a variant; name and description are filled while empty.",
+        "analyze_error": "Could not analyze the image."
+      },
+      "validation": {
+        "name_en_required": "English name is required.",
+        "name_ar_required": "Arabic name is required.",
+        "slug_invalid": "Slug must be lowercase letters, digits, and dashes.",
+        "price_invalid": "Price must be a valid amount.",
+        "compare_at_invalid": "Compare-at price must be a valid amount.",
+        "variants_required": "Add at least one variant.",
+        "variant_unique": "Each colour + size combination must be unique."
+      },
+      "toast": {
+        "created": "Product created.",
+        "saved": "Product saved.",
+        "restored": "Product restored.",
+        "hidden": "Product hidden.",
+        "now_visible": "Product is now visible to customers.",
+        "now_hidden": "Product hidden from customers."
+      }
+    },
+    "settings": {
+      "page": {
+        "heading": "Settings",
+        "description": "Store configuration. Changes apply to the customer storefront immediately."
+      },
+      "tabs": {
+        "hero": "Home hero",
+        "shipping": "Shipping",
+        "contact": "Contact",
+        "grid": "Grid layout",
+        "size_chart": "Size chart",
+        "limits": "Order limits",
+        "ai": "AI"
+      },
+      "hero": {
+        "card_title": "Home hero",
+        "card_description": "The carousel at the top of the storefront home page. Add one or more slides — each with its own image, bilingual copy, and a button linking to any internal route.",
+        "show_label": "Show custom hero",
+        "show_help": "When off, the storefront shows the product carousel.",
+        "empty_state": "No slides yet. Add your first hero slide.",
+        "add_slide": "Add slide",
+        "slide_number": "Slide {number}",
+        "move_up_aria": "Move slide up",
+        "move_down_aria": "Move slide down",
+        "remove_slide_aria": "Remove slide",
+        "image_label": "Image",
+        "image_preview_alt": "Slide {number} preview",
+        "remove_image_aria": "Remove image",
+        "uploading": "Uploading…",
+        "upload_prompt": "Upload image · JPEG, PNG, WebP · ≤ 8 MB",
+        "ai_idle_hint": "Upload a slide image and AI will suggest the eyebrow, headline, subtext, and button label.",
+        "eyebrow_label": "Eyebrow (small label above the headline)",
+        "headline_label": "Headline",
+        "subtext_label": "Subtext",
+        "cta_label_label": "Button label",
+        "button_link_label": "Button link",
+        "product_link_placeholder": "Link to a product…",
+        "button_link_help": "Pick a popular product above, or type any internal path — e.g. <code>/products/abaya-noor</code>, <code>/cart</code>, or <code>#shop</code>. The whole slide links here; the language prefix is added automatically.",
+        "field_english": "English",
+        "field_arabic": "Arabic",
+        "error_no_slides": "Add at least one slide before enabling the hero.",
+        "error_missing_image": "Every slide needs an image — upload one or remove the slide.",
+        "saved_toast": "Home hero saved.",
+        "image_uploaded_toast": "Image uploaded."
+      },
+      "shipping": {
+        "card_title": "Shipping fees",
+        "card_description": "Flat fee charged at checkout and the order value above which shipping is free.",
+        "flat_fee_label": "Flat shipping fee (AED)",
+        "threshold_label": "Free shipping over (AED)",
+        "flat_fee_error": "Flat fee must be a valid amount.",
+        "threshold_error": "Free-shipping threshold must be a valid amount.",
+        "saved_toast": "Shipping settings saved.",
+        "failed": "Failed."
+      },
+      "contact": {
+        "card_title": "Contact details",
+        "card_description": "Used by the floating WhatsApp button and the footer.",
+        "whatsapp_label": "WhatsApp number",
+        "whatsapp_help": "International format with country code, e.g. +971501234567.",
+        "hours_en_label": "Business hours (English)",
+        "hours_ar_label": "Business hours (Arabic)",
+        "saved_toast": "Contact settings saved."
+      },
+      "grid": {
+        "card_title": "Product grid",
+        "card_description": "How many product columns the storefront shows at each screen size. Shoppers can still toggle mobile density themselves.",
+        "mobile_label": "Mobile columns",
+        "tablet_label": "Tablet columns",
+        "desktop_label": "Desktop columns",
+        "mobile_hint": "Shoppers can still switch between {min} and {max} columns on mobile; this sets the default.",
+        "saved_toast": "Grid layout saved."
+      },
+      "size_chart": {
+        "card_title": "Size chart",
+        "card_description": "Shown in the product size-chart modal. Measurements in centimetres.",
+        "col_size": "Size",
+        "col_bust": "Bust (cm)",
+        "col_waist": "Waist (cm)",
+        "col_hips": "Hips (cm)",
+        "col_length": "Length (cm)",
+        "size_label_aria": "Size label",
+        "remove_row_aria": "Remove row",
+        "add_row": "Add size",
+        "blank_hint": "Leave a measurement blank to hide it for that size (e.g. the free size).",
+        "size_required_error": "Every row needs a size label.",
+        "length_error": "Length for \"{size}\" must be a valid number.",
+        "saved_toast": "Size chart saved."
+      },
+      "limits": {
+        "card_title": "Order limits",
+        "card_description": "Anti-abuse caps enforced at checkout.",
+        "max_items_label": "Max items per order",
+        "max_qty_label": "Max quantity per variant",
+        "max_items_min_error": "Max items must be at least 1.",
+        "max_qty_min_error": "Max quantity per variant must be at least 1.",
+        "saved_toast": "Order limits saved."
+      },
+      "ai_model": {
+        "card_title": "AI model",
+        "card_description": "The Gateway model powering the admin AI copilot (image suggestions, translate, rewrite). Applies to new requests immediately — no redeploy.",
+        "label": "Model",
+        "tier_free": "Free tier",
+        "tier_paid": "Paid credits",
+        "paid_note": "Paid-credit models (e.g. Claude) require a top-up on Vercel AI Gateway. Free-tier models work on your monthly free credits — handy for testing.",
+        "save_button": "Save model",
+        "saved_toast": "AI model saved."
+      }
+    },
+    "customers": {
+      "list": {
+        "title": "Customers",
+        "summary": "{total} total · {subscribed} subscribed to marketing",
+        "matches": "{count, plural, one {# match} other {# matches}}"
+      },
+      "filters": {
+        "search_label": "Search name or phone",
+        "search_placeholder": "Name or +9715…",
+        "emirate": "Emirate",
+        "all": "All",
+        "subscribed_only": "Subscribed only",
+        "repeat_buyers": "Repeat buyers",
+        "apply": "Filter",
+        "clear": "Clear"
+      },
+      "pagination": {
+        "page": "Page {current} of {total}",
+        "previous": "Previous",
+        "next": "Next"
+      },
+      "table": {
+        "name": "Name",
+        "phone": "Phone",
+        "emirate": "Emirate",
+        "orders": "Orders",
+        "total_spent": "Total spent",
+        "last_order": "Last order",
+        "marketing": "Marketing"
+      },
+      "marketing_status": {
+        "subscribed": "Subscribed",
+        "not_subscribed": "Not subscribed"
+      },
+      "empty": "No customers found.",
+      "detail": {
+        "back": "Back to customers"
+      },
+      "stats": {
+        "orders": "Orders",
+        "total_spent": "Total spent",
+        "last_order": "Last order"
+      },
+      "contact": {
+        "heading": "Contact",
+        "email": "Email",
+        "emirate": "Emirate",
+        "address": "Address",
+        "preferred_language": "Preferred language"
+      },
+      "marketing": {
+        "heading": "Marketing",
+        "status": "Status",
+        "opted_in": "Opted in",
+        "source": "Source",
+        "unsubscribed": "Unsubscribed"
+      },
+      "orders": {
+        "heading": "Order history",
+        "empty": "No orders yet.",
+        "table": {
+          "order": "Order",
+          "date": "Date",
+          "status": "Status",
+          "items": "Items",
+          "total": "Total"
+        }
+      }
+    },
+    "ai": {
+      "rewrite": {
+        "trigger": "Rewrite with AI",
+        "heading": "Rewrite",
+        "tone": {
+          "shorter": "Shorter",
+          "longer": "Longer",
+          "more_luxurious": "More luxurious",
+          "more_casual": "More casual",
+          "more_formal": "More formal",
+          "punchier": "Punchier"
+        }
+      },
+      "suggestion": {
+        "badge": "AI suggested",
+        "tooltip": "This value was suggested by AI. Edit it to override."
+      },
+      "translate": {
+        "title": "Translate {from} to {to}",
+        "pair_label": "Translate {from} → {to}",
+        "empty_hint": "Enter text in one language to translate"
+      },
+      "analyze": {
+        "heading": "AI suggestions",
+        "idle_hint": "Upload an image and AI will suggest content for the fields below.",
+        "generating": "✨ Analyzing {count, plural, one {image} other {images}}…",
+        "regenerate": "Generate new AI suggestions",
+        "dismiss": "Dismiss",
+        "use": "Use",
+        "use_all": "Use all",
+        "colours": "{count, plural, one {Colour:} other {Colours ({count}):}}",
+        "field": {
+          "nameEn": "Name (EN)",
+          "nameAr": "Name (AR)",
+          "descEn": "Description (EN)",
+          "descAr": "Description (AR)",
+          "slug": "Slug",
+          "eyebrowEn": "Eyebrow (EN)",
+          "eyebrowAr": "Eyebrow (AR)",
+          "headlineEn": "Headline (EN)",
+          "headlineAr": "Headline (AR)",
+          "subtextEn": "Subtext (EN)",
+          "subtextAr": "Subtext (AR)",
+          "ctaLabelEn": "Button label (EN)",
+          "ctaLabelAr": "Button label (AR)"
+        }
+      }
+    },
+    "common": {
+      "save_bar": {
+        "unsaved": "Unsaved changes",
+        "save": "Save",
+        "discard": "Discard"
+      },
+      "edit_bar": {
+        "admin": "Admin",
+        "dashboard": "Dashboard"
+      }
     }
   }
 }

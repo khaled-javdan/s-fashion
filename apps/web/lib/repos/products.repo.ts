@@ -1,4 +1,4 @@
-import { prisma, Prisma } from "@workspace/db";
+import { prisma, Prisma, OrderStatus } from "@workspace/db";
 import type {
   Product,
   ProductVariant,
@@ -33,6 +33,156 @@ export async function listActiveProducts(
       images: { orderBy: { position: "asc" } },
     },
   });
+}
+
+/** Minimal product shape for link pickers (hero CTA, etc.). */
+export type ProductLinkOption = {
+  slug: string;
+  nameEn: string;
+  nameAr: string;
+};
+
+/**
+ * Active products ranked best-seller-first: by total quantity sold across
+ * orders that actually count (excludes cancelled / refused / unverified).
+ * Products with no sales are appended newest-first, so the list is never empty
+ * on a fresh store. Returns at most `take` entries.
+ */
+export async function listPopularProducts(
+  take = 10,
+): Promise<ProductLinkOption[]> {
+  // 1. Sum sold quantity per variant from orders that count.
+  const sold = await prisma.orderItem.groupBy({
+    by: ["variantId"],
+    _sum: { quantity: true },
+    where: {
+      order: {
+        status: {
+          notIn: [
+            OrderStatus.CANCELLED,
+            OrderStatus.REFUSED,
+            OrderStatus.PENDING_VERIFICATION,
+          ],
+        },
+      },
+    },
+  });
+
+  // 2. Roll variant sales up to their product.
+  const soldByProduct = new Map<string, number>();
+  if (sold.length > 0) {
+    const variants = await prisma.productVariant.findMany({
+      where: { id: { in: sold.map((s) => s.variantId) } },
+      select: { id: true, productId: true },
+    });
+    const variantToProduct = new Map(
+      variants.map((v) => [v.id, v.productId]),
+    );
+    for (const row of sold) {
+      const productId = variantToProduct.get(row.variantId);
+      if (!productId) continue;
+      soldByProduct.set(
+        productId,
+        (soldByProduct.get(productId) ?? 0) + (row._sum.quantity ?? 0),
+      );
+    }
+  }
+  const rankedIds = [...soldByProduct.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([id]) => id);
+
+  // 3. Active products, newest first; reorder best-sellers to the front.
+  const products = await prisma.product.findMany({
+    where: { isActive: true },
+    orderBy: { createdAt: "desc" },
+    select: { id: true, slug: true, nameEn: true, nameAr: true },
+  });
+  const byId = new Map(products.map((p) => [p.id, p]));
+
+  const out: ProductLinkOption[] = [];
+  const used = new Set<string>();
+  const push = (p: { slug: string; nameEn: string; nameAr: string }) =>
+    out.push({ slug: p.slug, nameEn: p.nameEn, nameAr: p.nameAr });
+
+  for (const id of rankedIds) {
+    const p = byId.get(id);
+    if (p && !used.has(id)) {
+      used.add(id);
+      push(p);
+    }
+    if (out.length >= take) return out;
+  }
+  for (const p of products) {
+    if (used.has(p.id)) continue;
+    used.add(p.id);
+    push(p);
+    if (out.length >= take) break;
+  }
+  return out;
+}
+
+/** Stock at or below this is considered "low" for dashboard alerts. */
+export const LOW_STOCK_THRESHOLD = 3;
+
+/** Count variants of active products that are at or below the low-stock line. */
+export async function countLowStockVariants(
+  threshold = LOW_STOCK_THRESHOLD,
+): Promise<number> {
+  return prisma.productVariant.count({
+    where: {
+      stock: { lte: threshold },
+      product: { isActive: true },
+    },
+  });
+}
+
+/**
+ * "You may also like" — active products related to the given one. With no
+ * categories in the model, relatedness is price proximity: candidates within
+ * ±40% of the price, sorted by closeness, then topped up with newest products
+ * so the row is never short. Excludes the current product.
+ */
+export async function listSimilarProducts(opts: {
+  excludeId: string;
+  priceFils: number;
+  take?: number;
+}): Promise<ProductWithRelations[]> {
+  const take = opts.take ?? 8;
+  const lo = Math.floor(opts.priceFils * 0.6);
+  const hi = Math.ceil(opts.priceFils * 1.4);
+
+  // `variants: { some: stock > 0 }` keeps only products with something in
+  // stock, so fully sold-out products are never recommended.
+  const inStock = { variants: { some: { stock: { gt: 0 } } } };
+  const band = await prisma.product.findMany({
+    where: {
+      isActive: true,
+      id: { not: opts.excludeId },
+      priceFils: { gte: lo, lte: hi },
+      ...inStock,
+    },
+    orderBy: { createdAt: "desc" },
+    take: take * 3,
+    include: { variants: true, images: { orderBy: { position: "asc" } } },
+  });
+  band.sort(
+    (a, b) =>
+      Math.abs(a.priceFils - opts.priceFils) -
+      Math.abs(b.priceFils - opts.priceFils),
+  );
+
+  const picked = band.slice(0, take);
+  if (picked.length >= take) return picked;
+
+  // Top up with the newest other products not already included.
+  const excludeIds = [opts.excludeId, ...picked.map((p) => p.id)];
+  const fill = await prisma.product.findMany({
+    where: { isActive: true, id: { notIn: excludeIds }, ...inStock },
+    orderBy: { createdAt: "desc" },
+    take: take - picked.length,
+    include: { variants: true, images: { orderBy: { position: "asc" } } },
+  });
+  return [...picked, ...fill];
 }
 
 /** PDP fetch. Returns `null` when slug doesn't exist OR product is inactive. */
@@ -109,6 +259,7 @@ export async function createProduct(
             url: i.url,
             altAr: i.altAr ?? null,
             altEn: i.altEn ?? null,
+            colorHex: i.colorHex ?? null,
             position: i.position ?? idx,
           })),
         },
@@ -204,6 +355,7 @@ export async function updateProduct(
             url: i.url,
             altAr: i.altAr ?? null,
             altEn: i.altEn ?? null,
+            colorHex: i.colorHex ?? null,
             position: i.position ?? idx,
           })),
         });

@@ -39,6 +39,8 @@ export const orderCreateSchema = z.object({
   addressLine2: z.string().trim().max(200).optional(),
   notes: z.string().trim().max(500).optional(),
   locale: z.union([z.literal("ar"), z.literal("en")]),
+  /** Marketing opt-in (WhatsApp offers / new arrivals). Defaults to no consent. */
+  marketingConsent: z.boolean().optional().default(false),
   items: z.array(orderItemInputSchema).min(1),
 });
 export type OrderCreateInput = z.infer<typeof orderCreateSchema>;

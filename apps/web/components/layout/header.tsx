@@ -22,7 +22,7 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80">
-      <div className="mx-auto flex h-14 w-full max-w-7xl items-center px-4 sm:h-16 sm:px-6">
+      <div className="mx-auto flex h-14 w-full max-w-7xl items-center px-4 sm:h-16 sm:px-6 lg:px-0">
         {/* Mobile-only: locale switcher pinned to the start. */}
         <div className="flex flex-1 justify-start md:hidden">
           <LocaleSwitcher />
@@ -38,13 +38,19 @@ export function Header() {
           <BrandWordmark locale={locale} />
         </div>
 
-        {/* Desktop-only: top nav. v1 has a single link ("All Products"). */}
-        <nav className="hidden md:flex md:flex-1 md:items-center md:justify-center">
+        {/* Desktop-only: top nav. */}
+        <nav className="hidden md:flex md:flex-1 md:items-center md:justify-center md:gap-8">
           <Link
             href={`/${locale}`}
             className="text-xs font-semibold uppercase tracking-widest text-foreground/80 hover:text-foreground"
           >
             {t("shop_all")}
+          </Link>
+          <Link
+            href={`/${locale}/orders/track`}
+            className="text-xs font-semibold uppercase tracking-widest text-foreground/80 hover:text-foreground"
+          >
+            {t("track")}
           </Link>
         </nav>
 

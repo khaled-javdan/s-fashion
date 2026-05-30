@@ -49,15 +49,56 @@ model ProductImage {
   url       String
   altAr     String?
   altEn     String?
+  /**
+   * Optional color this photo depicts, matched to a variant's colorHex.
+   */
+  colorHex  String?
   position  Int     @default(0)
 
   @@index([productId, position])
+}
+
+/**
+ * A deduplicated customer, keyed on verified E.164 phone. Upserted at order
+ * creation (the OTP has already passed by then, so the phone is real). Holds
+ * the latest contact/address snapshot plus marketing-consent state for future
+ * WhatsApp/offer campaigns. Lifetime stats (order count, total spent) are
+ * derived from `orders` at read time — intentionally not denormalised here.
+ */
+model Customer {
+  id               String    @id @default(cuid())
+  phone            String    @unique // E.164, e.g. +971501234567
+  name             String
+  email            String?
+  locale           String // "ar" or "en" — last locale the customer used
+  // Latest delivery snapshot (refreshed on each order).
+  emirate          Emirate?
+  city             String?
+  addressLine1     String?
+  addressLine2     String?
+  // Marketing consent. `marketingConsent` is the live flag; the timestamps
+  // record when it was granted / revoked, and `consentSource` how (e.g.
+  // "checkout"). Consent is only ever granted implicitly — never auto-revoked.
+  marketingConsent Boolean   @default(false)
+  consentAt        DateTime?
+  unsubscribedAt   DateTime?
+  consentSource    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  orders Order[]
+
+  @@index([marketingConsent])
+  @@index([emirate])
 }
 
 model Order {
   id            String       @id @default(cuid())
   orderNumber   String       @unique
   status        OrderStatus  @default(PENDING_VERIFICATION)
+  customerId    String?
+  customer      Customer?    @relation(fields: [customerId], references: [id])
   customerName  String
   phone         String // E.164, e.g. +971501234567
   phoneVerified Boolean      @default(false)
@@ -83,6 +124,7 @@ model Order {
 
   @@index([status, createdAt])
   @@index([phone])
+  @@index([customerId])
 }
 
 model OrderItem {

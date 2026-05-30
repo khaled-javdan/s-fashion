@@ -1,11 +1,7 @@
 /**
- * i18n routing middleware.
+ * i18n routing proxy (Next.js 16 file convention — renamed from `middleware.ts`).
  *
- * Note: Next.js 16 renamed `middleware.ts` to `proxy.ts`. The old filename is
- * still supported for backward compatibility, and SPEC.md §8 (Track A) pins
- * this convention to keep the import path stable for downstream tracks.
- *
- * This middleware delegates entirely to `next-intl`:
+ * Delegates entirely to `next-intl`:
  *  - `/`             → redirected to `/{DEFAULT_LOCALE}` (Arabic).
  *  - `/ar/...`       → served.
  *  - `/en/...`       → served.

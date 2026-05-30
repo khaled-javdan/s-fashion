@@ -155,6 +155,229 @@ export async function getOrderByNumber(
   });
 }
 
+/**
+ * UTC instant for the start of "today" in the UAE (Asia/Dubai is a fixed
+ * UTC+4 with no DST), so "orders today" lines up with the local business day
+ * regardless of the server's timezone.
+ */
+function startOfTodayInUae(): Date {
+  const OFFSET_MS = 4 * 60 * 60 * 1000;
+  const nowUae = Date.now() + OFFSET_MS;
+  const dayStartUae = Math.floor(nowUae / 86_400_000) * 86_400_000;
+  return new Date(dayStartUae - OFFSET_MS);
+}
+
+export type DashboardOrderStats = {
+  /** Verified orders placed since the start of today (UAE). */
+  ordersToday: number;
+  /** New orders awaiting confirmation. */
+  pendingOrders: number;
+};
+
+/** Overview counts for the admin dashboard. */
+export async function getDashboardOrderStats(): Promise<DashboardOrderStats> {
+  const since = startOfTodayInUae();
+  const [ordersToday, pendingOrders] = await Promise.all([
+    prisma.order.count({
+      where: {
+        createdAt: { gte: since },
+        status: { not: OrderStatus.PENDING_VERIFICATION },
+      },
+    }),
+    prisma.order.count({ where: { status: OrderStatus.NEW } }),
+  ]);
+  return { ordersToday, pendingOrders };
+}
+
+// Statuses that count as real sales (placed + progressing through fulfilment).
+const SALES_STATUSES: OrderStatus[] = [
+  OrderStatus.NEW,
+  OrderStatus.CONFIRMED,
+  OrderStatus.SHIPPED,
+  OrderStatus.DELIVERED,
+];
+
+const UAE_OFFSET_MS = 4 * 60 * 60 * 1000;
+/** Day bucket index for a date, in UAE local time (fixed UTC+4). */
+function uaeDayKey(d: Date): number {
+  return Math.floor((d.getTime() + UAE_OFFSET_MS) / 86_400_000);
+}
+/** `YYYY-MM-DD` (UAE calendar date) for a day-bucket index. */
+function dayKeyToIso(key: number): string {
+  const wall = new Date(key * 86_400_000); // read UTC fields = the UAE date
+  const y = wall.getUTCFullYear();
+  const m = String(wall.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(wall.getUTCDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+export type SalesDaily = {
+  date: string;
+  /** Gross sales (order totals incl. shipping) placed that day. */
+  salesFils: number;
+  /** Of those, totals from orders that have since been delivered (collected). */
+  collectedFils: number;
+  orders: number;
+};
+export type TopProduct = {
+  productId: string;
+  nameEn: string;
+  nameAr: string;
+  units: number;
+  revenueFils: number;
+};
+export type SalesAnalytics = {
+  /** Gross sales: sum of order totals (incl. shipping) for placed orders. */
+  totalSalesFils: number;
+  /** Net revenue: product value only (sum of subtotals, excludes shipping). */
+  netRevenueFils: number;
+  /** Collected: total of DELIVERED orders — money actually received (COD). */
+  collectedFils: number;
+  orders: number;
+  aovFils: number;
+  units: number;
+  daily: SalesDaily[];
+  topProducts: TopProduct[];
+  /** Resolved window (UAE calendar dates, inclusive), echoed back for labels. */
+  from: string;
+  to: string;
+};
+
+export type AnalyticsRange = { days?: number; from?: string; to?: string };
+
+/** `YYYY-MM-DD` (UAE date) → day-bucket index (inverse of dayKeyToIso). */
+function isoToDayKey(iso: string): number {
+  const [y, m, d] = iso.split("-").map(Number);
+  return Math.floor(Date.UTC(y ?? 1970, (m ?? 1) - 1, d ?? 1) / 86_400_000);
+}
+
+/**
+ * Store analytics over a window — either the last `range.days` (UAE calendar
+ * days, default 30) or an explicit `range.from`/`range.to` (`YYYY-MM-DD`):
+ * gross sales, net revenue (excl. shipping), collected (delivered) revenue,
+ * order count, AOV, units sold, a daily timeseries (sales vs collected,
+ * zero-filled), and the top products by revenue. Counts only real sales
+ * (excludes unverified / cancelled / refused). One DB read.
+ */
+export async function getSalesAnalytics(
+  range: AnalyticsRange = {},
+): Promise<SalesAnalytics> {
+  const todayKey = uaeDayKey(new Date());
+  let startKey: number;
+  let endKey: number;
+  if (range.from && range.to) {
+    const a = isoToDayKey(range.from);
+    const b = isoToDayKey(range.to);
+    startKey = Math.min(a, b);
+    endKey = Math.min(Math.max(a, b), todayKey); // never beyond today
+    if (endKey - startKey > 365) startKey = endKey - 365; // cap window
+  } else {
+    const days = Math.min(Math.max(range.days ?? 30, 1), 365);
+    endKey = todayKey;
+    startKey = todayKey - (days - 1);
+  }
+  if (startKey > endKey) startKey = endKey;
+
+  const since = new Date(startKey * 86_400_000 - UAE_OFFSET_MS);
+  const until = new Date((endKey + 1) * 86_400_000 - UAE_OFFSET_MS); // exclusive
+
+  const orders = await prisma.order.findMany({
+    where: {
+      status: { in: SALES_STATUSES },
+      createdAt: { gte: since, lt: until },
+    },
+    select: {
+      createdAt: true,
+      status: true,
+      totalFils: true,
+      subtotalFils: true,
+      items: {
+        select: {
+          quantity: true,
+          unitPriceFils: true,
+          productNameEn: true,
+          productNameAr: true,
+          variant: { select: { productId: true } },
+        },
+      },
+    },
+  });
+
+  // Zero-filled daily buckets for the whole window.
+  const dailyMap = new Map<
+    number,
+    { salesFils: number; collectedFils: number; orders: number }
+  >();
+  for (let k = startKey; k <= endKey; k++) {
+    dailyMap.set(k, { salesFils: 0, collectedFils: 0, orders: 0 });
+  }
+
+  const products = new Map<string, TopProduct>();
+  let totalSalesFils = 0;
+  let netRevenueFils = 0;
+  let collectedFils = 0;
+  let units = 0;
+
+  for (const order of orders) {
+    const delivered = order.status === OrderStatus.DELIVERED;
+    totalSalesFils += order.totalFils;
+    netRevenueFils += order.subtotalFils;
+    if (delivered) collectedFils += order.totalFils;
+
+    const bucket = dailyMap.get(uaeDayKey(order.createdAt));
+    if (bucket) {
+      bucket.salesFils += order.totalFils;
+      if (delivered) bucket.collectedFils += order.totalFils;
+      bucket.orders += 1;
+    }
+    for (const item of order.items) {
+      units += item.quantity;
+      const pid = item.variant?.productId;
+      if (!pid) continue;
+      const existing =
+        products.get(pid) ??
+        {
+          productId: pid,
+          nameEn: item.productNameEn,
+          nameAr: item.productNameAr,
+          units: 0,
+          revenueFils: 0,
+        };
+      existing.units += item.quantity;
+      existing.revenueFils += item.unitPriceFils * item.quantity;
+      products.set(pid, existing);
+    }
+  }
+
+  const daily: SalesDaily[] = [];
+  for (let k = startKey; k <= endKey; k++) {
+    const b = dailyMap.get(k)!;
+    daily.push({
+      date: dayKeyToIso(k),
+      salesFils: b.salesFils,
+      collectedFils: b.collectedFils,
+      orders: b.orders,
+    });
+  }
+
+  const topProducts = [...products.values()]
+    .sort((a, b) => b.revenueFils - a.revenueFils)
+    .slice(0, 5);
+
+  return {
+    totalSalesFils,
+    netRevenueFils,
+    collectedFils,
+    orders: orders.length,
+    aovFils: orders.length > 0 ? Math.round(totalSalesFils / orders.length) : 0,
+    units,
+    daily,
+    topProducts,
+    from: dayKeyToIso(startKey),
+    to: dayKeyToIso(endKey),
+  };
+}
+
 export type ListOrdersFilter = {
   status?: OrderStatus | OrderStatus[];
   phone?: string;

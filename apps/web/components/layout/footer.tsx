@@ -75,6 +75,14 @@ export function Footer() {
             </li>
             <li>
               <Link
+                href={`/${locale}/orders/track`}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                {t("track_order")}
+              </Link>
+            </li>
+            <li>
+              <Link
                 href={`/${locale}/contact`}
                 className="text-muted-foreground hover:text-foreground"
               >

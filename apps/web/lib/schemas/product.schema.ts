@@ -27,6 +27,8 @@ export const productImageSchema = z.object({
   url: z.string().url(),
   altAr: z.string().trim().max(200).nullish(),
   altEn: z.string().trim().max(200).nullish(),
+  /** Color this photo depicts, matched to a variant's colorHex (optional). */
+  colorHex: hexColor.nullish(),
   position: z.number().int().min(0).default(0),
 });
 export type ProductImageInput = z.infer<typeof productImageSchema>;

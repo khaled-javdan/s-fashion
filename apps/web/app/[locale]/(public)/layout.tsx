@@ -1,4 +1,5 @@
 import { AnalyticsProvider } from "@/components/analytics/analytics-provider"
+import { CartToasterMount } from "@/components/cart/cart-toaster-mount"
 import { Footer } from "@/components/layout/footer"
 import { Header } from "@/components/layout/header"
 import { WhatsappFloat } from "@/components/layout/whatsapp-float"
@@ -20,6 +21,7 @@ export default function PublicLayout({
       <Footer />
       <WhatsappFloat />
       <AnalyticsProvider />
+      <CartToasterMount />
     </div>
   )
 }

@@ -5,6 +5,7 @@ import {
   Package,
   Settings,
   ShoppingBag,
+  Users,
   type LucideIcon,
 } from "lucide-react"
 import { useTranslations } from "next-intl"
@@ -25,7 +26,7 @@ import {
 
 import { useAdminLocale } from "@/components/admin/use-admin-locale"
 
-type NavKey = "dashboard" | "orders" | "products" | "settings"
+type NavKey = "dashboard" | "orders" | "customers" | "products" | "settings"
 type NavItem = {
   key: NavKey
   href: string
@@ -45,21 +46,23 @@ export function AdminSidebar() {
     { key: "dashboard", href: root, icon: LayoutDashboard },
     {
       key: "orders",
-      href: "#",
+      href: `${root}/orders`,
       icon: ShoppingBag,
-      comingSoon: true,
+    },
+    {
+      key: "customers",
+      href: `${root}/customers`,
+      icon: Users,
     },
     {
       key: "products",
-      href: "#",
+      href: `${root}/products`,
       icon: Package,
-      comingSoon: true,
     },
     {
       key: "settings",
-      href: "#",
+      href: `${root}/settings`,
       icon: Settings,
-      comingSoon: true,
     },
   ]
 
@@ -86,8 +89,14 @@ export function AdminSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {items.map((item) => {
+                // Dashboard matches exactly; section links match their subtree
+                // (e.g. /admin/orders/123 keeps "Orders" active).
                 const isActive =
-                  !item.comingSoon && pathname === item.href
+                  !item.comingSoon &&
+                  (item.key === "dashboard"
+                    ? pathname === item.href
+                    : pathname === item.href ||
+                      pathname.startsWith(`${item.href}/`))
                 return (
                   <SidebarMenuItem key={item.key}>
                     <SidebarMenuButton
