@@ -3,6 +3,7 @@ import { useLocale, useTranslations } from "next-intl"
 
 import { LocaleSwitcher } from "@/components/layout/locale-switcher"
 import { CartButton } from "@/components/layout/cart-button"
+import { ShipToSwitcher } from "@/components/layout/ship-to-switcher"
 import type { Locale } from "@/lib/locale"
 
 /**
@@ -54,9 +55,12 @@ export function Header() {
           </Link>
         </nav>
 
-        {/* Cart + (desktop only) locale switcher pinned to the end. */}
+        {/* Cart + (desktop only) ship-to + locale switcher pinned to the end. */}
         <div className="flex flex-1 items-center justify-end gap-1 md:gap-2">
           <CartButton label={t("cart")} locale={locale} />
+          <div className="hidden md:block">
+            <ShipToSwitcher />
+          </div>
           <div className="hidden md:block">
             <LocaleSwitcher />
           </div>

@@ -333,8 +333,26 @@ const products: SeedProduct[] = [
 ];
 
 const settings: { key: string; value: unknown }[] = [
-  { key: "shipping.flat_fils", value: 2500 },
-  { key: "shipping.free_threshold_fils", value: 60000 },
+  {
+    key: "shipping.countries",
+    value: {
+      countries: [
+        { country: "AE", enabled: true, flatFils: 2500, freeThresholdFils: 60000 },
+        { country: "SA", enabled: true, flatFils: 5000, freeThresholdFils: 75000 },
+        { country: "KW", enabled: true, flatFils: 6000, freeThresholdFils: 75000 },
+        { country: "QA", enabled: true, flatFils: 6000, freeThresholdFils: 75000 },
+        { country: "BH", enabled: true, flatFils: 6000, freeThresholdFils: 75000 },
+        { country: "OM", enabled: true, flatFils: 6000, freeThresholdFils: 75000 },
+      ],
+    },
+  },
+  {
+    key: "currency.config",
+    value: {
+      enabled: ["AED", "SAR", "KWD", "QAR", "BHD", "OMR"],
+      rates: { SAR: 1.02, KWD: 0.084, QAR: 0.99, BHD: 0.103, OMR: 0.105 },
+    },
+  },
   { key: "contact.whatsapp_number", value: "+971501234567" },
   {
     key: "contact.business_hours_ar",
@@ -364,6 +382,15 @@ const settings: { key: string; value: unknown }[] = [
   },
   { key: "order.max_items", value: 5 },
   { key: "order.max_qty_per_variant", value: 2 },
+  {
+    key: "product.shipping_return",
+    value: {
+      contentEn:
+        "Free shipping across the UAE on orders over AED 600.\nStandard delivery 1–3 business days.\n\nReturns accepted within 7 days of delivery on unworn items with original tags. Final-sale items are not eligible for return.",
+      contentAr:
+        "شحن مجاني داخل الإمارات للطلبات فوق 600 درهم.\nالتوصيل خلال 1–3 أيام عمل.\n\nيمكن إرجاع المنتجات خلال 7 أيام من الاستلام بشرط عدم الاستخدام مع وجود البطاقات الأصلية. لا تُقبل إرجاعات منتجات التصفية النهائية.",
+    },
+  },
 ];
 
 async function seedSettings() {

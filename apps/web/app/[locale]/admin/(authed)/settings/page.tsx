@@ -13,10 +13,14 @@ import { AntiAbuseForm } from "@/components/admin/settings/anti-abuse-form"
 import { ContactForm } from "@/components/admin/settings/contact-form"
 import { GridForm } from "@/components/admin/settings/grid-form"
 import { HeroForm } from "@/components/admin/settings/hero-form"
-import { ShippingForm } from "@/components/admin/settings/shipping-form"
+import { CurrencyForm } from "@/components/admin/settings/currency-form"
+import { MarketsForm } from "@/components/admin/settings/markets-form"
+import { ShippingReturnForm } from "@/components/admin/settings/shipping-return-form"
 import { SizeChartEditor } from "@/components/admin/settings/size-chart-editor"
+import { parseCurrencyConfig } from "@/lib/currency-config"
 import { DEFAULT_GRID, parseGridConfig } from "@/lib/grid-config"
 import { parseHeroConfig } from "@/lib/hero-config"
+import { parseShippingConfig } from "@/lib/shipping-config"
 import { listPopularProducts } from "@/lib/repos/products.repo"
 import {
   getAllSettings,
@@ -39,8 +43,8 @@ export default async function AdminSettingsPage() {
   const t = await getTranslations("admin.settings")
   const all = await getAllSettings()
 
-  const flatFils = read(all, "shipping.flat_fils", 2500)
-  const freeThresholdFils = read(all, "shipping.free_threshold_fils", 60000)
+  const shippingConfig = parseShippingConfig(all["shipping.countries"])
+  const currencyConfig = parseCurrencyConfig(all["currency.config"])
   const whatsappNumber = read(all, "contact.whatsapp_number", "+971501234567")
   const businessHoursAr = read(
     all,
@@ -53,6 +57,10 @@ export default async function AdminSettingsPage() {
     "Sat–Thu, 10am – 10pm",
   )
   const sizeChart = read(all, "size_chart.cm", { unit: "cm", rows: [] })
+  const shippingReturn = read(all, "product.shipping_return", {
+    contentAr: "",
+    contentEn: "",
+  })
   const maxItems = read(all, "order.max_items", 5)
   const maxQtyPerVariant = read(all, "order.max_qty_per_variant", 2)
   const aiModel = read(all, "ai.model", DEFAULT_AI_MODEL_ID)
@@ -72,10 +80,14 @@ export default async function AdminSettingsPage() {
       <Tabs defaultValue="hero">
         <TabsList className="max-w-full justify-start overflow-x-auto [&::-webkit-scrollbar]:hidden [&>*]:shrink-0 [scrollbar-width:none]">
           <TabsTrigger value="hero">{t("tabs.hero")}</TabsTrigger>
-          <TabsTrigger value="shipping">{t("tabs.shipping")}</TabsTrigger>
+          <TabsTrigger value="markets">{t("tabs.markets")}</TabsTrigger>
+          <TabsTrigger value="currency">{t("tabs.currency")}</TabsTrigger>
           <TabsTrigger value="contact">{t("tabs.contact")}</TabsTrigger>
           <TabsTrigger value="grid">{t("tabs.grid")}</TabsTrigger>
           <TabsTrigger value="size-chart">{t("tabs.size_chart")}</TabsTrigger>
+          <TabsTrigger value="shipping-return">
+            {t("tabs.shipping_return")}
+          </TabsTrigger>
           <TabsTrigger value="limits">{t("tabs.limits")}</TabsTrigger>
           <TabsTrigger value="ai">{t("tabs.ai")}</TabsTrigger>
         </TabsList>
@@ -89,15 +101,21 @@ export default async function AdminSettingsPage() {
           </SettingsCard>
         </TabsContent>
 
-        <TabsContent value="shipping" className="pt-4">
+        <TabsContent value="markets" className="pt-4">
           <SettingsCard
-            title={t("shipping.card_title")}
-            description={t("shipping.card_description")}
+            title={t("markets.card_title")}
+            description={t("markets.card_description")}
           >
-            <ShippingForm
-              flatFils={flatFils}
-              freeThresholdFils={freeThresholdFils}
-            />
+            <MarketsForm initial={shippingConfig} />
+          </SettingsCard>
+        </TabsContent>
+
+        <TabsContent value="currency" className="pt-4">
+          <SettingsCard
+            title={t("currency.card_title")}
+            description={t("currency.card_description")}
+          >
+            <CurrencyForm initial={currencyConfig} />
           </SettingsCard>
         </TabsContent>
 
@@ -129,6 +147,18 @@ export default async function AdminSettingsPage() {
             description={t("size_chart.card_description")}
           >
             <SizeChartEditor chart={sizeChart} />
+          </SettingsCard>
+        </TabsContent>
+
+        <TabsContent value="shipping-return" className="pt-4">
+          <SettingsCard
+            title={t("shipping_return.card_title")}
+            description={t("shipping_return.card_description")}
+          >
+            <ShippingReturnForm
+              contentAr={shippingReturn.contentAr}
+              contentEn={shippingReturn.contentEn}
+            />
           </SettingsCard>
         </TabsContent>
 

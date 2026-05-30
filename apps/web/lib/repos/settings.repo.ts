@@ -1,15 +1,19 @@
 import { prisma, Prisma } from "@workspace/db";
 import type { Setting } from "@workspace/db";
 
+import type { CurrencyConfig } from "@/lib/currency-config";
 import type { GridConfig } from "@/lib/grid-config";
+import type { ShippingConfig } from "@/lib/shipping-config";
 
 /**
  * Known settings registry — keep in sync with the seed file and SPEC §4.
  * Each entry maps a key to its TypeScript shape; getSetting overloads use these.
  */
 export type KnownSettings = {
-  "shipping.flat_fils": number;
-  "shipping.free_threshold_fils": number;
+  /** Per-country flat fee + free threshold (base AED fils). */
+  "shipping.countries": ShippingConfig;
+  /** Enabled display currencies + manual AED→currency rates. */
+  "currency.config": CurrencyConfig;
   "contact.whatsapp_number": string;
   "contact.business_hours_ar": string;
   "contact.business_hours_en": string;
@@ -29,6 +33,14 @@ export type KnownSettings = {
   "ai.model": string;
   /** Storefront product-grid columns per breakpoint. */
   "home.grid": GridConfig;
+  /**
+   * Bilingual shipping & return copy rendered in the PDP tabs. Shared across
+   * every product (per-product overrides intentionally not modelled).
+   */
+  "product.shipping_return": {
+    contentAr: string;
+    contentEn: string;
+  };
 };
 
 /**

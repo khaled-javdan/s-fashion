@@ -92,7 +92,9 @@ export function VariantsEditor({ variants, onChange }: Props) {
               }`}
             >
               <div className="sm:col-span-2">
-                <Label className="text-xs">{t("variants.color")}</Label>
+                <div className="flex min-h-7 items-center">
+                  <Label className="text-xs">{t("variants.color")}</Label>
+                </div>
                 <div className="mt-1 flex items-center gap-2">
                   <input
                     type="color"
@@ -115,7 +117,7 @@ export function VariantsEditor({ variants, onChange }: Props) {
               </div>
 
               <div className="sm:col-span-2">
-                <div className="flex min-h-5 items-center justify-between gap-1">
+                <div className="flex min-h-7 items-center justify-between gap-1">
                   <Label className="text-xs">{t("variants.color_en")}</Label>
                   <AiTranslatePairButton
                     valueEn={v.colorNameEn ?? ""}
@@ -143,7 +145,9 @@ export function VariantsEditor({ variants, onChange }: Props) {
               </div>
 
               <div className="sm:col-span-2">
-                <Label className="text-xs">{t("variants.color_ar")}</Label>
+                <div className="flex min-h-7 items-center">
+                  <Label className="text-xs">{t("variants.color_ar")}</Label>
+                </div>
                 <Input
                   className="mt-1"
                   dir="rtl"
@@ -156,7 +160,9 @@ export function VariantsEditor({ variants, onChange }: Props) {
               </div>
 
               <div className="sm:col-span-2">
-                <Label className="text-xs">{t("variants.size")}</Label>
+                <div className="flex min-h-7 items-center">
+                  <Label className="text-xs">{t("variants.size")}</Label>
+                </div>
                 <Select
                   value={v.size}
                   onValueChange={(value) =>
@@ -177,7 +183,9 @@ export function VariantsEditor({ variants, onChange }: Props) {
               </div>
 
               <div className="sm:col-span-1">
-                <Label className="text-xs">{t("variants.stock")}</Label>
+                <div className="flex min-h-7 items-center">
+                  <Label className="text-xs">{t("variants.stock")}</Label>
+                </div>
                 <Input
                   className="mt-1"
                   type="number"
@@ -195,7 +203,9 @@ export function VariantsEditor({ variants, onChange }: Props) {
               </div>
 
               <div className="sm:col-span-2">
-                <Label className="text-xs">{t("variants.sku")}</Label>
+                <div className="flex min-h-7 items-center">
+                  <Label className="text-xs">{t("variants.sku")}</Label>
+                </div>
                 <Input
                   className="mt-1"
                   value={v.sku ?? ""}

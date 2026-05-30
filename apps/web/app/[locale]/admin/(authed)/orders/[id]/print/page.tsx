@@ -2,7 +2,7 @@ import { getTranslations } from "next-intl/server"
 import { notFound } from "next/navigation"
 
 import { AutoPrint } from "@/components/admin/orders/auto-print"
-import { formatEmirate } from "@/components/admin/orders/emirate"
+import { formatDestination } from "@/components/admin/orders/emirate"
 import { formatAed } from "@/lib/money"
 import { getOrderById } from "@/lib/repos/orders.repo"
 
@@ -20,7 +20,7 @@ export default async function OrderPrintPage({
   const addressLines = [
     order.addressLine1,
     order.addressLine2,
-    `${order.city}, ${formatEmirate(order.emirate)}`,
+    `${order.city}, ${formatDestination(order.country, order.emirate)}`,
   ].filter(Boolean) as string[]
 
   return (

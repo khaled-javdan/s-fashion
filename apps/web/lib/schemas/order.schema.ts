@@ -2,6 +2,8 @@ import { z } from "zod";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 import { Emirate } from "@workspace/db";
 
+import { COUNTRY_CODES } from "@/lib/geo";
+
 /** Strict E.164 phone — validates against libphonenumber-js and returns the canonical form. */
 const phoneE164 = z.string().transform((raw, ctx) => {
   const parsed = parsePhoneNumberFromString(raw.trim());
@@ -33,7 +35,12 @@ export const orderCreateSchema = z.object({
     .max(200)
     .optional()
     .or(z.literal("").transform(() => undefined)),
-  emirate: z.nativeEnum(Emirate),
+  // ISO 3166-1 alpha-2 destination country (validated against the supported set).
+  country: z.enum(COUNTRY_CODES),
+  // UAE-only sub-region. Required when country === "AE"; the rule is enforced in
+  // the checkout action + client resolver (kept optional here so the schema stays
+  // a plain ZodObject that callers can `.omit`/`.extend`).
+  emirate: z.nativeEnum(Emirate).optional(),
   city: z.string().trim().min(1).max(80),
   addressLine1: z.string().trim().min(4).max(200),
   addressLine2: z.string().trim().max(200).optional(),

@@ -67,6 +67,15 @@ export default async function AdminDashboardPage({
     { label: tA("total_sales"), value: formatAed(analytics.totalSalesFils, locale) },
     { label: tA("net_revenue"), value: formatAed(analytics.netRevenueFils, locale) },
     { label: tA("collected"), value: formatAed(analytics.collectedFils, locale) },
+    { label: tA("gross_profit"), value: formatAed(analytics.grossProfitFils, locale) },
+    {
+      label: tA("profit_margin"),
+      value: `${
+        analytics.netRevenueFils > 0
+          ? Math.round((analytics.grossProfitFils / analytics.netRevenueFils) * 100)
+          : 0
+      }%`,
+    },
     { label: tA("orders"), value: String(analytics.orders) },
     { label: tA("avg_order_value"), value: formatAed(analytics.aovFils, locale) },
     { label: tA("units_sold"), value: String(analytics.units) },

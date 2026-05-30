@@ -28,12 +28,15 @@ import {
   sendOtpAction,
   verifyOtpAndCreateOrderAction,
 } from "@/app/[locale]/(public)/checkout/actions"
+import { useCurrency } from "@/components/providers/currency-provider"
 import {
   selectItems,
   selectHasHydrated,
   useCartStore,
 } from "@/lib/cart-store"
+import { countryHasEmirates, type CountryCode } from "@/lib/geo"
 import type { Locale } from "@/lib/locale"
+import type { ShippingConfig } from "@/lib/shipping-config"
 
 // Client-safe literal list — importing the Emirate runtime enum from
 // @workspace/db here would pull the Prisma client (node:fs) into the browser
@@ -52,6 +55,7 @@ type CheckoutFormValues = {
   name: string
   phone: string
   email: string
+  country: CountryCode
   emirate: Emirate | ""
   city: string
   addressLine1: string
@@ -64,6 +68,7 @@ const DEFAULT_VALUES: CheckoutFormValues = {
   name: "",
   phone: "",
   email: "",
+  country: "AE",
   emirate: "",
   city: "",
   addressLine1: "",
@@ -84,15 +89,18 @@ const DEFAULT_VALUES: CheckoutFormValues = {
  *     cart and navigate to the confirmation page.
  */
 export function CheckoutForm({
-  shippingFlatFils,
-  freeThresholdFils,
+  shippingConfig,
+  defaultCountry,
+  enabledCountries,
 }: {
-  shippingFlatFils: number
-  freeThresholdFils: number
+  shippingConfig: ShippingConfig
+  defaultCountry: CountryCode
+  enabledCountries: CountryCode[]
 }) {
   const t = useTranslations("checkout")
   const locale = useLocale() as Locale
   const router = useRouter()
+  const { setCountry } = useCurrency()
 
   const items = useCartStore(selectItems)
   const hasHydrated = useCartStore(selectHasHydrated)
@@ -112,7 +120,7 @@ export function CheckoutForm({
     }
     const parsedPhone = parsePhoneNumberFromString(
       values.phone.trim(),
-      "AE",
+      values.country,
     )
     if (!parsedPhone || !parsedPhone.isValid()) {
       errors.phone = { type: "phone", message: t("invalid_phone") }
@@ -120,7 +128,10 @@ export function CheckoutForm({
     if (values.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email.trim())) {
       errors.email = { type: "email", message: t("invalid_email") }
     }
-    if (!values.emirate) {
+    if (!values.country) {
+      errors.country = { type: "required", message: t("field_required") }
+    }
+    if (values.country === "AE" && !values.emirate) {
       errors.emirate = { type: "required", message: t("field_required") }
     }
     if (values.city.trim().length < 1) {
@@ -149,20 +160,22 @@ export function CheckoutForm({
     formState: { errors },
   } = useForm<CheckoutFormValues>({
     resolver,
-    defaultValues: DEFAULT_VALUES,
+    defaultValues: { ...DEFAULT_VALUES, country: defaultCountry },
   })
 
   // react-hook-form's `watch` subscription is opaque to the React Compiler
   // (react-hooks/incompatible-library); the component is correct as written.
   // eslint-disable-next-line react-hooks/incompatible-library
   const emirate = watch("emirate")
+  const country = watch("country")
+  const hasEmirates = countryHasEmirates(country)
   const marketingConsent = watch("marketingConsent")
 
   // Canonical E.164 phone for the current form value (used by OTP/verify).
   function canonicalPhone(): string | null {
     const parsed = parsePhoneNumberFromString(
       getValues("phone").trim(),
-      "AE",
+      getValues("country"),
     )
     return parsed && parsed.isValid() ? parsed.number : null
   }
@@ -218,7 +231,8 @@ export function CheckoutForm({
       const result = await verifyOtpAndCreateOrderAction({
         name: values.name.trim(),
         phone,
-        emirate: values.emirate as Emirate,
+        country: values.country,
+        emirate: values.emirate || undefined,
         city: values.city.trim(),
         addressLine1: values.addressLine1.trim(),
         addressLine2: values.addressLine2.trim() || undefined,
@@ -350,34 +364,70 @@ export function CheckoutForm({
               </legend>
 
               <Field
-                id="checkout-emirate"
-                label={t("emirate")}
-                error={errors.emirate?.message}
+                id="checkout-country"
+                label={t("country")}
+                error={errors.country?.message}
               >
                 <Select
-                  value={emirate || undefined}
-                  onValueChange={(value) =>
-                    setValue("emirate", value as Emirate, {
-                      shouldValidate: true,
-                    })
-                  }
+                  value={country || undefined}
+                  onValueChange={(value) => {
+                    const next = value as CountryCode
+                    setValue("country", next, { shouldValidate: true })
+                    if (!countryHasEmirates(next)) {
+                      setValue("emirate", "", { shouldValidate: true })
+                    }
+                    // Sync the global ship-to currency to the chosen country.
+                    setCountry(next)
+                  }}
                 >
                   <SelectTrigger
-                    id="checkout-emirate"
-                    aria-invalid={!!errors.emirate}
+                    id="checkout-country"
+                    aria-invalid={!!errors.country}
                     className="w-full"
                   >
-                    <SelectValue placeholder={t("emirate_placeholder")} />
+                    <SelectValue placeholder={t("country_placeholder")} />
                   </SelectTrigger>
                   <SelectContent>
-                    {EMIRATES.map((value) => (
+                    {enabledCountries.map((value) => (
                       <SelectItem key={value} value={value}>
-                        <EmirateLabel value={value} />
+                        <CountryLabel value={value} />
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </Field>
+
+              {hasEmirates ? (
+                <Field
+                  id="checkout-emirate"
+                  label={t("emirate")}
+                  error={errors.emirate?.message}
+                >
+                  <Select
+                    value={emirate || undefined}
+                    onValueChange={(value) =>
+                      setValue("emirate", value as Emirate, {
+                        shouldValidate: true,
+                      })
+                    }
+                  >
+                    <SelectTrigger
+                      id="checkout-emirate"
+                      aria-invalid={!!errors.emirate}
+                      className="w-full"
+                    >
+                      <SelectValue placeholder={t("emirate_placeholder")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {EMIRATES.map((value) => (
+                        <SelectItem key={value} value={value}>
+                          <EmirateLabel value={value} />
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+              ) : null}
 
               <Field
                 id="checkout-city"
@@ -465,10 +515,7 @@ export function CheckoutForm({
 
       <div className="order-1 lg:order-2">
         <div className="lg:sticky lg:top-20">
-          <OrderSummary
-            shippingFlatFils={shippingFlatFils}
-            freeThresholdFils={freeThresholdFils}
-          />
+          <OrderSummary shippingConfig={shippingConfig} country={country} />
         </div>
       </div>
     </div>
@@ -504,5 +551,10 @@ function Field({
 
 function EmirateLabel({ value }: { value: Emirate }) {
   const t = useTranslations("emirate")
+  return <>{t(value)}</>
+}
+
+function CountryLabel({ value }: { value: CountryCode }) {
+  const t = useTranslations("country")
   return <>{t(value)}</>
 }

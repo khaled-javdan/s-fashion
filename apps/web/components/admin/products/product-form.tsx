@@ -11,7 +11,6 @@ import { Button } from "@workspace/ui/components/button"
 import { Input } from "@workspace/ui/components/input"
 import { Label } from "@workspace/ui/components/label"
 import { Switch } from "@workspace/ui/components/switch"
-import { Textarea } from "@workspace/ui/components/textarea"
 
 import { analyzeImageAction } from "@/app/[locale]/admin/(authed)/ai/actions"
 import {
@@ -22,6 +21,7 @@ import {
 } from "@/app/[locale]/admin/(authed)/products/actions"
 import { AiSuggestionBadge } from "@/components/admin/ai/ai-suggestion-badge"
 import { AiTranslatePairButton } from "@/components/admin/ai/ai-translate-pair-button"
+import { RichTextEditor } from "@/components/admin/rich-text-editor"
 import { useSaveBar } from "@/components/admin/save-bar"
 import {
   ImagesUploader,
@@ -46,8 +46,11 @@ type FormState = {
   nameEn: string
   descAr: string
   descEn: string
+  additionalInfoAr: string
+  additionalInfoEn: string
   priceAed: string
   compareAtAed: string
+  costPriceAed: string
   isFinalSale: boolean
   isActive: boolean
   variants: FormVariant[]
@@ -65,8 +68,11 @@ function initialState(product?: ProductWithRelations): FormState {
       nameEn: "",
       descAr: "",
       descEn: "",
+      additionalInfoAr: "",
+      additionalInfoEn: "",
       priceAed: "",
       compareAtAed: "",
+      costPriceAed: "",
       isFinalSale: false,
       isActive: true,
       variants: [makeEmptyVariant()],
@@ -79,9 +85,13 @@ function initialState(product?: ProductWithRelations): FormState {
     nameEn: product.nameEn,
     descAr: product.descAr ?? "",
     descEn: product.descEn ?? "",
+    additionalInfoAr: product.additionalInfoAr ?? "",
+    additionalInfoEn: product.additionalInfoEn ?? "",
     priceAed: String(filsToAed(product.priceFils)),
     compareAtAed:
       product.compareAtFils != null ? String(filsToAed(product.compareAtFils)) : "",
+    costPriceAed:
+      product.costPriceFils != null ? String(filsToAed(product.costPriceFils)) : "",
     isFinalSale: product.isFinalSale,
     isActive: product.isActive,
     variants: product.variants.map((v) => ({
@@ -211,6 +221,8 @@ export function ProductForm(props: Props) {
     const nameAr = str("nameAr")
     const descEn = str("descEn")
     const descAr = str("descAr")
+    const additionalInfoEn = str("additionalInfoEn")
+    const additionalInfoAr = str("additionalInfoAr")
     const aiSlug = str("slug")
 
     // Flag which global fields this image actually fills (badge until edited).
@@ -221,6 +233,10 @@ export function ProductForm(props: Props) {
     if (isEmpty(cur.nameAr) && nameAr) flags.push("nameAr")
     if (isEmpty(cur.descEn) && descEn) flags.push("descEn")
     if (isEmpty(cur.descAr) && descAr) flags.push("descAr")
+    if (isEmpty(cur.additionalInfoEn) && additionalInfoEn)
+      flags.push("additionalInfoEn")
+    if (isEmpty(cur.additionalInfoAr) && additionalInfoAr)
+      flags.push("additionalInfoAr")
     if (isEmpty(cur.slug) && (aiSlug || nameEn)) flags.push("slug")
 
     // Functional update so simultaneous image analyses compose correctly.
@@ -231,6 +247,10 @@ export function ProductForm(props: Props) {
       if (isEmpty(next.nameAr) && nameAr) next.nameAr = nameAr
       if (isEmpty(next.descEn) && descEn) next.descEn = descEn
       if (isEmpty(next.descAr) && descAr) next.descAr = descAr
+      if (isEmpty(next.additionalInfoEn) && additionalInfoEn)
+        next.additionalInfoEn = additionalInfoEn
+      if (isEmpty(next.additionalInfoAr) && additionalInfoAr)
+        next.additionalInfoAr = additionalInfoAr
       if (isEmpty(next.slug)) {
         if (aiSlug) next.slug = slugify(aiSlug)
         else if (!isEmpty(next.nameEn)) next.slug = slugify(next.nameEn)
@@ -284,7 +304,7 @@ export function ProductForm(props: Props) {
     analyzeImageAction({
       imageUrls: [url],
       context: "product",
-      schemaDescriptor: "product-suggestions-v2",
+      schemaDescriptor: "product-suggestions-v3",
     })
       .then((res) => {
         if (res.ok) applyImageAnalysis(url, res.suggestions)
@@ -323,9 +343,13 @@ export function ProductForm(props: Props) {
     nameEn: state.nameEn.trim(),
     descAr: state.descAr.trim() || null,
     descEn: state.descEn.trim() || null,
+    additionalInfoAr: state.additionalInfoAr.trim() || null,
+    additionalInfoEn: state.additionalInfoEn.trim() || null,
     priceAed: Number(state.priceAed),
     compareAtAed:
       state.compareAtAed.trim() === "" ? null : Number(state.compareAtAed),
+    costPriceAed:
+      state.costPriceAed.trim() === "" ? null : Number(state.costPriceAed),
     isActive: state.isActive,
     isFinalSale: state.isFinalSale,
     variants: state.variants.map((v) => ({
@@ -522,23 +546,69 @@ export function ProductForm(props: Props) {
               />
             }
           >
-            <Textarea
-              rows={4}
+            <RichTextEditor
               value={state.descEn}
-              onChange={(e) => {
-                set("descEn", e.target.value)
+              ariaLabel={t("form.desc_en")}
+              onChange={(html) => {
+                set("descEn", html)
                 clearAi("descEn")
               }}
             />
           </Field>
           <Field label={t("form.desc_ar")} badge={aiBadge("descAr")}>
-            <Textarea
-              rows={4}
-              dir="rtl"
+            <RichTextEditor
               value={state.descAr}
-              onChange={(e) => {
-                set("descAr", e.target.value)
+              dir="rtl"
+              ariaLabel={t("form.desc_ar")}
+              onChange={(html) => {
+                set("descAr", html)
                 clearAi("descAr")
+              }}
+            />
+          </Field>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field
+            label={t("form.additional_info_en")}
+            badge={aiBadge("additionalInfoEn")}
+            action={
+              <AiTranslatePairButton
+                valueEn={state.additionalInfoEn}
+                valueAr={state.additionalInfoAr}
+                context="product-description"
+                onResult={(lang, translation) => {
+                  if (lang === "en") {
+                    set("additionalInfoEn", translation)
+                    clearAi("additionalInfoEn")
+                  } else {
+                    set("additionalInfoAr", translation)
+                    clearAi("additionalInfoAr")
+                  }
+                }}
+              />
+            }
+          >
+            <RichTextEditor
+              value={state.additionalInfoEn}
+              ariaLabel={t("form.additional_info_en")}
+              onChange={(html) => {
+                set("additionalInfoEn", html)
+                clearAi("additionalInfoEn")
+              }}
+            />
+          </Field>
+          <Field
+            label={t("form.additional_info_ar")}
+            badge={aiBadge("additionalInfoAr")}
+          >
+            <RichTextEditor
+              value={state.additionalInfoAr}
+              dir="rtl"
+              ariaLabel={t("form.additional_info_ar")}
+              onChange={(html) => {
+                set("additionalInfoAr", html)
+                clearAi("additionalInfoAr")
               }}
             />
           </Field>
@@ -562,6 +632,15 @@ export function ProductForm(props: Props) {
               step="0.01"
               value={state.compareAtAed}
               onChange={(e) => set("compareAtAed", e.target.value)}
+            />
+          </Field>
+          <Field label={t("form.cost_price")}>
+            <Input
+              type="number"
+              min={0}
+              step="0.01"
+              value={state.costPriceAed}
+              onChange={(e) => set("costPriceAed", e.target.value)}
             />
           </Field>
         </div>
@@ -635,8 +714,11 @@ function Field({
   badge?: React.ReactNode
   children: React.ReactNode
 }) {
+  // `flex flex-col` (not `grid`) so when this Field sits in a two-column row
+  // and the sibling Field grows tall, the shorter side stays anchored to the
+  // top instead of letting its label / editor drift toward the middle.
   return (
-    <div className="grid gap-2">
+    <div className="flex flex-col gap-2">
       <div className="flex min-h-7 items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <Label>{label}</Label>

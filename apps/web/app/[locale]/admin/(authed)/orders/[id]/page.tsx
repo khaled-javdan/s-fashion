@@ -6,7 +6,7 @@ import { notFound } from "next/navigation"
 import { Button } from "@workspace/ui/components/button"
 
 import { CustomerBlock } from "@/components/admin/orders/customer-block"
-import { formatEmirate } from "@/components/admin/orders/emirate"
+import { formatDestination } from "@/components/admin/orders/emirate"
 import { OrderItemsTable } from "@/components/admin/orders/order-items-table"
 import { OrderStatusActions } from "@/components/admin/orders/order-status-actions"
 import { OrderStatusBadge } from "@/components/admin/orders/order-status-badge"
@@ -73,7 +73,7 @@ export default async function AdminOrderDetailPage({
             name={order.customerName}
             phone={order.phone}
             email={order.email}
-            emirate={formatEmirate(order.emirate)}
+            emirate={formatDestination(order.country, order.emirate)}
             city={order.city}
             addressLine1={order.addressLine1}
             addressLine2={order.addressLine2}

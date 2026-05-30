@@ -1,3 +1,4 @@
+import { htmlToPlainText } from "@/components/product/rich-text"
 import type { Locale } from "@/lib/locale"
 import { filsToAed } from "@/lib/money"
 import type { ProductWithRelations } from "@/lib/repos/products.repo"
@@ -15,8 +16,11 @@ type Props = {
  */
 export function ProductJsonLd({ product, locale, url }: Props) {
   const name = locale === "ar" ? product.nameAr : product.nameEn
-  const description =
-    (locale === "ar" ? product.descAr : product.descEn) ?? undefined
+  const rawDescription = locale === "ar" ? product.descAr : product.descEn
+  // JSON-LD must be plain text — strip the rich-text HTML markup.
+  const description = rawDescription
+    ? htmlToPlainText(rawDescription)
+    : undefined
   const totalStock = product.variants.reduce((sum, v) => sum + v.stock, 0)
 
   const jsonLd = {

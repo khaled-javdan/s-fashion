@@ -13,6 +13,7 @@
  */
 
 import type { Locale } from "@/lib/locale"
+import { formatMoney } from "@/lib/currency"
 
 const FILS_PER_AED = 100
 
@@ -39,20 +40,13 @@ export function aedToFils(aed: number): number {
 }
 
 /**
- * Format an integer fils amount as a locale-aware AED price string.
+ * Format an integer fils amount as a locale-aware **AED** price string.
  *
- * - Arabic: uses Arabic-Indic digits and the AED symbol in Arabic order.
- * - English: uses Latin digits with the `AED` ISO code.
- *
- * Always renders exactly two fractional digits (cents).
+ * Thin shim over {@link formatMoney} pinned to the base currency (AED, rate 1).
+ * Used wherever money must render in the base currency regardless of the
+ * shopper's selected country (admin panel, analytics). Storefront surfaces use
+ * the currency-aware `useCurrency().format` / `getCurrencyContext()` instead.
  */
 export function formatAed(fils: number, locale: Locale): string {
-  const value = filsToAed(fils)
-  const intlLocale = locale === "ar" ? "ar-AE" : "en-AE"
-  return new Intl.NumberFormat(intlLocale, {
-    style: "currency",
-    currency: "AED",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value)
+  return formatMoney(fils, { locale, currency: "AED", rate: 1 })
 }

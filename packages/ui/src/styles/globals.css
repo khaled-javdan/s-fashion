@@ -2,6 +2,10 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+/* `prose` classes for rendering admin-authored rich text (product
+   descriptions, additional info) as nicely-formatted storefront copy. */
+@plugin "@tailwindcss/typography";
+
 /* Radix primitives expose open/closed state via `data-state`. The shadcn
    components animate with the `data-open:` / `data-closed:` variants, so map
    them here (otherwise the enter/exit animations silently never run). */

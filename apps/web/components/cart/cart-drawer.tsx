@@ -19,8 +19,8 @@ import {
   selectSubtotalFils,
   useCartStore,
 } from "@/lib/cart-store"
+import { Price } from "@/components/currency/price"
 import type { Locale } from "@/lib/locale"
-import { formatAed } from "@/lib/money"
 
 /**
  * Cart drawer body, rendered inside the header's `<Sheet>` (opens from the
@@ -64,7 +64,7 @@ export function CartDrawer({ onClose }: { onClose: () => void }) {
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">{t("subtotal")}</span>
               <span className="font-semibold tabular-nums text-foreground">
-                {formatAed(subtotalFils, locale)}
+                <Price fils={subtotalFils} />
               </span>
             </div>
             <p className="text-xs text-muted-foreground">{t("shipping_note")}</p>

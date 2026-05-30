@@ -4,8 +4,8 @@ import Image from "next/image"
 import Link from "next/link"
 import { useEffect, useState } from "react"
 
+import { Price } from "@/components/currency/price"
 import type { Locale } from "@/lib/locale"
-import { formatAed } from "@/lib/money"
 
 export type ViewedProduct = {
   slug: string
@@ -101,7 +101,7 @@ export function RecentlyViewed({ current, locale, title }: Props) {
                     {name}
                   </h3>
                   <p className="text-muted-foreground text-sm">
-                    {formatAed(p.priceFils, locale)}
+                    <Price fils={p.priceFils} />
                   </p>
                 </div>
               </Link>

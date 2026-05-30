@@ -54,6 +54,34 @@ export const productSuggestionsSchemaV2 = z.object({
     .optional(),
 })
 
+/**
+ * v3 — adds the rich-text "details" copy. `descEn/descAr` and the new
+ * `additionalInfoEn/additionalInfoAr` are short HTML fragments (the product
+ * form edits them in a rich-text editor and the storefront re-sanitises them),
+ * constrained to a small tag set by the prompt. Everything else matches v2.
+ */
+export const productSuggestionsSchemaV3 = z.object({
+  nameEn: z.string().optional(),
+  nameAr: z.string().optional(),
+  descEn: z.string().optional(),
+  descAr: z.string().optional(),
+  additionalInfoEn: z.string().optional(),
+  additionalInfoAr: z.string().optional(),
+  slug: z.string().optional(),
+  variants: z
+    .array(
+      z.object({
+        colorNameEn: z.string().optional(),
+        colorNameAr: z.string().optional(),
+        colorHex: z
+          .string()
+          .regex(/^#[0-9a-fA-F]{6}$/)
+          .optional(),
+      }),
+    )
+    .optional(),
+})
+
 // Field names mirror HeroSlideConfig (lib/hero-config.ts) so suggestions apply
 // straight onto the slide draft with no remapping.
 export const heroSlideSuggestionsSchemaV1 = z.object({
@@ -70,6 +98,7 @@ export const heroSlideSuggestionsSchemaV1 = z.object({
 export const SCHEMA_REGISTRY = {
   "product-suggestions-v1": productSuggestionsSchemaV1,
   "product-suggestions-v2": productSuggestionsSchemaV2,
+  "product-suggestions-v3": productSuggestionsSchemaV3,
   "hero-slide-suggestions-v1": heroSlideSuggestionsSchemaV1,
 } as const
 

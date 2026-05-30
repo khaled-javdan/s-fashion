@@ -93,6 +93,11 @@ export function ImagesUploader({
         } else {
           toast.error(`${file.name}: ${result.error}`)
         }
+      } catch {
+        // The Server Action body-size limit (and network failures) throw
+        // before a result is returned — surface them as a toast instead of
+        // letting the error bubble up to the runtime error overlay.
+        toast.error(t("images.error_upload", { name: file.name }))
       } finally {
         setUploading((n) => n - 1)
       }

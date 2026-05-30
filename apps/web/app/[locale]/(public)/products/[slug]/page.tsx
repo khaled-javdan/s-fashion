@@ -3,18 +3,18 @@ import { getTranslations, setRequestLocale } from "next-intl/server"
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 
-import { Separator } from "@workspace/ui/components/separator"
 import { buttonVariants } from "@workspace/ui/components/button"
 import { cn } from "@workspace/ui/lib/utils"
 
 import { AdminEditBar } from "@/components/admin-bar/admin-edit-bar"
 import { ProductColorProvider } from "@/components/product/product-color-context"
-import { ProductDescription } from "@/components/product/product-description"
 import {
   ProductGallery,
   type GalleryImage,
 } from "@/components/product/product-gallery"
 import { ProductJsonLd } from "@/components/product/product-jsonld"
+import { ProductTabs } from "@/components/product/product-tabs"
+import { htmlToPlainText } from "@/components/product/rich-text"
 import { RecentlyViewed } from "@/components/product/recently-viewed"
 import { RelatedProducts } from "@/components/product/related-products"
 import { SizeChartModal } from "@/components/product/size-chart-modal"
@@ -22,8 +22,9 @@ import {
   VariantPicker,
   type PickerVariant,
 } from "@/components/product/variant-picker"
+import { Money } from "@/components/currency/money"
+import { getCurrencyContext } from "@/lib/currency-context.server"
 import { LOCALES, type Locale } from "@/lib/locale"
-import { formatAed } from "@/lib/money"
 import { getProductBySlug, listSimilarProducts } from "@/lib/repos/products.repo"
 import { getSetting } from "@/lib/repos/settings.repo"
 
@@ -45,8 +46,11 @@ export async function generateMetadata({
   if (!product) return {}
 
   const name = locale === "ar" ? product.nameAr : product.nameEn
-  const description =
-    (locale === "ar" ? product.descAr : product.descEn) ?? undefined
+  const rawDescription = locale === "ar" ? product.descAr : product.descEn
+  // Rich text is HTML — strip tags for meta/OG descriptions.
+  const description = rawDescription
+    ? htmlToPlainText(rawDescription, 200)
+    : undefined
   const image = product.images[0]?.url
 
   return {
@@ -76,10 +80,18 @@ export default async function ProductPage({
   if (!product) notFound()
 
   const t = await getTranslations("product")
+  const { currency, rate } = await getCurrencyContext()
 
-  const [maxQtySetting, sizeChart, whatsappNumber, similar] = await Promise.all([
+  const [
+    maxQtySetting,
+    sizeChart,
+    shippingReturn,
+    whatsappNumber,
+    similar,
+  ] = await Promise.all([
     getSetting("order.max_qty_per_variant"),
     getSetting("size_chart.cm"),
+    getSetting("product.shipping_return"),
     getSetting("contact.whatsapp_number"),
     listSimilarProducts({ excludeId: product.id, priceFils: product.priceFils }),
   ])
@@ -87,6 +99,12 @@ export default async function ProductPage({
 
   const name = typedLocale === "ar" ? product.nameAr : product.nameEn
   const description = typedLocale === "ar" ? product.descAr : product.descEn
+  const additionalInfo =
+    typedLocale === "ar" ? product.additionalInfoAr : product.additionalInfoEn
+  const shippingReturnText =
+    (typedLocale === "ar"
+      ? shippingReturn?.contentAr
+      : shippingReturn?.contentEn) ?? null
   const url = canonicalUrl(locale, slug)
 
   const galleryImages: GalleryImage[] = product.images.map((image) => ({
@@ -135,12 +153,12 @@ export default async function ProductPage({
             </h1>
             <div className="flex items-baseline gap-3">
               <span className="text-2xl font-medium">
-                {formatAed(product.priceFils, typedLocale)}
+                <Money fils={product.priceFils} locale={typedLocale} currency={currency} rate={rate} />
               </span>
               {onSale ? (
                 <>
                   <span className="text-muted-foreground/70 text-lg line-through">
-                    {formatAed(product.compareAtFils!, typedLocale)}
+                    <Money fils={product.compareAtFils!} locale={typedLocale} currency={currency} rate={rate} />
                   </span>
                   <span className="bg-destructive text-destructive-foreground rounded-sm px-2 py-0.5 text-xs font-semibold uppercase">
                     {t("sale_badge")}
@@ -178,13 +196,17 @@ export default async function ProductPage({
             ) : null}
           </div>
 
-          {description ? (
-            <>
-              <Separator />
-              <ProductDescription description={description} />
-            </>
-          ) : null}
           </div>
+        </div>
+
+        <div className="mt-12 lg:mt-16">
+          <ProductTabs
+            locale={typedLocale}
+            description={description ?? null}
+            additionalInfo={additionalInfo ?? null}
+            shippingReturn={shippingReturnText}
+            sizeChartRows={sizeChart?.rows ?? []}
+          />
         </div>
       </ProductColorProvider>
 

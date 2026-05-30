@@ -43,8 +43,11 @@ export type ProductFormPayload = {
   nameEn: string
   descAr?: string | null
   descEn?: string | null
+  additionalInfoAr?: string | null
+  additionalInfoEn?: string | null
   priceAed: number
   compareAtAed?: number | null
+  costPriceAed?: number | null
   isActive: boolean
   isFinalSale: boolean
   variants: Array<{
@@ -150,10 +153,16 @@ function toCreateInput(payload: ProductFormPayload): ProductCreateInput {
     nameEn: payload.nameEn,
     descAr: payload.descAr ?? null,
     descEn: payload.descEn ?? null,
+    additionalInfoAr: payload.additionalInfoAr ?? null,
+    additionalInfoEn: payload.additionalInfoEn ?? null,
     priceFils: aedToFils(payload.priceAed),
     compareAtFils:
       payload.compareAtAed != null && payload.compareAtAed > 0
         ? aedToFils(payload.compareAtAed)
+        : null,
+    costPriceFils:
+      payload.costPriceAed != null && payload.costPriceAed > 0
+        ? aedToFils(payload.costPriceAed)
         : null,
     isActive: payload.isActive,
     isFinalSale: payload.isFinalSale,
@@ -184,10 +193,16 @@ function toUpdateInput(payload: ProductFormPayload): ProductUpdateInput {
     nameEn: payload.nameEn,
     descAr: payload.descAr ?? null,
     descEn: payload.descEn ?? null,
+    additionalInfoAr: payload.additionalInfoAr ?? null,
+    additionalInfoEn: payload.additionalInfoEn ?? null,
     priceFils: aedToFils(payload.priceAed),
     compareAtFils:
       payload.compareAtAed != null && payload.compareAtAed > 0
         ? aedToFils(payload.compareAtAed)
+        : null,
+    costPriceFils:
+      payload.costPriceAed != null && payload.costPriceAed > 0
+        ? aedToFils(payload.costPriceAed)
         : null,
     isActive: payload.isActive,
     isFinalSale: payload.isFinalSale,

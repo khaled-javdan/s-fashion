@@ -4,11 +4,10 @@ import { getTranslations, setRequestLocale } from "next-intl/server"
 import { notFound } from "next/navigation"
 
 import { CheckoutForm } from "@/app/[locale]/(public)/checkout/checkout-form"
+import { getCurrencyContext } from "@/lib/currency-context.server"
 import { LOCALES } from "@/lib/locale"
 import { getSetting } from "@/lib/repos/settings.repo"
-
-const DEFAULT_SHIPPING_FLAT_FILS = 2500
-const DEFAULT_FREE_THRESHOLD_FILS = 60000
+import { parseShippingConfig } from "@/lib/shipping-config"
 
 export async function generateMetadata({
   params,
@@ -37,9 +36,9 @@ export default async function CheckoutPage({
 
   const t = await getTranslations("checkout")
 
-  const [flatFils, thresholdFils] = await Promise.all([
-    getSetting("shipping.flat_fils"),
-    getSetting("shipping.free_threshold_fils"),
+  const [shippingConfig, currencyCtx] = await Promise.all([
+    getSetting("shipping.countries").then(parseShippingConfig),
+    getCurrencyContext(),
   ])
 
   return (
@@ -48,8 +47,9 @@ export default async function CheckoutPage({
         {t("title")}
       </h1>
       <CheckoutForm
-        shippingFlatFils={flatFils ?? DEFAULT_SHIPPING_FLAT_FILS}
-        freeThresholdFils={thresholdFils ?? DEFAULT_FREE_THRESHOLD_FILS}
+        shippingConfig={shippingConfig}
+        defaultCountry={currencyCtx.country}
+        enabledCountries={currencyCtx.enabledCountries}
       />
     </section>
   )

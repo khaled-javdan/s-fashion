@@ -1,8 +1,9 @@
 import { getTranslations } from "next-intl/server"
 
 import { parseHeroConfig, resolveHeroHref } from "@/lib/hero-config"
+import { formatMoney } from "@/lib/currency"
+import { getCurrencyContext } from "@/lib/currency-context.server"
 import type { Locale } from "@/lib/locale"
-import { formatAed } from "@/lib/money"
 import type { ProductWithRelations } from "@/lib/repos/products.repo"
 import { getSetting } from "@/lib/repos/settings.repo"
 
@@ -28,6 +29,7 @@ export async function Hero({
   locale: Locale
 }) {
   const t = await getTranslations("home")
+  const { currency, rate } = await getCurrencyContext()
 
   // An admin-configured hero takes precedence over the product carousel.
   const heroConfig = parseHeroConfig(await getSetting("home.hero"))
@@ -58,7 +60,7 @@ export async function Hero({
         alt: (locale === "ar" ? image.altAr : image.altEn) ?? name,
         eyebrow: t("hero_slide_eyebrow"),
         title: name,
-        subtitle: formatAed(p.priceFils, locale),
+        subtitle: formatMoney(p.priceFils, { locale, currency, rate }),
         cta: t("shop_cta"),
       }
     })

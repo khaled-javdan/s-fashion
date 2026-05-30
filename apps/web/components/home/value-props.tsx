@@ -1,12 +1,11 @@
 import { Clock, MessageCircle, Truck, Wallet } from "lucide-react"
 import { getTranslations } from "next-intl/server"
 
+import { formatMoney } from "@/lib/currency"
+import { getCurrencyContext } from "@/lib/currency-context.server"
 import type { Locale } from "@/lib/locale"
-import { formatAed } from "@/lib/money"
 import { getSetting } from "@/lib/repos/settings.repo"
-
-/** Fallback mirrors the seeded `shipping.free_threshold_fils` (600 AED). */
-const DEFAULT_FREE_THRESHOLD_FILS = 60_000
+import { parseShippingConfig, resolveShipping } from "@/lib/shipping-config"
 
 /**
  * Trust bar — the biggest conversion lever for cold Instagram traffic landing
@@ -19,10 +18,12 @@ const DEFAULT_FREE_THRESHOLD_FILS = 60_000
  */
 export async function ValueProps({ locale }: { locale: Locale }) {
   const t = await getTranslations("home")
-  const thresholdFils =
-    (await getSetting("shipping.free_threshold_fils")) ??
-    DEFAULT_FREE_THRESHOLD_FILS
-  const amount = formatAed(thresholdFils, locale)
+  const { country, currency, rate } = await getCurrencyContext()
+  const shippingConfig = parseShippingConfig(
+    await getSetting("shipping.countries"),
+  )
+  const { freeThresholdFils } = resolveShipping(shippingConfig, country, 0)
+  const amount = formatMoney(freeThresholdFils, { locale, currency, rate })
 
   const items = [
     {

@@ -1,9 +1,8 @@
 "use client"
 
-import { useLocale, useTranslations } from "next-intl"
+import { useTranslations } from "next-intl"
 
-import type { Locale } from "@/lib/locale"
-import { formatAed } from "@/lib/money"
+import { useCurrency } from "@/components/providers/currency-provider"
 
 /**
  * Free-shipping nudge. Shows a progress bar toward the free-shipping
@@ -17,7 +16,7 @@ export function FreeShippingProgress({
   thresholdFils: number
 }) {
   const t = useTranslations("checkout")
-  const locale = useLocale() as Locale
+  const { format } = useCurrency()
 
   if (thresholdFils <= 0) return null
 
@@ -31,7 +30,7 @@ export function FreeShippingProgress({
         {unlocked
           ? t("free_shipping_unlocked")
           : t("free_shipping_remaining", {
-              amount: formatAed(remainingFils, locale),
+              amount: format(remainingFils),
             })}
       </p>
       <div

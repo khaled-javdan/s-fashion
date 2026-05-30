@@ -43,10 +43,15 @@ const productBase = z.object({
     .regex(slugRegex, "lowercase, digits, and dashes only"),
   nameAr: z.string().trim().min(1).max(120),
   nameEn: z.string().trim().min(1).max(120),
-  descAr: z.string().trim().max(4000).nullish(),
-  descEn: z.string().trim().max(4000).nullish(),
+  // Rich-text (HTML) fields — the markup the editor emits inflates length well
+  // beyond the visible character count, so the cap is generous.
+  descAr: z.string().trim().max(20000).nullish(),
+  descEn: z.string().trim().max(20000).nullish(),
+  additionalInfoAr: z.string().trim().max(20000).nullish(),
+  additionalInfoEn: z.string().trim().max(20000).nullish(),
   priceFils: z.number().int().min(0),
   compareAtFils: z.number().int().min(0).nullish(),
+  costPriceFils: z.number().int().min(0).nullish(),
   isActive: z.boolean().default(true),
   isFinalSale: z.boolean().default(false),
 });

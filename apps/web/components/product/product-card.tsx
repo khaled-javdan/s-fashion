@@ -9,8 +9,9 @@ import {
   type CardSlide,
   type CardSwatch,
 } from "@/components/product/product-card-media"
+import { Money } from "@/components/currency/money"
+import { getCurrencyContext } from "@/lib/currency-context.server"
 import type { Locale } from "@/lib/locale"
-import { formatAed } from "@/lib/money"
 import type { ProductWithRelations } from "@/lib/repos/products.repo"
 
 /** At or below this aggregate stock we nudge urgency ("Only N left"). */
@@ -27,6 +28,7 @@ type Props = {
 
 export async function ProductCard({ product, locale, priority = false }: Props) {
   const t = await getTranslations("product")
+  const { currency, rate } = await getCurrencyContext()
   const name = locale === "ar" ? product.nameAr : product.nameEn
   const href = `/${locale}/products/${product.slug}`
 
@@ -150,11 +152,11 @@ export async function ProductCard({ product, locale, priority = false }: Props) 
               onSale ? "text-foreground font-medium" : "text-muted-foreground",
             )}
           >
-            {formatAed(product.priceFils, locale)}
+            <Money fils={product.priceFils} locale={locale} currency={currency} rate={rate} />
           </p>
           {onSale ? (
             <p className="text-muted-foreground/60 text-xs line-through">
-              {formatAed(product.compareAtFils as number, locale)}
+              <Money fils={product.compareAtFils as number} locale={locale} currency={currency} rate={rate} />
             </p>
           ) : null}
         </div>

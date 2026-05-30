@@ -13,8 +13,8 @@ import { Separator } from "@workspace/ui/components/separator"
 import { OrderStatusTracker } from "@/components/order/order-status-tracker"
 import type { TrackedOrder } from "@/components/order/order-tracking-types"
 import { trackOrderAction } from "@/app/[locale]/(public)/orders/track/actions"
+import { Price } from "@/components/currency/price"
 import type { Locale } from "@/lib/locale"
-import { formatAed } from "@/lib/money"
 
 type Props = {
   locale: Locale
@@ -111,7 +111,7 @@ export function OrderTrackForm({ locale, defaultOrderNumber = "" }: Props) {
           <p className="mt-1 text-sm text-muted-foreground">
             {t("items_count", { count: result.itemCount })}
             {" · "}
-            {t("total")}: {formatAed(result.totalFils, locale)}
+            {t("total")}: <Price fils={result.totalFils} />
           </p>
 
           <Separator className="my-5" />

@@ -40,12 +40,17 @@ export function buildAnalyzePrompt(
 ): string {
   const surface =
     context === "product"
-      ? `You are looking at one or more photos of a single mukhawar dress product. Suggest product-level copy based only on what you can see: garment style, embroidery, and occasion.
-- nameEn / nameAr: a concise product name in each language.
-- descEn / descAr: an elegant 1–2 sentence description in each language.
+      ? `You are looking at one or more photos of a single mukhawar dress product. Suggest product-level copy based only on what you can see: garment style, embroidery, neckline, sleeves, silhouette, fabric texture, and the occasion it suits.
+
+Two fields — descEn/descAr and additionalInfoEn/additionalInfoAr — are rich text. Return them as valid HTML using ONLY these tags: <p>, <strong>, <em>, <ul>, <ol>, <li>. Never use markdown, code fences, headings, inline styles, or any other tag. Translate every Arabic field into formal MSA; do not leave Arabic as English.
+
+- nameEn / nameAr: a concise product name in each language (plain text, no HTML).
+- descEn / descAr: an inviting description in each language, written as ONE or TWO short paragraphs (about 2–4 sentences total) of flowing prose — evoke how the piece looks and drapes and when she might wear it. Wrap each paragraph in its own <p>…</p>. Use <em> sparingly for emphasis. No lists here.
+- additionalInfoEn / additionalInfoAr: a concise "details" list in each language, as a single <ul> of 3–6 <li> items. Each item pairs a bold label with a short value, e.g. "<li><strong>Neckline:</strong> rounded with embroidered trim</li>". Cover ONLY attributes visible or safely inferable from the photos — choose from: fabric/texture, embroidery, neckline, sleeves, silhouette/fit, length, occasion. Do NOT state fabric composition percentages, care/washing instructions, exact measurements, or country of origin — you cannot verify these from an image.
 - slug: ALWAYS produce a short, lowercase, hyphenated English slug derived from the English name (e.g. "rosewood-embroidered-mukhawar"). Never leave it empty.
 - variants: treat EACH image as a distinct colour variant of the same product. Return one entry per image, IN THE SAME ORDER as the images. For each: colorNameEn and colorNameAr (the fabric colour name in each language, formal MSA for Arabic), and colorHex — the dominant fabric colour as a #RRGGBB hex. Always include colorHex for every image.
-Leave a copy field empty only if you genuinely cannot infer it.`
+
+Leave a copy field empty only if you genuinely cannot infer it. Output only the HTML/text for each field — no surrounding commentary, quotes, or labels.`
       : context === "hero-slide"
         ? `You are looking at a hero banner image for the S Fashion storefront home page. Suggest short, elegant marketing copy that suits the mood of the image, in both English and Arabic:
 - eyebrowEn / eyebrowAr: a very short kicker label above the headline (1–3 words, e.g. "New collection").
@@ -67,7 +72,7 @@ export function buildTranslatePrompt(
   const langName = (l: "ar" | "en") => (l === "ar" ? "Arabic" : "English")
   const instruction = `Translate the following ${langName(from)} text to ${langName(
     to,
-  )}. This text is for the "${context}" surface. Preserve the brand register. Output only the translation, with no commentary, quotes, or labels.`
+  )}. This text is for the "${context}" surface. Preserve the brand register. If the text contains HTML tags, keep the tag structure exactly as-is and translate only the human-readable text between the tags — do not add, remove, or reorder tags. Output only the translation, with no commentary, quotes, or labels.`
   return `${BASE_PROMPT}\n\n${instruction}${fewShotBlock(examples)}`
 }
 

@@ -13,8 +13,10 @@ import {
   selectSubtotalFils,
   useCartStore,
 } from "@/lib/cart-store"
+import type { CountryCode } from "@/lib/geo"
 import type { Locale } from "@/lib/locale"
-import { formatAed } from "@/lib/money"
+import { resolveShipping, type ShippingConfig } from "@/lib/shipping-config"
+import { Price } from "@/components/currency/price"
 
 /**
  * Sticky order summary (desktop) / collapsible summary (mobile).
@@ -24,11 +26,11 @@ import { formatAed } from "@/lib/money"
  * so the customer sees a consistent total.
  */
 export function OrderSummary({
-  shippingFlatFils,
-  freeThresholdFils,
+  shippingConfig,
+  country,
 }: {
-  shippingFlatFils: number
-  freeThresholdFils: number
+  shippingConfig: ShippingConfig
+  country: CountryCode
 }) {
   const t = useTranslations("checkout")
   const locale = useLocale() as Locale
@@ -37,28 +39,31 @@ export function OrderSummary({
   const items = useCartStore(selectItems)
   const subtotalFils = useCartStore(selectSubtotalFils)
 
-  const shippingFils =
-    subtotalFils >= freeThresholdFils ? 0 : shippingFlatFils
+  const { shippingFils, freeThresholdFils } = resolveShipping(
+    shippingConfig,
+    country,
+    subtotalFils,
+  )
   const totalFils = subtotalFils + shippingFils
 
   const totalsBlock = (
     <div className="space-y-2 text-sm">
       <div className="flex items-center justify-between">
         <span className="text-muted-foreground">{t("subtotal")}</span>
-        <span className="tabular-nums">{formatAed(subtotalFils, locale)}</span>
+        <span className="tabular-nums"><Price fils={subtotalFils} /></span>
       </div>
       <div className="flex items-center justify-between">
         <span className="text-muted-foreground">{t("shipping_fee")}</span>
         <span className="tabular-nums">
           {shippingFils === 0
             ? t("shipping_free")
-            : formatAed(shippingFils, locale)}
+            : <Price fils={shippingFils} />}
         </span>
       </div>
       <Separator className="my-1" />
       <div className="flex items-center justify-between text-base font-semibold">
         <span>{t("total")}</span>
-        <span className="tabular-nums">{formatAed(totalFils, locale)}</span>
+        <span className="tabular-nums"><Price fils={totalFils} /></span>
       </div>
     </div>
   )
@@ -95,7 +100,7 @@ export function OrderSummary({
               ) : null}
             </div>
             <span className="text-sm tabular-nums">
-              {formatAed(item.unitPriceFils * item.quantity, locale)}
+              <Price fils={item.unitPriceFils * item.quantity} />
             </span>
           </li>
         )
@@ -120,7 +125,7 @@ export function OrderSummary({
           />
         </span>
         <span className="font-semibold tabular-nums">
-          {formatAed(totalFils, locale)}
+          <Price fils={totalFils} />
         </span>
       </button>
 

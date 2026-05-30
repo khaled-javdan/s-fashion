@@ -6,12 +6,15 @@ import { z } from "zod"
 
 import { Emirate, prisma } from "@workspace/db"
 
+import { parseCurrencyConfig, effectiveRate } from "@/lib/currency-config"
+import { currencyForCountry } from "@/lib/geo"
 import type { Locale } from "@/lib/locale"
 import {
   createOrder,
   markPhoneVerified,
   InsufficientStockError,
 } from "@/lib/repos/orders.repo"
+import { parseShippingConfig, resolveShipping } from "@/lib/shipping-config"
 import {
   countAttemptsForIp,
   countAttemptsForPhone,
@@ -33,10 +36,6 @@ type OrderInput = OrderCreateInput
 const PHONE_LIMIT = 5 // attempts per phone …
 const IP_LIMIT = 20 // … per IP …
 const WINDOW_MINUTES = 60 // … per rolling hour.
-
-// ─── Pricing defaults (used only if a Setting row is missing) ─────────────────
-const DEFAULT_SHIPPING_FLAT_FILS = 2500
-const DEFAULT_FREE_THRESHOLD_FILS = 60000
 
 // ─── Schemas ──────────────────────────────────────────────────────────────
 
@@ -152,7 +151,8 @@ export async function sendOtpAction(input: {
 export async function verifyOtpAndCreateOrderAction(input: {
   name: string
   phone: string
-  emirate: Emirate
+  country: string
+  emirate?: Emirate
   city: string
   addressLine1: string
   addressLine2?: string
@@ -172,6 +172,7 @@ export async function verifyOtpAndCreateOrderAction(input: {
     customerName: input.name,
     phone: input.phone,
     email: input.email,
+    country: input.country,
     emirate: input.emirate,
     city: input.city,
     addressLine1: input.addressLine1,
@@ -197,6 +198,12 @@ export async function verifyOtpAndCreateOrderAction(input: {
 
   const data = parsed.data
   const phone = data.phone // already canonical E.164 from the schema transform
+
+  // Emirate is required for UAE destinations (optional in the schema so it can
+  // stay a plain ZodObject; the conditional rule is enforced here + client-side).
+  if (data.country === "AE" && !data.emirate) {
+    return { ok: false, error: "Invalid request", field: "emirate" }
+  }
 
   // 2. Verify the OTP.
   const check = await checkOtp(phone, data.otpCode)
@@ -226,6 +233,7 @@ export async function verifyOtpAndCreateOrderAction(input: {
       colorNameEn: variant.colorNameEn,
       size: variant.size,
       unitPriceFils: variant.product.priceFils,
+      unitCostFils: variant.product.costPriceFils ?? 0,
     })
   }
 
@@ -235,14 +243,22 @@ export async function verifyOtpAndCreateOrderAction(input: {
     0,
   )
 
-  const flatFils =
-    (await getSetting("shipping.flat_fils")) ?? DEFAULT_SHIPPING_FLAT_FILS
-  const thresholdFils =
-    (await getSetting("shipping.free_threshold_fils")) ??
-    DEFAULT_FREE_THRESHOLD_FILS
-
-  const shippingFils = subtotalFils >= thresholdFils ? 0 : flatFils
+  const shippingConfig = parseShippingConfig(
+    await getSetting("shipping.countries"),
+  )
+  const { shippingFils } = resolveShipping(
+    shippingConfig,
+    data.country,
+    subtotalFils,
+  )
   const totalFils = subtotalFils + shippingFils
+
+  // Currency snapshot (display only — money columns stay in base AED fils).
+  const currencyConfig = parseCurrencyConfig(
+    await getSetting("currency.config"),
+  )
+  const displayCurrency = currencyForCountry(data.country)
+  const fxRate = effectiveRate(currencyConfig, displayCurrency)
 
   // 5. Create the order (stock decrement + order number in one transaction).
   let created: { id: string; orderNumber: string }
@@ -252,6 +268,7 @@ export async function verifyOtpAndCreateOrderAction(input: {
         customerName: data.customerName,
         phone,
         email: data.email,
+        country: data.country,
         emirate: data.emirate,
         city: data.city,
         addressLine1: data.addressLine1,
@@ -262,6 +279,8 @@ export async function verifyOtpAndCreateOrderAction(input: {
         subtotalFils,
         shippingFils,
         totalFils,
+        displayCurrency,
+        fxRate,
       },
       resolvedItems,
     )
@@ -286,7 +305,8 @@ export async function verifyOtpAndCreateOrderAction(input: {
     orderNumber: created.orderNumber,
     customerName: data.customerName,
     phone,
-    emirate: data.emirate,
+    country: data.country,
+    emirate: data.emirate ?? null,
     totalFils,
     itemCount: resolvedItems.reduce((sum, i) => sum + i.quantity, 0),
     adminUrl: absoluteAdminOrderUrl(created.id),

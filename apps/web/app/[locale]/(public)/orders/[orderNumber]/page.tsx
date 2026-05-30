@@ -11,8 +11,9 @@ import { Separator } from "@workspace/ui/components/separator"
 import { AdminEditBar } from "@/components/admin-bar/admin-edit-bar"
 import { OrderStatusTracker } from "@/components/order/order-status-tracker"
 import type { TrackStatus } from "@/components/order/order-tracking-types"
+import { Money } from "@/components/currency/money"
+import { isCurrencyCode } from "@/lib/currency"
 import { LOCALES, type Locale } from "@/lib/locale"
-import { formatAed } from "@/lib/money"
 import { getOrderByNumber } from "@/lib/repos/orders.repo"
 import { getSetting } from "@/lib/repos/settings.repo"
 
@@ -48,6 +49,12 @@ export default async function OrderConfirmationPage({
   if (!order) notFound()
 
   const t = await getTranslations("order")
+
+  // Render in the currency captured at order time (display-only snapshot).
+  const currency = isCurrencyCode(order.displayCurrency)
+    ? order.displayCurrency
+    : "AED"
+  const rate = order.fxRate
 
   const whatsappNumber = await getSetting("contact.whatsapp_number")
   const whatsappDigits = (whatsappNumber ?? "").replace(/[^0-9]/g, "")
@@ -138,7 +145,7 @@ export default async function OrderConfirmationPage({
                   </p>
                 </div>
                 <span className="shrink-0 tabular-nums">
-                  {formatAed(item.unitPriceFils * item.quantity, locale)}
+                  <Money fils={item.unitPriceFils * item.quantity} locale={locale} currency={currency} rate={rate} />
                 </span>
               </li>
             )
@@ -151,7 +158,7 @@ export default async function OrderConfirmationPage({
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">{t("subtotal")}</span>
             <span className="tabular-nums">
-              {formatAed(order.subtotalFils, locale)}
+              <Money fils={order.subtotalFils} locale={locale} currency={currency} rate={rate} />
             </span>
           </div>
           <div className="flex items-center justify-between">
@@ -159,14 +166,14 @@ export default async function OrderConfirmationPage({
             <span className="tabular-nums">
               {order.shippingFils === 0
                 ? t("shipping_free")
-                : formatAed(order.shippingFils, locale)}
+                : <Money fils={order.shippingFils} locale={locale} currency={currency} rate={rate} />}
             </span>
           </div>
           <Separator className="my-1" />
           <div className="flex items-center justify-between text-base font-semibold">
             <span>{t("total")}</span>
             <span className="tabular-nums">
-              {formatAed(order.totalFils, locale)}
+              <Money fils={order.totalFils} locale={locale} currency={currency} rate={rate} />
             </span>
           </div>
         </div>

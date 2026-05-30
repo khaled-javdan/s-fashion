@@ -16,6 +16,15 @@ const withNextIntl = createNextIntlPlugin("./i18n.ts")
 
 const nextConfig: NextConfig = {
   transpilePackages: ["@workspace/ui", "@workspace/db"],
+  experimental: {
+    serverActions: {
+      // Product image uploads go through a Server Action. The framework's
+      // default request body limit is 1 MB, which rejects most images before
+      // the action runs. Images are validated to 8 MB client- and server-side,
+      // so allow headroom above that for the multipart body.
+      bodySizeLimit: "10mb",
+    },
+  },
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "images.unsplash.com" },

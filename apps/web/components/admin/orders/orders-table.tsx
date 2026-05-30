@@ -14,7 +14,7 @@ import {
 } from "@workspace/ui/components/table"
 
 import { OrderStatusBadge } from "./order-status-badge"
-import { formatEmirate } from "./emirate"
+import { formatDestination } from "./emirate"
 import { relativeTime } from "./relative-time"
 
 export async function OrdersTable({
@@ -65,7 +65,9 @@ export async function OrdersTable({
               <TableCell className="font-mono text-xs" dir="ltr">
                 {order.phone}
               </TableCell>
-              <TableCell>{formatEmirate(order.emirate)}</TableCell>
+              <TableCell>
+                {formatDestination(order.country, order.emirate)}
+              </TableCell>
               <TableCell className="text-end tabular-nums">
                 {formatAed(order.totalFils, "en")}
               </TableCell>

@@ -27,6 +27,34 @@ const EMIRATE_LABELS: Record<Emirate, string> = {
   FUJAIRAH: "Fujairah",
 }
 
-export function formatEmirate(emirate: Emirate): string {
-  return EMIRATE_LABELS[emirate]
+export function formatEmirate(emirate: Emirate | null | undefined): string {
+  return emirate ? EMIRATE_LABELS[emirate] : ""
+}
+
+/** English country names for the supported GCC markets (admin is English-only). */
+const COUNTRY_LABELS: Record<string, string> = {
+  AE: "United Arab Emirates",
+  SA: "Saudi Arabia",
+  KW: "Kuwait",
+  QA: "Qatar",
+  BH: "Bahrain",
+  OM: "Oman",
+}
+
+export function formatCountry(country: string | null | undefined): string {
+  if (!country) return ""
+  return COUNTRY_LABELS[country] ?? country
+}
+
+/**
+ * Human-readable destination: "Dubai, United Arab Emirates" for UAE orders
+ * (with an emirate), or just the country name for other markets.
+ */
+export function formatDestination(
+  country: string | null | undefined,
+  emirate: Emirate | null | undefined,
+): string {
+  return [formatEmirate(emirate), formatCountry(country)]
+    .filter(Boolean)
+    .join(", ")
 }

@@ -21,8 +21,8 @@ import {
   useCartStore,
   type CartItem,
 } from "@/lib/cart-store"
+import { Price } from "@/components/currency/price"
 import type { Locale } from "@/lib/locale"
-import { formatAed } from "@/lib/money"
 
 /**
  * A single cart line item: thumbnail, name + variant label, quantity stepper
@@ -127,7 +127,7 @@ export function CartLineItem({
           </div>
 
           <span className="text-sm font-semibold tabular-nums text-foreground">
-            {formatAed(lineTotalFils, locale)}
+            <Price fils={lineTotalFils} />
           </span>
         </div>
       </div>

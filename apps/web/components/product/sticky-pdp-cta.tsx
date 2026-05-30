@@ -1,7 +1,7 @@
 "use client"
 
+import { Price } from "@/components/currency/price"
 import type { Locale } from "@/lib/locale"
-import { formatAed } from "@/lib/money"
 import type { CartItem } from "@/lib/cart-store"
 
 import { AddToCartButton } from "./add-to-cart-button"
@@ -22,7 +22,7 @@ export function StickyPdpCta({ item, priceFils, locale }: Props) {
   return (
     <div className="bg-background border-border fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 border-t px-4 py-3 md:hidden">
       <span className="font-heading text-lg tracking-wide">
-        {formatAed(priceFils, locale)}
+        <Price fils={priceFils} />
       </span>
       <AddToCartButton item={item} locale={locale} className="flex-1" />
     </div>

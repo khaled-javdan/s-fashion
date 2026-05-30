@@ -21,12 +21,17 @@ export type ResolvedOrderItem = OrderItemInput & {
   colorNameEn: string | null;
   size: OrderItem["size"];
   unitPriceFils: number;
+  /** Unit cost snapshot at order time (fils); 0 when the product has no cost. */
+  unitCostFils: number;
 };
 
 export type CreateOrderInput = Omit<OrderCreateInput, "items"> & {
   subtotalFils: number;
   shippingFils: number;
   totalFils: number;
+  /** Currency the customer saw + the AED→currency rate at order time. */
+  displayCurrency: string;
+  fxRate: number;
 };
 
 /**
@@ -60,7 +65,8 @@ export async function createOrder(
         phone: input.phone,
         phoneVerified: false,
         email: input.email ?? null,
-        emirate: input.emirate,
+        country: input.country,
+        emirate: input.emirate ?? null,
         city: input.city,
         addressLine1: input.addressLine1,
         addressLine2: input.addressLine2 ?? null,
@@ -68,6 +74,8 @@ export async function createOrder(
         subtotalFils: input.subtotalFils,
         shippingFils: input.shippingFils,
         totalFils: input.totalFils,
+        displayCurrency: input.displayCurrency,
+        fxRate: input.fxRate,
         locale: input.locale,
         items: {
           create: items.map((item) => ({
@@ -78,6 +86,7 @@ export async function createOrder(
             colorNameEn: item.colorNameEn,
             size: item.size,
             unitPriceFils: item.unitPriceFils,
+            unitCostFils: item.unitCostFils,
             quantity: item.quantity,
           })),
         },
@@ -233,6 +242,10 @@ export type SalesAnalytics = {
   netRevenueFils: number;
   /** Collected: total of DELIVERED orders — money actually received (COD). */
   collectedFils: number;
+  /** Total cost of goods sold (sum of unit-cost snapshots × quantity). */
+  totalCostFils: number;
+  /** Gross profit: net revenue (excl. shipping) − total cost of goods. */
+  grossProfitFils: number;
   orders: number;
   aovFils: number;
   units: number;
@@ -295,6 +308,7 @@ export async function getSalesAnalytics(
         select: {
           quantity: true,
           unitPriceFils: true,
+          unitCostFils: true,
           productNameEn: true,
           productNameAr: true,
           variant: { select: { productId: true } },
@@ -316,6 +330,7 @@ export async function getSalesAnalytics(
   let totalSalesFils = 0;
   let netRevenueFils = 0;
   let collectedFils = 0;
+  let totalCostFils = 0;
   let units = 0;
 
   for (const order of orders) {
@@ -332,6 +347,7 @@ export async function getSalesAnalytics(
     }
     for (const item of order.items) {
       units += item.quantity;
+      totalCostFils += item.unitCostFils * item.quantity;
       const pid = item.variant?.productId;
       if (!pid) continue;
       const existing =
@@ -368,6 +384,8 @@ export async function getSalesAnalytics(
     totalSalesFils,
     netRevenueFils,
     collectedFils,
+    totalCostFils,
+    grossProfitFils: netRevenueFils - totalCostFils,
     orders: orders.length,
     aovFils: orders.length > 0 ? Math.round(totalSalesFils / orders.length) : 0,
     units,

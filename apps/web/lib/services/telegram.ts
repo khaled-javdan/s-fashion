@@ -34,8 +34,10 @@ export interface OrderNotificationInput {
   customerName: string;
   /** E.164 phone, e.g. "+971501234567". */
   phone: string;
-  /** Emirate enum value (e.g. "DUBAI") or display string. */
-  emirate: string;
+  /** ISO 3166-1 alpha-2 destination country, e.g. "AE", "SA". */
+  country: string;
+  /** UAE emirate enum value (e.g. "DUBAI"); null for other countries. */
+  emirate?: string | null;
   /** Order total in integer fils. */
   totalFils: number;
   /** Number of line items (sum of quantities). */
@@ -105,7 +107,9 @@ function buildOrderMessage(order: OrderNotificationInput): string {
     "",
     `<b>Customer:</b> ${escapeHtml(order.customerName)}`,
     `<b>Phone:</b> ${escapeHtml(order.phone)}`,
-    `<b>Emirate:</b> ${escapeHtml(order.emirate)}`,
+    `<b>Destination:</b> ${escapeHtml(
+      [order.emirate, order.country].filter(Boolean).join(", "),
+    )}`,
     `<b>Items:</b> ${order.itemCount}`,
     `<b>Total:</b> ${escapeHtml(total)}`,
     "",

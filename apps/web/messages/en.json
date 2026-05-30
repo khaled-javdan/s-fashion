@@ -92,6 +92,12 @@
     "description_heading": "Description",
     "read_more": "Read more",
     "read_less": "Read less",
+    "tabs": {
+      "description": "Description",
+      "additional_info": "Additional Information",
+      "shipping_return": "Shipping & Return",
+      "size_chart": "Size Chart"
+    },
     "size_chart_heading": "Size chart",
     "size_chart_unit": "All measurements in centimetres",
     "size_chart_size": "Size",
@@ -170,7 +176,9 @@
     "invalid_email": "Enter a valid email address.",
     "name_too_short": "Please enter your full name.",
     "address_too_short": "Please enter a complete address.",
-    "marketing_consent": "Send me offers & new arrivals on WhatsApp"
+    "marketing_consent": "Send me offers & new arrivals on WhatsApp",
+    "country": "Country",
+    "country_placeholder": "Select a country"
   },
   "order": {
     "success_heading": "We've received your order",
@@ -289,7 +297,9 @@
       },
       {
         "heading": "Condition of items",
-        "body": ["To be eligible for a return, items must be:"],
+        "body": [
+          "To be eligible for a return, items must be:"
+        ],
         "items": [
           "Unworn, unwashed and undamaged.",
           "With all original tags still attached.",
@@ -298,7 +308,9 @@
       },
       {
         "heading": "Non-returnable items",
-        "body": ["For hygiene and fairness, the following can't be returned:"],
+        "body": [
+          "For hygiene and fairness, the following can't be returned:"
+        ],
         "items": [
           "Pierced jewellery such as earrings.",
           "Items marked as final sale."
@@ -407,6 +419,8 @@
       "orders": "Orders",
       "avg_order_value": "Average order value",
       "units_sold": "Units sold",
+      "gross_profit": "Gross profit",
+      "profit_margin": "Profit margin",
       "sales_over_time": "Sales vs collected",
       "top_products": "Top products",
       "revenue": "Revenue",
@@ -538,8 +552,12 @@
         "slug": "Slug",
         "desc_en": "Description (English)",
         "desc_ar": "Description (Arabic)",
+        "additional_info_en": "Additional information (English)",
+        "additional_info_ar": "Additional information (Arabic)",
+        "additional_info_placeholder": "Care, materials, fit notes…",
         "price": "Price (AED)",
         "compare_at": "Compare-at price (AED, optional)",
+        "cost_price": "Cost price (AED, optional)",
         "final_sale": "Final sale",
         "final_sale_desc": "No returns or exchanges",
         "active": "Active",
@@ -565,6 +583,7 @@
         "hint": "JPEG, PNG, or WebP · up to 8 MB each",
         "error_type": "{name}: unsupported type. Use JPEG, PNG, or WebP.",
         "error_size": "{name}: larger than 8 MB.",
+        "error_upload": "\"{name}\" couldn’t be uploaded. Please try again.",
         "error_delete": "Could not delete image from storage: {error}",
         "remove": "Remove image",
         "move_earlier": "Move earlier",
@@ -606,8 +625,11 @@
         "contact": "Contact",
         "grid": "Grid layout",
         "size_chart": "Size chart",
+        "shipping_return": "Shipping & Return",
         "limits": "Order limits",
-        "ai": "AI"
+        "ai": "AI",
+        "markets": "Markets",
+        "currency": "Currency"
       },
       "hero": {
         "card_title": "Home hero",
@@ -684,6 +706,15 @@
         "length_error": "Length for \"{size}\" must be a valid number.",
         "saved_toast": "Size chart saved."
       },
+      "shipping_return": {
+        "card_title": "Shipping & Return",
+        "card_description": "Shown in the product page \"Shipping & Return\" tab. Plain text; line breaks are preserved.",
+        "content_en_label": "Content (English)",
+        "content_ar_label": "Content (Arabic)",
+        "content_placeholder": "Shipping timelines, return window, exclusions…",
+        "help": "This block is shared across every product.",
+        "saved_toast": "Shipping & Return saved."
+      },
       "limits": {
         "card_title": "Order limits",
         "card_description": "Anti-abuse caps enforced at checkout.",
@@ -702,6 +733,23 @@
         "paid_note": "Paid-credit models (e.g. Claude) require a top-up on Vercel AI Gateway. Free-tier models work on your monthly free credits — handy for testing.",
         "save_button": "Save model",
         "saved_toast": "AI model saved."
+      },
+      "markets": {
+        "card_title": "Shipping by country",
+        "card_description": "Set a flat fee and free-shipping threshold per country. Amounts are in AED.",
+        "flat_label": "Flat fee (AED)",
+        "threshold_label": "Free shipping over (AED)",
+        "help": "Fees are stored in AED and shown to customers in their own currency.",
+        "invalid": "Please enter valid amounts.",
+        "saved_toast": "Shipping settings saved."
+      },
+      "currency": {
+        "card_title": "Currencies & rates",
+        "card_description": "Enable the currencies you sell in and set the AED→currency rate for each.",
+        "rate_label": "Rate (1 AED =)",
+        "help": "AED is the base currency (always 1). Customers see prices converted at these rates.",
+        "invalid": "Please enter a valid rate.",
+        "saved_toast": "Currency settings saved."
       }
     },
     "customers": {
@@ -832,5 +880,22 @@
         "dashboard": "Dashboard"
       }
     }
+  },
+  "country": {
+    "ship_to": "Ship to",
+    "AE": "United Arab Emirates",
+    "SA": "Saudi Arabia",
+    "KW": "Kuwait",
+    "QA": "Qatar",
+    "BH": "Bahrain",
+    "OM": "Oman"
+  },
+  "currency": {
+    "AED": "UAE Dirham",
+    "SAR": "Saudi Riyal",
+    "KWD": "Kuwaiti Dinar",
+    "QAR": "Qatari Riyal",
+    "BHD": "Bahraini Dinar",
+    "OMR": "Omani Rial"
   }
 }

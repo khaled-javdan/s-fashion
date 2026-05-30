@@ -5,7 +5,9 @@ import { z } from "zod"
 
 import { isAllowedModelId } from "@/components/admin/ai/types"
 import { auth } from "@/lib/auth"
+import { currencyConfigSchema } from "@/lib/currency-config"
 import { gridConfigSchema } from "@/lib/grid-config"
+import { shippingConfigSchema } from "@/lib/shipping-config"
 import { heroConfigSchema, type HeroConfig } from "@/lib/hero-config"
 import {
   setSetting,
@@ -33,11 +35,9 @@ const sizeChartRow = z.object({
  * Per-key validation. Each setting is validated against its known shape so a
  * malformed payload from the client never lands in the DB.
  */
-const settingValidators: {
-  [K in SettingKey]: z.ZodType<KnownSettings[K]>
-} = {
-  "shipping.flat_fils": z.number().int().min(0),
-  "shipping.free_threshold_fils": z.number().int().min(0),
+const settingValidators: Record<SettingKey, z.ZodTypeAny> = {
+  "shipping.countries": shippingConfigSchema,
+  "currency.config": currencyConfigSchema,
   "contact.whatsapp_number": z
     .string()
     .trim()
@@ -54,6 +54,10 @@ const settingValidators: {
     .string()
     .refine(isAllowedModelId, "Unknown AI model."),
   "home.grid": gridConfigSchema,
+  "product.shipping_return": z.object({
+    contentAr: z.string().trim().max(4000),
+    contentEn: z.string().trim().max(4000),
+  }),
 }
 
 function isSettingKey(key: string): key is SettingKey {
@@ -89,10 +93,14 @@ export async function updateSettingsAction(input: {
 
   try {
     // Each branch keeps the value type aligned with its key for the overload.
-    await persist(input.key, parsed.data)
+    await persist(input.key, parsed.data as KnownSettings[SettingKey])
     revalidatePath("/admin/settings")
-    // The grid layout is rendered on the storefront home; refresh it too.
-    if (input.key === "home.grid") {
+    // These settings affect the storefront; refresh it too.
+    if (
+      input.key === "home.grid" ||
+      input.key === "shipping.countries" ||
+      input.key === "currency.config"
+    ) {
       revalidatePath("/[locale]", "page")
     }
     return { ok: true, data: null }
@@ -108,11 +116,15 @@ async function persist(
   value: KnownSettings[SettingKey],
 ): Promise<void> {
   switch (key) {
-    case "shipping.flat_fils":
-    case "shipping.free_threshold_fils":
     case "order.max_items":
     case "order.max_qty_per_variant":
       await setSetting(key, value as number)
+      return
+    case "shipping.countries":
+      await setSetting(key, value as KnownSettings["shipping.countries"])
+      return
+    case "currency.config":
+      await setSetting(key, value as KnownSettings["currency.config"])
       return
     case "contact.whatsapp_number":
     case "contact.business_hours_ar":
@@ -125,6 +137,9 @@ async function persist(
       return
     case "home.grid":
       await setSetting(key, value as KnownSettings["home.grid"])
+      return
+    case "product.shipping_return":
+      await setSetting(key, value as KnownSettings["product.shipping_return"])
       return
     default: {
       const _exhaustive: never = key

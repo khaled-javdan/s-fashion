@@ -12,13 +12,11 @@ import {
   ContentSections,
   type ContentSectionData,
 } from "@/components/content/content-page"
+import { formatMoney } from "@/lib/currency"
+import { getCurrencyContext } from "@/lib/currency-context.server"
 import { LOCALES, type Locale } from "@/lib/locale"
-import { formatAed } from "@/lib/money"
 import { getSetting } from "@/lib/repos/settings.repo"
-
-/** Fallbacks mirror the seeded shipping settings (5 AED flat, 600 AED free). */
-const DEFAULT_FLAT_FILS = 500
-const DEFAULT_FREE_THRESHOLD_FILS = 60_000
+import { parseShippingConfig, resolveShipping } from "@/lib/shipping-config"
 
 export async function generateMetadata({
   params,
@@ -42,16 +40,18 @@ export default async function ShippingPage({
   setRequestLocale(locale)
 
   const t = await getTranslations("shipping")
-  const [flatFils, freeThresholdFils] = await Promise.all([
-    getSetting("shipping.flat_fils"),
-    getSetting("shipping.free_threshold_fils"),
-  ])
-
-  const flat = formatAed(flatFils ?? DEFAULT_FLAT_FILS, locale)
-  const threshold = formatAed(
-    freeThresholdFils ?? DEFAULT_FREE_THRESHOLD_FILS,
-    locale,
+  const { country, currency, rate } = await getCurrencyContext()
+  const shippingConfig = parseShippingConfig(
+    await getSetting("shipping.countries"),
   )
+  const { shippingFils, freeThresholdFils } = resolveShipping(
+    shippingConfig,
+    country,
+    0,
+  )
+
+  const flat = formatMoney(shippingFils, { locale, currency, rate })
+  const threshold = formatMoney(freeThresholdFils, { locale, currency, rate })
 
   const sections = t.raw("sections") as ContentSectionData[]
 

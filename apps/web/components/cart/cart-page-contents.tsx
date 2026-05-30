@@ -15,8 +15,8 @@ import {
   selectSubtotalFils,
   useCartStore,
 } from "@/lib/cart-store"
+import { Price } from "@/components/currency/price"
 import type { Locale } from "@/lib/locale"
-import { formatAed } from "@/lib/money"
 
 /**
  * Full cart page body. Mirrors the drawer content but laid out for a page:
@@ -63,7 +63,7 @@ export function CartPageContents() {
         <div className="mt-4 flex items-center justify-between text-sm">
           <span className="text-muted-foreground">{t("subtotal")}</span>
           <span className="font-semibold tabular-nums text-foreground">
-            {formatAed(subtotalFils, locale)}
+            <Price fils={subtotalFils} />
           </span>
         </div>
         <p className="mt-2 text-xs text-muted-foreground">
