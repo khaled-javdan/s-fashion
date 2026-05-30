@@ -103,7 +103,7 @@ function ProductTableRow({
   return (
     <TableRow>
       <TableCell>
-        <div className="bg-muted relative h-12 w-12 overflow-hidden rounded">
+        <div className="bg-muted relative h-12 w-12 overflow-hidden rounded-md">
           {product.thumbnailUrl ? (
             <Image
               src={product.thumbnailUrl}

@@ -5,6 +5,13 @@ import { useState, useTransition } from "react"
 import { toast } from "sonner"
 
 import { Label } from "@workspace/ui/components/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@workspace/ui/components/select"
 
 import { updateSettingsAction } from "@/app/[locale]/admin/(authed)/settings/actions"
 import { useSaveBar } from "@/components/admin/save-bar"
@@ -94,20 +101,26 @@ function ColumnSelect({
   options: readonly number[]
   onChange: (value: number) => void
 }) {
+  // Radix Select speaks strings; coerce both ways at the boundary so the form
+  // state stays typed as `number`.
   return (
-    <label className="grid gap-2">
+    <div className="grid gap-2">
       <Label>{label}</Label>
-      <select
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="border-input bg-background h-9 rounded-md border px-2 text-sm"
+      <Select
+        value={String(value)}
+        onValueChange={(next) => onChange(Number(next))}
       >
-        {options.map((n) => (
-          <option key={n} value={n}>
-            {n}
-          </option>
-        ))}
-      </select>
-    </label>
+        <SelectTrigger className="w-full">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((n) => (
+            <SelectItem key={n} value={String(n)}>
+              {n}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
   )
 }

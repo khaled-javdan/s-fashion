@@ -62,7 +62,7 @@ export function CartLineItem({
   return (
     <div className="flex gap-3 py-4">
       <div
-        className={`relative shrink-0 overflow-hidden bg-muted ${
+        className={`relative shrink-0 overflow-hidden rounded-md bg-muted ${
           compact ? "size-16" : "size-20 sm:size-24"
         }`}
       >

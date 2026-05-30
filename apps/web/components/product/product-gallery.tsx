@@ -119,7 +119,7 @@ export function ProductGallery({ images, priority = false }: Props) {
         type="button"
         onClick={() => setLightboxOpen(true)}
         aria-label={t("open_image")}
-        className="bg-muted relative hidden aspect-[3/4] w-full cursor-zoom-in overflow-hidden lg:block"
+        className="bg-muted relative hidden aspect-[3/4] w-full cursor-zoom-in overflow-hidden rounded-md lg:block"
       >
         <Image
           src={activeImage.url}
@@ -146,7 +146,7 @@ export function ProductGallery({ images, priority = false }: Props) {
               type="button"
               onClick={() => openLightboxAt(index)}
               aria-label={t("thumbnail_label", { number: index + 1 })}
-              className="bg-muted relative aspect-[3/4] w-full shrink-0 snap-center cursor-zoom-in overflow-hidden"
+              className="bg-muted relative aspect-[3/4] w-full shrink-0 snap-center cursor-zoom-in overflow-hidden rounded-md"
             >
               <Image
                 src={image.url}
@@ -191,7 +191,7 @@ export function ProductGallery({ images, priority = false }: Props) {
               aria-pressed={index === active}
               aria-label={t("thumbnail_label", { number: index + 1 })}
               className={cn(
-                "bg-muted relative size-16 shrink-0 overflow-hidden border-2 transition",
+                "bg-muted relative size-16 shrink-0 overflow-hidden rounded-md border-2 transition",
                 index === active ? "border-foreground" : "border-transparent",
               )}
             >

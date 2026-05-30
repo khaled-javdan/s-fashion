@@ -46,6 +46,7 @@ type SeedProduct = {
   descEn: string;
   priceFils: number;
   compareAtFils: number | null;
+  costPriceFils: number;
   isFinalSale: boolean;
   variants: SeedVariant[];
   images: SeedImage[];
@@ -66,6 +67,7 @@ const products: SeedProduct[] = [
       "A classic mukhawar with a modern twist — hand-embroidered with gold thread on soft, breathable fabric.",
     priceFils: 45000,
     compareAtFils: 55000,
+    costPriceFils: 27000,
     isFinalSale: false,
     variants: [
       {
@@ -124,6 +126,7 @@ const products: SeedProduct[] = [
       "Deep midnight blue with silver embroidery that catches the light — perfect for weddings and special evenings.",
     priceFils: 52000,
     compareAtFils: null,
+    costPriceFils: 31000,
     isFinalSale: false,
     variants: [
       {
@@ -174,6 +177,7 @@ const products: SeedProduct[] = [
       "Luxurious emerald green with classic gold embroidery, designed for elegant occasions.",
     priceFils: 48000,
     compareAtFils: 58000,
+    costPriceFils: 29000,
     isFinalSale: false,
     variants: [
       {
@@ -232,6 +236,7 @@ const products: SeedProduct[] = [
       "Soft ivory adorned with pearl beading and silver embroidery — perfect for daytime celebrations and weddings.",
     priceFils: 65000,
     compareAtFils: null,
+    costPriceFils: 39000,
     isFinalSale: false,
     variants: [
       {
@@ -290,6 +295,7 @@ const products: SeedProduct[] = [
       "A limited piece in luxurious burgundy velvet with copper-thread embroidery — made for warm Emirati winters.",
     priceFils: 72000,
     compareAtFils: 85000,
+    costPriceFils: 43000,
     isFinalSale: true,
     variants: [
       {
@@ -419,6 +425,7 @@ async function seedProducts() {
         descEn: p.descEn,
         priceFils: p.priceFils,
         compareAtFils: p.compareAtFils,
+        costPriceFils: p.costPriceFils,
         isFinalSale: p.isFinalSale,
         isActive: true,
       },
@@ -430,6 +437,7 @@ async function seedProducts() {
         descEn: p.descEn,
         priceFils: p.priceFils,
         compareAtFils: p.compareAtFils,
+        costPriceFils: p.costPriceFils,
         isFinalSale: p.isFinalSale,
         isActive: true,
       },

@@ -4,6 +4,9 @@
   "globalEnv": [
     "DATABASE_URL",
     "DIRECT_URL",
+    "POSTGRES_URL",
+    "POSTGRES_URL_NON_POOLING",
+    "DATABASE_URL_UNPOOLED",
     "NEXTAUTH_SECRET",
     "NEXTAUTH_URL",
     "AUTH_SECRET",

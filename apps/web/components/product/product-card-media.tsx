@@ -75,7 +75,7 @@ export function ProductCardMedia({
   })
 
   if (slides.length === 0) {
-    return <div className="bg-muted aspect-[3/4] w-full" />
+    return <div className="bg-muted aspect-[3/4] w-full rounded-md" />
   }
 
   const visibleSwatches = swatches.slice(0, MAX_SWATCHES)
@@ -83,7 +83,7 @@ export function ProductCardMedia({
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="bg-muted relative aspect-[3/4] w-full overflow-hidden">
+      <div className="bg-muted relative aspect-[3/4] w-full overflow-hidden rounded-md">
         <div
           ref={scroller}
           onScroll={onScroll}

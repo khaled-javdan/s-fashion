@@ -40,7 +40,7 @@ export function ProductImageThumb({
 
   return (
     <div className="space-y-1.5">
-      <div className="group bg-muted relative aspect-square overflow-hidden border">
+      <div className="group bg-muted relative aspect-square overflow-hidden rounded-md border">
         <Image src={url} alt={alt} fill sizes="160px" className="object-cover" />
 
         <button
