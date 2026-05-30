@@ -43,13 +43,13 @@ export function Header() {
         <nav className="hidden md:flex md:flex-1 md:items-center md:justify-center md:gap-8">
           <Link
             href={`/${locale}`}
-            className="text-xs font-semibold uppercase tracking-widest text-foreground/80 hover:text-foreground"
+            className="text-xs font-semibold tracking-widest text-foreground/80 uppercase hover:text-foreground"
           >
             {t("shop_all")}
           </Link>
           <Link
             href={`/${locale}/orders/track`}
-            className="text-xs font-semibold uppercase tracking-widest text-foreground/80 hover:text-foreground"
+            className="text-xs font-semibold tracking-widest text-foreground/80 uppercase hover:text-foreground"
           >
             {t("track")}
           </Link>
@@ -74,11 +74,11 @@ function BrandWordmark({ locale }: { locale: Locale }) {
   return (
     <Link
       href={`/${locale}`}
-      aria-label="S Fashion"
-      className="font-heading text-foreground whitespace-nowrap text-lg uppercase tracking-[0.35em] sm:text-xl"
+      aria-label="SFashion"
+      className="font-heading text-lg tracking-[0.35em] whitespace-nowrap text-foreground uppercase sm:text-xl"
     >
       <span className="sm:hidden">SFASHION</span>
-      <span className="hidden sm:inline">S FASHION</span>
+      <span className="hidden sm:inline">SFASHION</span>
     </Link>
   )
 }
