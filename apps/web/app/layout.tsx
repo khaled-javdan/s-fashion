@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next"
+import { Analytics } from "@vercel/analytics/next"
 import { getLocale } from "next-intl/server"
 import {
   Cairo,
@@ -109,6 +110,7 @@ export default async function RootLayout({
     >
       <body className="min-h-svh bg-background font-sans text-foreground">
         <ThemeProvider>{children}</ThemeProvider>
+        <Analytics />
       </body>
     </html>
   )
