@@ -1,9 +1,8 @@
 "use client"
 
-import { Sparkles } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { useRouter } from "next/navigation"
-import { useEffect, useMemo, useRef, useState, useTransition } from "react"
+import { useMemo, useState, useTransition } from "react"
 import { toast } from "sonner"
 
 import type { Size } from "@workspace/db"
@@ -12,13 +11,17 @@ import { Input } from "@workspace/ui/components/input"
 import { Label } from "@workspace/ui/components/label"
 import { Switch } from "@workspace/ui/components/switch"
 
-import { analyzeImageAction } from "@/app/[locale]/admin/(authed)/ai/actions"
 import {
   createProductAction,
   updateProductAction,
   toggleProductActiveAction,
   type ProductFormPayload,
 } from "@/app/[locale]/admin/(authed)/products/actions"
+import {
+  AiProductAnalyzePanel,
+  type AiApplyPayload,
+  type DetectedColor,
+} from "@/components/admin/ai/ai-product-analyze-panel"
 import { AiSuggestionBadge } from "@/components/admin/ai/ai-suggestion-badge"
 import { AiTranslatePairButton } from "@/components/admin/ai/ai-translate-pair-button"
 import { RichTextEditor } from "@/components/admin/rich-text-editor"
@@ -57,8 +60,6 @@ type FormState = {
   images: FormImage[]
 }
 
-/** Suggestion shape returned by the AI analyze panel (subset applied below). */
-type Suggestions = Record<string, unknown>
 
 function initialState(product?: ProductWithRelations): FormState {
   if (!product) {
@@ -125,13 +126,48 @@ function slugify(value: string): string {
 
 const DEFAULT_HEX = "#C97B84"
 const isEmpty = (v?: string | null) => !v || v.trim() === ""
-const validHex = (h?: string | null): string | null =>
-  typeof h === "string" && /^#[0-9a-fA-F]{6}$/.test(h) ? h : null
 
-type VariantSuggestion = {
-  colorNameEn?: string
-  colorNameAr?: string
-  colorHex?: string
+/**
+ * Fold one AI-detected colour into the form: ensure a variant carries it
+ * (reusing the untouched seeded default for the first colour, otherwise
+ * appending a new colour variant), and tag the source image so the storefront
+ * gallery groups by colour. Returns a new state — safe inside setState.
+ */
+function applyDetectedColor(state: FormState, c: DetectedColor): FormState {
+  const hex = c.colorHex
+  const next: FormState = { ...state }
+  const sameColor = next.variants.findIndex(
+    (v) => (v.colorHex ?? "").toLowerCase() === hex.toLowerCase(),
+  )
+  if (sameColor === -1) {
+    const blank = next.variants.findIndex(
+      (v) =>
+        !v.id &&
+        (!v.colorHex || v.colorHex === DEFAULT_HEX) &&
+        isEmpty(v.colorNameEn) &&
+        isEmpty(v.colorNameAr),
+    )
+    const patch = {
+      colorNameEn: c.colorNameEn,
+      colorNameAr: c.colorNameAr,
+      colorHex: hex,
+    }
+    if (blank !== -1) {
+      next.variants = next.variants.map((v, i) =>
+        i === blank ? { ...v, ...patch } : v,
+      )
+    } else {
+      const baseSize = next.variants[0]?.size ?? "M"
+      next.variants = [
+        ...next.variants,
+        { ...makeEmptyVariant(), size: baseSize, ...patch },
+      ]
+    }
+  }
+  next.images = next.images.map((img) =>
+    img.url === c.url ? { ...img, colorHex: hex } : img,
+  )
+  return next
 }
 
 export function ProductForm(props: Props) {
@@ -173,15 +209,6 @@ export function ProductForm(props: Props) {
     if (!slugEdited) clearAi("slug")
   }
 
-  // Latest state for async AI callbacks (analysis resolves after re-renders).
-  const stateRef = useRef(state)
-  useEffect(() => {
-    stateRef.current = state
-  })
-
-  // Number of in-flight per-image analyses (color detection + global copy).
-  const [analyzing, setAnalyzing] = useState(0)
-
   // Distinct variant colors an image can be tagged with (label prefers the
   // English color name, then Arabic, then the hex itself).
   const imageColors = useMemo(() => {
@@ -200,118 +227,35 @@ export function ProductForm(props: Props) {
   }, [state.variants])
 
   /**
-   * Analyze one freshly-uploaded image and fold the result into the form:
-   * detect its colour and ensure a matching variant (tagging the image to it),
-   * and fill the GLOBAL name/description/slug only while they're still empty —
-   * so the first image seeds the copy and later images just add colours without
-   * clobbering anything the admin typed.
+   * Apply a suggestion subset the admin picked in the analyze panel. Scalars
+   * overwrite their field (an explicit pick wins over whatever's there) and get
+   * badged until edited; detected colours each become a variant and tag their
+   * source image. Picking the slug pins it so later name edits don't reslug it.
    */
-  const applyImageAnalysis = (url: string, s: Suggestions) => {
-    const str = (k: string): string | null => {
-      const v = s[k]
-      return typeof v === "string" && v.trim() !== "" ? v.trim() : null
-    }
-    const sv = Array.isArray(s.variants)
-      ? (s.variants[0] as VariantSuggestion | undefined)
-      : undefined
-    const hex = validHex(sv?.colorHex)
-    const colorEn = sv?.colorNameEn?.trim() ?? ""
-    const colorAr = sv?.colorNameAr?.trim() ?? ""
-    const nameEn = str("nameEn")
-    const nameAr = str("nameAr")
-    const descEn = str("descEn")
-    const descAr = str("descAr")
-    const additionalInfoEn = str("additionalInfoEn")
-    const additionalInfoAr = str("additionalInfoAr")
-    const aiSlug = str("slug")
-
-    // Flag which global fields this image actually fills (badge until edited).
-    // Read from the ref so concurrent analyses see the freshest emptiness.
-    const cur = stateRef.current
-    const flags: string[] = []
-    if (isEmpty(cur.nameEn) && nameEn) flags.push("nameEn")
-    if (isEmpty(cur.nameAr) && nameAr) flags.push("nameAr")
-    if (isEmpty(cur.descEn) && descEn) flags.push("descEn")
-    if (isEmpty(cur.descAr) && descAr) flags.push("descAr")
-    if (isEmpty(cur.additionalInfoEn) && additionalInfoEn)
-      flags.push("additionalInfoEn")
-    if (isEmpty(cur.additionalInfoAr) && additionalInfoAr)
-      flags.push("additionalInfoAr")
-    if (isEmpty(cur.slug) && (aiSlug || nameEn)) flags.push("slug")
-
-    // Functional update so simultaneous image analyses compose correctly.
-    setState((prev) => {
-      const next: FormState = { ...prev }
-
-      if (isEmpty(next.nameEn) && nameEn) next.nameEn = nameEn
-      if (isEmpty(next.nameAr) && nameAr) next.nameAr = nameAr
-      if (isEmpty(next.descEn) && descEn) next.descEn = descEn
-      if (isEmpty(next.descAr) && descAr) next.descAr = descAr
-      if (isEmpty(next.additionalInfoEn) && additionalInfoEn)
-        next.additionalInfoEn = additionalInfoEn
-      if (isEmpty(next.additionalInfoAr) && additionalInfoAr)
-        next.additionalInfoAr = additionalInfoAr
-      if (isEmpty(next.slug)) {
-        if (aiSlug) next.slug = slugify(aiSlug)
-        else if (!isEmpty(next.nameEn)) next.slug = slugify(next.nameEn)
-      }
-
-      if (hex) {
-        const sameColor = next.variants.findIndex(
-          (v) => (v.colorHex ?? "").toLowerCase() === hex.toLowerCase(),
-        )
-        if (sameColor === -1) {
-          // Reuse the untouched seeded default variant for the first colour,
-          // otherwise append a new colour variant (size copied from the first).
-          const blank = next.variants.findIndex(
-            (v) =>
-              !v.id &&
-              (!v.colorHex || v.colorHex === DEFAULT_HEX) &&
-              isEmpty(v.colorNameEn) &&
-              isEmpty(v.colorNameAr),
-          )
-          const patch = { colorNameEn: colorEn, colorNameAr: colorAr, colorHex: hex }
-          if (blank !== -1) {
-            next.variants = next.variants.map((v, i) =>
-              i === blank ? { ...v, ...patch } : v,
-            )
-          } else {
-            const baseSize = next.variants[0]?.size ?? "M"
-            next.variants = [
-              ...next.variants,
-              { ...makeEmptyVariant(), size: baseSize, ...patch },
-            ]
+  const applyAiSuggestions = ({ scalars, colors }: AiApplyPayload) => {
+    if (scalars && Object.keys(scalars).length > 0) {
+      const keys = Object.keys(scalars) as (keyof FormState)[]
+      setState((prev) => {
+        const next: FormState = { ...prev }
+        for (const key of keys) {
+          const value = scalars[key as string]
+          if (typeof value === "string") {
+            ;(next as Record<string, unknown>)[key] = value
           }
         }
-        // Tag this image with the detected colour for the storefront gallery.
-        next.images = next.images.map((img) =>
-          img.url === url ? { ...img, colorHex: hex } : img,
-        )
-      }
-
-      return next
-    })
-
-    if (flags.includes("slug")) setSlugEdited(true)
-    if (flags.length > 0) {
-      setAiFields((prev) => new Set([...prev, ...flags]))
-    }
-  }
-
-  /** Fire analysis for a just-uploaded image; errors surface as a toast. */
-  const analyzeUploadedImage = (url: string) => {
-    setAnalyzing((n) => n + 1)
-    analyzeImageAction({
-      imageUrls: [url],
-      context: "product",
-      schemaDescriptor: "product-suggestions-v3",
-    })
-      .then((res) => {
-        if (res.ok) applyImageAnalysis(url, res.suggestions)
-        else toast.error(res.error)
+        return next
       })
-      .catch(() => toast.error(t("ai.analyze_error")))
-      .finally(() => setAnalyzing((n) => Math.max(0, n - 1)))
+      if (keys.includes("slug")) setSlugEdited(true)
+      setAiFields((prev) => new Set([...prev, ...(keys as string[])]))
+    }
+
+    if (colors && colors.length > 0) {
+      setState((prev) => {
+        let next = prev
+        for (const c of colors) next = applyDetectedColor(next, c)
+        return next
+      })
+    }
   }
 
   const validate = (): string | null => {
@@ -450,9 +394,9 @@ export function ProductForm(props: Props) {
 
   return (
     <form onSubmit={onSubmit} className="space-y-8">
-      {/* Images first: each upload is auto-analyzed — its colour becomes a
-          variant and global copy is filled while empty. No analysis runs just
-          from opening an existing product; only fresh uploads trigger it. */}
+      {/* Images first: once uploaded, the admin can run AI analysis on demand
+          (one request per image, with a progress bar) and pick which suggested
+          copy and colours to apply. Nothing is analyzed automatically. */}
       <Section title={t("sections.images")}>
         <ImagesUploader
           images={state.images}
@@ -465,14 +409,11 @@ export function ProductForm(props: Props) {
           }
           altFallback={state.nameEn}
           colors={imageColors}
-          onUploaded={analyzeUploadedImage}
         />
-        <p className="text-muted-foreground flex items-center gap-2 text-xs">
-          <Sparkles className="size-3.5 shrink-0" aria-hidden />
-          {analyzing > 0
-            ? t("ai.analyzing", { count: analyzing })
-            : t("ai.hint")}
-        </p>
+        <AiProductAnalyzePanel
+          imageUrls={state.images.map((i) => i.url)}
+          onApply={applyAiSuggestions}
+        />
       </Section>
 
       <Section title={t("sections.basics")}>
