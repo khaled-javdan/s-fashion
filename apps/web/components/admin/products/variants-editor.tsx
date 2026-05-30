@@ -1,6 +1,6 @@
 "use client"
 
-import { Plus, Trash2 } from "lucide-react"
+import { Copy, Plus, Trash2 } from "lucide-react"
 import { useTranslations } from "next-intl"
 
 import type { Size } from "@workspace/db"
@@ -67,6 +67,36 @@ export function VariantsEditor({ variants, onChange }: Props) {
 
   const add = () => {
     onChange([...variants, makeEmptyVariant()])
+  }
+
+  // Clone a variant, keeping color fields and picking the next size that isn't
+  // already used with this color. Stock/SKU reset so they don't carry over.
+  const duplicate = (index: number) => {
+    const source = variants[index]
+    if (!source) return
+
+    const colorKey = (source.colorHex ?? "").toLowerCase()
+    const usedSizes = new Set(
+      variants
+        .filter((v) => (v.colorHex ?? "").toLowerCase() === colorKey)
+        .map((v) => v.size),
+    )
+    const nextSize =
+      SIZE_VALUES.find((s) => !usedSizes.has(s)) ?? source.size
+
+    const clone: FormVariant = {
+      colorNameAr: source.colorNameAr,
+      colorNameEn: source.colorNameEn,
+      colorHex: source.colorHex,
+      size: nextSize,
+      stock: 0,
+      sku: "",
+    }
+    onChange([
+      ...variants.slice(0, index + 1),
+      clone,
+      ...variants.slice(index + 1),
+    ])
   }
 
   // Flag duplicate (colorHex, size) pairs so the editor surfaces them inline.
@@ -202,7 +232,7 @@ export function VariantsEditor({ variants, onChange }: Props) {
                 />
               </div>
 
-              <div className="sm:col-span-2">
+              <div className="sm:col-span-1">
                 <div className="flex min-h-7 items-center">
                   <Label className="text-xs">{t("variants.sku")}</Label>
                 </div>
@@ -214,7 +244,17 @@ export function VariantsEditor({ variants, onChange }: Props) {
                 />
               </div>
 
-              <div className="flex items-end sm:col-span-1">
+              <div className="flex items-end gap-1 sm:col-span-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => duplicate(idx)}
+                  aria-label={t("variants.duplicate_action")}
+                  title={t("variants.duplicate_action")}
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
                 <Button
                   type="button"
                   variant="ghost"
@@ -222,6 +262,7 @@ export function VariantsEditor({ variants, onChange }: Props) {
                   onClick={() => remove(idx)}
                   disabled={variants.length <= 1}
                   aria-label={t("variants.remove")}
+                  title={t("variants.remove")}
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>

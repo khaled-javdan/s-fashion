@@ -575,6 +575,7 @@
         "sku_placeholder": "optional",
         "remove": "Remove variant",
         "add": "Add variant",
+        "duplicate_action": "Duplicate with next size",
         "duplicate": "Duplicate colour + size. Each combination must be unique."
       },
       "images": {
@@ -847,6 +848,9 @@
       "analyze": {
         "heading": "AI suggestions",
         "idle_hint": "Upload an image and AI will suggest content for the fields below.",
+        "trigger": "Analyze with AI",
+        "progress": "Analyzed {done} of {total}…",
+        "errors": "{count, plural, one {# image couldn't be analyzed} other {# images couldn't be analyzed}}",
         "generating": "✨ Analyzing {count, plural, one {image} other {images}}…",
         "regenerate": "Generate new AI suggestions",
         "dismiss": "Dismiss",
@@ -858,6 +862,8 @@
           "nameAr": "Name (AR)",
           "descEn": "Description (EN)",
           "descAr": "Description (AR)",
+          "additionalInfoEn": "Details (EN)",
+          "additionalInfoAr": "Details (AR)",
           "slug": "Slug",
           "eyebrowEn": "Eyebrow (EN)",
           "eyebrowAr": "Eyebrow (AR)",
