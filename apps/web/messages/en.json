@@ -48,6 +48,7 @@
     "hero_goto": "Go to slide {number}",
     "shop_heading": "New arrivals",
     "shop_subheading": "Handcrafted mukhawar, ready to ship.",
+    "view_all": "View all products",
     "empty": "No products available yet.",
     "density_label": "Grid density",
     "density_option": "{count, plural, one {# column} other {# columns}}",

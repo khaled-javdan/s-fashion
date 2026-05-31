@@ -56,7 +56,7 @@ export function OrderSummary({
   const t = useTranslations("checkout")
   const tShipping = useTranslations("shipping")
   const locale = useLocale() as Locale
-  const [expanded, setExpanded] = useState(false)
+  const [expanded, setExpanded] = useState(true)
   const [codeInput, setCodeInput] = useState("")
 
   const items = useCartStore(selectItems)

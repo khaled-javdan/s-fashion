@@ -502,7 +502,7 @@ export function CheckoutForm({
 
   return (
     <div className="grid gap-8 lg:grid-cols-[1fr_22rem]">
-      <div className="order-2 lg:order-1">
+      <div className="order-2 min-w-0 lg:order-1">
         {step === "form" ? (
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-8" noValidate>
             {/* Contact section */}
@@ -721,7 +721,7 @@ export function CheckoutForm({
         )}
       </div>
 
-      <div className="order-1 lg:order-2">
+      <div className="order-1 min-w-0 lg:order-2">
         <div className="lg:sticky lg:top-20">
           <OrderSummary
             shippingConfig={shippingConfig}

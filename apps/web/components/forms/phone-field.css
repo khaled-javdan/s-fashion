@@ -11,6 +11,12 @@
 .cn-phone-field {
   display: flex;
   align-items: center;
+  /* As a flex container placed inside a grid/flex parent it defaults to
+   * min-width:auto, which refuses to shrink below its intrinsic content width
+   * and pushes narrow (<~400px) layouts wider than the viewport. min-width:0
+   * lets it shrink to its container; the number input already has min-width:0. */
+  width: 100%;
+  min-width: 0;
   height: 2.75rem; /* h-11 — matches Input */
   border-radius: var(--radius);
   border: 1px solid transparent;

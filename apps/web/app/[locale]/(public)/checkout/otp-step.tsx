@@ -106,7 +106,11 @@ export function OtpStep({
         >
           <InputOTPGroup>
             {Array.from({ length: OTP_LENGTH }).map((_, i) => (
-              <InputOTPSlot key={i} index={i} className="size-12 text-base" />
+              <InputOTPSlot
+                key={i}
+                index={i}
+                className="size-10 text-base sm:size-12"
+              />
             ))}
           </InputOTPGroup>
         </InputOTP>

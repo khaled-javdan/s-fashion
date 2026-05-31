@@ -48,6 +48,7 @@
     "hero_goto": "الانتقال إلى الشريحة {number}",
     "shop_heading": "أحدث القطع",
     "shop_subheading": "مخاور مصنوعة بعناية، جاهزة للشحن",
+    "view_all": "تصفّح كل المنتجات",
     "empty": "لا توجد منتجات متاحة حالياً",
     "density_label": "كثافة الشبكة",
     "density_option": "{count, plural, one {عمود واحد} two {عمودان} other {# أعمدة}}",

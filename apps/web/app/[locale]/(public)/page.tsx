@@ -3,7 +3,7 @@ import { getTranslations, setRequestLocale } from "next-intl/server"
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { PackageSearch } from "lucide-react"
+import { ArrowRight, PackageSearch } from "lucide-react"
 
 import { Button } from "@workspace/ui/components/button"
 
@@ -114,18 +114,28 @@ export default async function HomePage({
             {t("empty")}
           </p>
         ) : (
-          <ProductGrid config={grid}>
-            {products.map((product, index) => (
-              <li key={product.id}>
-                <ProductCard
-                  product={product}
-                  locale={typedLocale}
-                  priority={index < 4}
-                  rating={ratings.get(product.id)}
-                />
-              </li>
-            ))}
-          </ProductGrid>
+          <>
+            <ProductGrid config={grid}>
+              {products.map((product, index) => (
+                <li key={product.id}>
+                  <ProductCard
+                    product={product}
+                    locale={typedLocale}
+                    priority={index < 4}
+                    rating={ratings.get(product.id)}
+                  />
+                </li>
+              ))}
+            </ProductGrid>
+            <div className="mt-10 flex justify-center sm:mt-12">
+              <Button asChild variant="outline" size="lg">
+                <Link href={`/${typedLocale}/products`}>
+                  {t("view_all")}
+                  <ArrowRight className="size-4 rtl:rotate-180" aria-hidden />
+                </Link>
+              </Button>
+            </div>
+          </>
         )}
 
         <RecentlyViewed

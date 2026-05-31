@@ -1,4 +1,8 @@
 import { getTranslations } from "next-intl/server"
+import Link from "next/link"
+import { ArrowRight } from "lucide-react"
+
+import { Button } from "@workspace/ui/components/button"
 
 import { ProductCard } from "@/components/product/product-card"
 import type { Locale } from "@/lib/locale"
@@ -49,6 +53,15 @@ export async function BestSellers({ locale }: { locale: Locale }) {
             </li>
           ))}
         </ul>
+
+        <div className="mt-10 flex justify-center sm:mt-12">
+          <Button asChild variant="outline" size="lg">
+            <Link href={`/${locale}/products`}>
+              {t("view_all")}
+              <ArrowRight className="size-4 rtl:rotate-180" aria-hidden />
+            </Link>
+          </Button>
+        </div>
       </div>
     </section>
   )
