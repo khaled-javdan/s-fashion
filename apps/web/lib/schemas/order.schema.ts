@@ -3,6 +3,7 @@ import { parsePhoneNumberFromString } from "libphonenumber-js";
 import { Emirate } from "@workspace/db";
 
 import { COUNTRY_CODES } from "@/lib/geo";
+import { ABSOLUTE_MAX_QTY_PER_VARIANT } from "@/lib/order-limits";
 
 /** Strict E.164 phone — validates against libphonenumber-js and returns the canonical form. */
 const phoneE164 = z.string().transform((raw, ctx) => {
@@ -17,10 +18,14 @@ const phoneE164 = z.string().transform((raw, ctx) => {
   return parsed.number; // canonical E.164, e.g. +971501234567
 });
 
-/** Single line item in a new order. */
+/**
+ * Single line item in a new order. The static cap is the absolute ceiling — the
+ * real per-variant limit is the admin-configured `order.max_qty_per_variant`
+ * setting, enforced server-side in the checkout action against the live value.
+ */
 export const orderItemInputSchema = z.object({
   variantId: z.string().min(1),
-  quantity: z.number().int().min(1).max(2),
+  quantity: z.number().int().min(1).max(ABSOLUTE_MAX_QTY_PER_VARIANT),
 });
 export type OrderItemInput = z.infer<typeof orderItemInputSchema>;
 
@@ -48,6 +53,8 @@ export const orderCreateSchema = z.object({
   locale: z.union([z.literal("ar"), z.literal("en")]),
   /** Marketing opt-in (WhatsApp offers / new arrivals). Defaults to no consent. */
   marketingConsent: z.boolean().optional().default(false),
+  /** Optional coupon code the customer applied (re-validated server-side). */
+  couponCode: z.string().trim().max(40).optional(),
   items: z.array(orderItemInputSchema).min(1),
 });
 export type OrderCreateInput = z.infer<typeof orderCreateSchema>;

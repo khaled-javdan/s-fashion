@@ -9,6 +9,7 @@ import {
   type CardSlide,
   type CardSwatch,
 } from "@/components/product/product-card-media"
+import { StarRating } from "@/components/reviews/star-rating"
 import { Money } from "@/components/currency/money"
 import { getCurrencyContext } from "@/lib/currency-context.server"
 import type { Locale } from "@/lib/locale"
@@ -24,9 +25,16 @@ type Props = {
   locale: Locale
   /** Mark the image as `priority` for above-the-fold LCP (first few cards). */
   priority?: boolean
+  /** Aggregate rating; omit (or count 0) to hide the stars. */
+  rating?: { average: number; count: number }
 }
 
-export async function ProductCard({ product, locale, priority = false }: Props) {
+export async function ProductCard({
+  product,
+  locale,
+  priority = false,
+  rating,
+}: Props) {
   const t = await getTranslations("product")
   const { currency, rate } = await getCurrencyContext()
   const name = locale === "ar" ? product.nameAr : product.nameEn
@@ -145,6 +153,10 @@ export async function ProductCard({ product, locale, priority = false }: Props) 
           {name}
         </h3>
 
+        {rating && rating.count > 0 ? (
+          <StarRating value={rating.average} count={rating.count} size="sm" />
+        ) : null}
+
         <div className="flex items-baseline gap-2">
           <p
             className={cn(
@@ -155,8 +167,8 @@ export async function ProductCard({ product, locale, priority = false }: Props) 
             <Money fils={product.priceFils} locale={locale} currency={currency} rate={rate} />
           </p>
           {onSale ? (
-            <p className="text-muted-foreground/60 text-xs line-through">
-              <Money fils={product.compareAtFils as number} locale={locale} currency={currency} rate={rate} />
+            <p className="text-muted-foreground/60 text-xs">
+              <Money fils={product.compareAtFils as number} locale={locale} currency={currency} rate={rate} strikethrough />
             </p>
           ) : null}
         </div>

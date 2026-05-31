@@ -15,13 +15,20 @@ import { GridForm } from "@/components/admin/settings/grid-form"
 import { HeroForm } from "@/components/admin/settings/hero-form"
 import { CurrencyForm } from "@/components/admin/settings/currency-form"
 import { MarketsForm } from "@/components/admin/settings/markets-form"
+import { ReturnsForm } from "@/components/admin/settings/returns-form"
 import { ShippingReturnForm } from "@/components/admin/settings/shipping-return-form"
+import { ShopByForm } from "@/components/admin/settings/shop-by-form"
 import { SizeChartEditor } from "@/components/admin/settings/size-chart-editor"
 import { parseCurrencyConfig } from "@/lib/currency-config"
 import { DEFAULT_GRID, parseGridConfig } from "@/lib/grid-config"
 import { parseHeroConfig } from "@/lib/hero-config"
+import { DEFAULT_MAX_QTY_PER_VARIANT } from "@/lib/order-limits"
 import { parseShippingConfig } from "@/lib/shipping-config"
-import { listPopularProducts } from "@/lib/repos/products.repo"
+import { parseShopByConfig } from "@/lib/shop-by-config"
+import {
+  getCatalogFacets,
+  listPopularProducts,
+} from "@/lib/repos/products.repo"
 import {
   getAllSettings,
   type KnownSettings,
@@ -56,20 +63,35 @@ export default async function AdminSettingsPage() {
     "contact.business_hours_en",
     "Sat–Thu, 10am – 10pm",
   )
+  const contactEmail = read(all, "contact.email", "")
+  const contactSocial = read(all, "contact.social", {
+    instagram: "",
+    tiktok: "",
+    snapchat: "",
+  })
+  const returnsWindowDays = read(all, "returns.window_days", 14)
   const sizeChart = read(all, "size_chart.cm", { unit: "cm", rows: [] })
   const shippingReturn = read(all, "product.shipping_return", {
     contentAr: "",
     contentEn: "",
   })
   const maxItems = read(all, "order.max_items", 5)
-  const maxQtyPerVariant = read(all, "order.max_qty_per_variant", 2)
+  const maxQtyPerVariant = read(
+    all,
+    "order.max_qty_per_variant",
+    DEFAULT_MAX_QTY_PER_VARIANT,
+  )
   const aiModel = read(all, "ai.model", DEFAULT_AI_MODEL_ID)
   const hero = parseHeroConfig(all["home.hero"])
   const grid = parseGridConfig(read(all, "home.grid", DEFAULT_GRID))
-  const productLinks = await listPopularProducts(10)
+  const shopBy = parseShopByConfig(all["home.shop_by"])
+  const [productLinks, productFacets] = await Promise.all([
+    listPopularProducts(10),
+    getCatalogFacets(),
+  ])
 
   return (
-    <div className="mx-auto w-full max-w-3xl space-y-6">
+    <div className="space-y-6">
       <div>
         <h1 className="font-heading text-3xl">{t("page.heading")}</h1>
         <p className="text-muted-foreground mt-1 text-sm">
@@ -84,10 +106,12 @@ export default async function AdminSettingsPage() {
           <TabsTrigger value="currency">{t("tabs.currency")}</TabsTrigger>
           <TabsTrigger value="contact">{t("tabs.contact")}</TabsTrigger>
           <TabsTrigger value="grid">{t("tabs.grid")}</TabsTrigger>
+          <TabsTrigger value="shop-by">{t("tabs.shop_by")}</TabsTrigger>
           <TabsTrigger value="size-chart">{t("tabs.size_chart")}</TabsTrigger>
           <TabsTrigger value="shipping-return">
             {t("tabs.shipping_return")}
           </TabsTrigger>
+          <TabsTrigger value="returns">{t("tabs.returns")}</TabsTrigger>
           <TabsTrigger value="limits">{t("tabs.limits")}</TabsTrigger>
           <TabsTrigger value="ai">{t("tabs.ai")}</TabsTrigger>
         </TabsList>
@@ -128,6 +152,8 @@ export default async function AdminSettingsPage() {
               whatsappNumber={whatsappNumber}
               businessHoursAr={businessHoursAr}
               businessHoursEn={businessHoursEn}
+              email={contactEmail}
+              social={contactSocial}
             />
           </SettingsCard>
         </TabsContent>
@@ -138,6 +164,15 @@ export default async function AdminSettingsPage() {
             description={t("grid.card_description")}
           >
             <GridForm initial={grid} />
+          </SettingsCard>
+        </TabsContent>
+
+        <TabsContent value="shop-by" className="pt-4">
+          <SettingsCard
+            title={t("shop_by.card_title")}
+            description={t("shop_by.card_description")}
+          >
+            <ShopByForm initial={shopBy} productFacets={productFacets} />
           </SettingsCard>
         </TabsContent>
 
@@ -159,6 +194,15 @@ export default async function AdminSettingsPage() {
               contentAr={shippingReturn.contentAr}
               contentEn={shippingReturn.contentEn}
             />
+          </SettingsCard>
+        </TabsContent>
+
+        <TabsContent value="returns" className="pt-4">
+          <SettingsCard
+            title={t("returns.card_title")}
+            description={t("returns.card_description")}
+          >
+            <ReturnsForm windowDays={returnsWindowDays} />
           </SettingsCard>
         </TabsContent>
 

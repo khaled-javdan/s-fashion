@@ -100,7 +100,7 @@ export function RecentlyViewed({ current, locale, title }: Props) {
                   <h3 className="font-heading text-lg leading-tight tracking-wide">
                     {name}
                   </h3>
-                  <p className="text-muted-foreground text-sm">
+                  <p className="text-foreground text-sm">
                     <Price fils={p.priceFils} />
                   </p>
                 </div>

@@ -1,6 +1,5 @@
 "use client"
 
-import { Square, Columns2 } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { useEffect, useState } from "react"
 
@@ -10,54 +9,114 @@ import {
   desktopColsClass,
   mobileColsClass,
   tabletColsClass,
+  DESKTOP_TOGGLE_COLS,
   type GridConfig,
 } from "@/lib/grid-config"
 
-const STORAGE_KEY = "shop-grid-density"
+const MOBILE_STORAGE_KEY = "shop-grid-density"
+const DESKTOP_STORAGE_KEY = "shop-grid-desktop-density"
 
 /**
- * Renders the product grid with admin-configured columns per breakpoint, plus a
- * shopper density toggle (1 vs 2 columns) on mobile that's remembered locally.
+ * Glyph that draws `count` vertical bars in a 24×24 box, so the icon itself
+ * communicates the column density (more bars = more columns). Scales to any
+ * count, which lucide's `columns-*` set does not (it stops at 4).
+ */
+function ColumnsGlyph({ count }: { count: number }) {
+  const gap = 2
+  const barWidth = (24 - gap * (count + 1)) / count
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      className="size-4"
+      fill="currentColor"
+    >
+      {Array.from({ length: count }, (_, i) => (
+        <rect
+          key={i}
+          x={gap + i * (barWidth + gap)}
+          y={4}
+          width={barWidth}
+          height={16}
+          rx={1}
+        />
+      ))}
+    </svg>
+  )
+}
+
+/**
+ * Renders the product grid with admin-configured columns per breakpoint, plus
+ * shopper density toggles remembered locally:
+ *  - mobile (1 vs 2 columns), always shown on small screens.
+ *  - desktop (2–5 columns), shown on large screens only when `desktopToggle`
+ *    is set (e.g. the products listing page).
  * `children` are the server-rendered `<li>` cards.
  */
 export function ProductGrid({
   config,
   children,
+  desktopToggle = false,
 }: {
   config: GridConfig
   children: React.ReactNode
+  /** Show the desktop column toggle (2–5). Off by default (e.g. home page). */
+  desktopToggle?: boolean
 }) {
   const t = useTranslations("home")
-  // null → follow the admin default; otherwise the shopper's mobile choice.
+  // null → follow the admin default; otherwise the shopper's choice.
   const [mobile, setMobile] = useState<number | null>(null)
+  const [desktop, setDesktop] = useState<number | null>(null)
 
   useEffect(() => {
-    const saved = window.localStorage.getItem(STORAGE_KEY)
-    // Hydrate the shopper's saved choice from localStorage on mount (external store).
+    const savedMobile = window.localStorage.getItem(MOBILE_STORAGE_KEY)
+    const savedDesktop = window.localStorage.getItem(DESKTOP_STORAGE_KEY)
+    // Hydrate the shopper's saved choices from localStorage on mount (external store).
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (saved === "1" || saved === "2") setMobile(Number(saved))
+    if (savedMobile === "1" || savedMobile === "2") setMobile(Number(savedMobile))
+    const desktopNum = Number(savedDesktop)
+    if (
+      savedDesktop &&
+      (DESKTOP_TOGGLE_COLS as readonly number[]).includes(desktopNum)
+    ) {
+      setDesktop(desktopNum)
+    }
   }, [])
 
-  const choose = (n: number) => {
+  const chooseMobile = (n: number) => {
     setMobile(n)
-    window.localStorage.setItem(STORAGE_KEY, String(n))
+    window.localStorage.setItem(MOBILE_STORAGE_KEY, String(n))
+  }
+
+  const chooseDesktop = (n: number) => {
+    setDesktop(n)
+    window.localStorage.setItem(DESKTOP_STORAGE_KEY, String(n))
   }
 
   const mobileCols = mobile ?? config.mobile
+  const desktopCols = desktop ?? config.desktop
 
   return (
     <>
-      <div className="mb-4 flex justify-end sm:hidden">
+      <div
+        className={cn(
+          "mb-4 flex justify-end gap-2",
+          // Mobile toggle shows < sm; desktop toggle (when enabled) shows >= lg.
+          // Hide the whole toolbar in the tablet band where neither applies.
+          desktopToggle ? "sm:hidden lg:flex" : "sm:hidden",
+        )}
+      >
+        {/* Mobile density: 1 vs 2 columns. */}
         <div
           role="group"
           aria-label={t("density_label")}
-          className="border-border inline-flex overflow-hidden rounded-md border"
+          className="border-border inline-flex overflow-hidden rounded-md border sm:hidden"
         >
           {[1, 2].map((n) => (
             <button
               key={n}
               type="button"
-              onClick={() => choose(n)}
+              onClick={() => chooseMobile(n)}
               aria-pressed={mobileCols === n}
               aria-label={t("density_option", { count: n })}
               className={cn(
@@ -67,14 +126,37 @@ export function ProductGrid({
                   : "text-muted-foreground hover:bg-muted",
               )}
             >
-              {n === 1 ? (
-                <Square className="size-4" />
-              ) : (
-                <Columns2 className="size-4" />
-              )}
+              <ColumnsGlyph count={n} />
             </button>
           ))}
         </div>
+
+        {/* Desktop density: 2–5 columns (products page only). */}
+        {desktopToggle && (
+          <div
+            role="group"
+            aria-label={t("density_label")}
+            className="border-border hidden overflow-hidden rounded-md border lg:inline-flex"
+          >
+            {DESKTOP_TOGGLE_COLS.map((n) => (
+              <button
+                key={n}
+                type="button"
+                onClick={() => chooseDesktop(n)}
+                aria-pressed={desktopCols === n}
+                aria-label={t("density_option", { count: n })}
+                className={cn(
+                  "grid size-9 place-items-center transition-colors",
+                  desktopCols === n
+                    ? "bg-foreground text-background"
+                    : "text-muted-foreground hover:bg-muted",
+                )}
+              >
+                <ColumnsGlyph count={n} />
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <ul
@@ -82,7 +164,7 @@ export function ProductGrid({
           "grid gap-x-4 gap-y-8 sm:gap-x-6 sm:gap-y-12",
           mobileColsClass(mobileCols),
           tabletColsClass(config.tablet),
-          desktopColsClass(config.desktop),
+          desktopColsClass(desktopCols),
         )}
       >
         {children}

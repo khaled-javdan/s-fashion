@@ -21,6 +21,30 @@ export const productVariantSchema = z.object({
 });
 export type ProductVariantInput = z.infer<typeof productVariantSchema>;
 
+/**
+ * A single size-chart row. Mirrors the global `size_chart.cm` setting shape so
+ * the same `SizeChartRow` / table renderer is reused on the storefront. `bust`,
+ * `waist`, `hips` are optional measurements; `length` is required.
+ */
+export const sizeChartRowSchema = z.object({
+  size: z.string().trim().min(1).max(20),
+  bust: z.number().int().min(0).nullable(),
+  waist: z.number().int().min(0).nullable(),
+  hips: z.number().int().min(0).nullable(),
+  length: z.number().int().min(0),
+});
+export type SizeChartRowInput = z.infer<typeof sizeChartRowSchema>;
+
+/**
+ * Per-product size chart override. `null` means "use the global default". When
+ * present it carries at least one row in centimetres.
+ */
+export const sizeChartSchema = z.object({
+  unit: z.literal("cm").default("cm"),
+  rows: z.array(sizeChartRowSchema).min(1),
+});
+export type SizeChartInput = z.infer<typeof sizeChartSchema>;
+
 /** A product image. */
 export const productImageSchema = z.object({
   id: z.string().min(1).optional(),
@@ -54,17 +78,47 @@ const productBase = z.object({
   costPriceFils: z.number().int().min(0),
   isActive: z.boolean().default(true),
   isFinalSale: z.boolean().default(false),
+  // Per-product size chart override. `null` (the default) means the storefront
+  // falls back to the global `size_chart.cm` setting.
+  sizeChart: sizeChartSchema.nullish(),
 });
 
-export const productCreateSchema = productBase.extend({
-  variants: z.array(productVariantSchema).min(1),
-  images: z.array(productImageSchema).default([]),
-});
+/**
+ * A compare-at ("was") price only makes sense when it's strictly higher than
+ * the live price — otherwise the storefront renders a zero/negative discount.
+ * Applied to both create and update (update only checks when both are present).
+ */
+function refineCompareAt(
+  val: { priceFils?: number; compareAtFils?: number | null },
+  ctx: z.RefinementCtx,
+): void {
+  if (
+    val.compareAtFils != null &&
+    val.priceFils != null &&
+    val.compareAtFils <= val.priceFils
+  ) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["compareAtFils"],
+      message: "Compare-at price must be greater than the price.",
+    });
+  }
+}
+
+export const productCreateSchema = productBase
+  .extend({
+    variants: z.array(productVariantSchema).min(1),
+    images: z.array(productImageSchema).default([]),
+  })
+  .superRefine(refineCompareAt);
 export type ProductCreateInput = z.infer<typeof productCreateSchema>;
 
 /** Update allows partial top-level fields; variants/images supplied in full when present. */
-export const productUpdateSchema = productBase.partial().extend({
-  variants: z.array(productVariantSchema).min(1).optional(),
-  images: z.array(productImageSchema).optional(),
-});
+export const productUpdateSchema = productBase
+  .partial()
+  .extend({
+    variants: z.array(productVariantSchema).min(1).optional(),
+    images: z.array(productImageSchema).optional(),
+  })
+  .superRefine(refineCompareAt);
 export type ProductUpdateInput = z.infer<typeof productUpdateSchema>;

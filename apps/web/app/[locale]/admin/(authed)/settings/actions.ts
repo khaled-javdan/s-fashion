@@ -7,8 +7,10 @@ import { isAllowedModelId } from "@/components/admin/ai/types"
 import { auth } from "@/lib/auth"
 import { currencyConfigSchema } from "@/lib/currency-config"
 import { gridConfigSchema } from "@/lib/grid-config"
+import { ABSOLUTE_MAX_QTY_PER_VARIANT } from "@/lib/order-limits"
 import { shippingConfigSchema } from "@/lib/shipping-config"
 import { heroConfigSchema, type HeroConfig } from "@/lib/hero-config"
+import { shopByConfigSchema } from "@/lib/shop-by-config"
 import {
   setSetting,
   type KnownSettings,
@@ -22,6 +24,15 @@ export type ActionResult<T> =
 
 const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"])
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024 // 8 MB
+
+/** A social profile URL that may be left empty (validated as a URL otherwise). */
+const socialUrl = z
+  .string()
+  .trim()
+  .max(2048)
+  .refine((v) => v === "" || z.string().url().safeParse(v).success, {
+    message: "Enter a valid URL.",
+  })
 
 const sizeChartRow = z.object({
   size: z.string().trim().min(1).max(20),
@@ -44,16 +55,34 @@ const settingValidators: Record<SettingKey, z.ZodTypeAny> = {
     .regex(/^\+[1-9]\d{6,15}$/u, "Use international format, e.g. +9715XXXXXXXX"),
   "contact.business_hours_ar": z.string().trim().min(1).max(120),
   "contact.business_hours_en": z.string().trim().min(1).max(120),
+  "contact.email": z
+    .string()
+    .trim()
+    .max(254)
+    .refine((v) => v === "" || z.string().email().safeParse(v).success, {
+      message: "Enter a valid email address.",
+    }),
+  "contact.social": z.object({
+    instagram: socialUrl,
+    tiktok: socialUrl,
+    snapchat: socialUrl,
+  }),
+  "returns.window_days": z.number().int().min(0).max(90),
   "size_chart.cm": z.object({
     unit: z.literal("cm"),
     rows: z.array(sizeChartRow).min(1),
   }),
   "order.max_items": z.number().int().min(1).max(100),
-  "order.max_qty_per_variant": z.number().int().min(1).max(20),
+  "order.max_qty_per_variant": z
+    .number()
+    .int()
+    .min(1)
+    .max(ABSOLUTE_MAX_QTY_PER_VARIANT),
   "ai.model": z
     .string()
     .refine(isAllowedModelId, "Unknown AI model."),
   "home.grid": gridConfigSchema,
+  "home.shop_by": shopByConfigSchema,
   "product.shipping_return": z.object({
     contentAr: z.string().trim().max(4000),
     contentEn: z.string().trim().max(4000),
@@ -98,10 +127,22 @@ export async function updateSettingsAction(input: {
     // These settings affect the storefront; refresh it too.
     if (
       input.key === "home.grid" ||
+      input.key === "home.shop_by" ||
       input.key === "shipping.countries" ||
-      input.key === "currency.config"
+      input.key === "currency.config" ||
+      input.key === "returns.window_days"
     ) {
       revalidatePath("/[locale]", "page")
+    }
+    // Footer (rendered in the storefront layout) reads contact settings, so
+    // refresh the whole layout subtree when those change.
+    if (
+      input.key === "contact.email" ||
+      input.key === "contact.social" ||
+      input.key === "contact.business_hours_ar" ||
+      input.key === "contact.business_hours_en"
+    ) {
+      revalidatePath("/[locale]", "layout")
     }
     return { ok: true, data: null }
   } catch (err) {
@@ -118,6 +159,7 @@ async function persist(
   switch (key) {
     case "order.max_items":
     case "order.max_qty_per_variant":
+    case "returns.window_days":
       await setSetting(key, value as number)
       return
     case "shipping.countries":
@@ -129,14 +171,21 @@ async function persist(
     case "contact.whatsapp_number":
     case "contact.business_hours_ar":
     case "contact.business_hours_en":
+    case "contact.email":
     case "ai.model":
       await setSetting(key, value as string)
+      return
+    case "contact.social":
+      await setSetting(key, value as KnownSettings["contact.social"])
       return
     case "size_chart.cm":
       await setSetting(key, value as KnownSettings["size_chart.cm"])
       return
     case "home.grid":
       await setSetting(key, value as KnownSettings["home.grid"])
+      return
+    case "home.shop_by":
+      await setSetting(key, value as KnownSettings["home.shop_by"])
       return
     case "product.shipping_return":
       await setSetting(key, value as KnownSettings["product.shipping_return"])

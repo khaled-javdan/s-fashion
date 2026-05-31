@@ -30,6 +30,8 @@ export type PickerProduct = {
   nameAr: string
   nameEn: string
   priceFils: number
+  /** Compare-at ("was") price in fils, or `null` when not on sale. */
+  compareAtFils: number | null
   imageUrl: string | null
 }
 
@@ -187,6 +189,7 @@ export function VariantPicker({
       size: selectedVariant.size,
       imageUrl: product.imageUrl,
       unitPriceFils: product.priceFils,
+      compareAtFils: product.compareAtFils,
       quantity: Math.min(quantity, maxQty),
     }
   }, [selectedVariant, product, quantity, maxQty])

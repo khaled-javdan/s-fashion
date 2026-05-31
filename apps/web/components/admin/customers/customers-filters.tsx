@@ -98,7 +98,7 @@ export function CustomersFilters({
         </Select>
       </div>
 
-      <label className="flex h-9 items-center gap-2 text-sm">
+      <label className="flex h-11 items-center gap-2 text-sm md:h-10">
         <Checkbox
           checked={consent}
           onCheckedChange={(v) => setConsent(v === true)}
@@ -106,7 +106,7 @@ export function CustomersFilters({
         {t("subscribed_only")}
       </label>
 
-      <label className="flex h-9 items-center gap-2 text-sm">
+      <label className="flex h-11 items-center gap-2 text-sm md:h-10">
         <Checkbox
           checked={repeat}
           onCheckedChange={(v) => setRepeat(v === true)}
@@ -114,11 +114,11 @@ export function CustomersFilters({
         {t("repeat_buyers")}
       </label>
 
-      <Button type="submit" size="sm">
+      <Button type="submit" size="sm" className="h-11 md:h-10">
         {t("apply")}
       </Button>
       {hasFilters ? (
-        <Button asChild variant="ghost" size="sm">
+        <Button asChild variant="ghost" size="sm" className="h-11 md:h-10">
           <Link href={base}>{t("clear")}</Link>
         </Button>
       ) : null}

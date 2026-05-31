@@ -26,23 +26,35 @@ export function Money({
   currency,
   rate,
   className,
+  strikethrough = false,
 }: {
   fils: number
   locale: Locale
   currency: CurrencyCode
   rate: number
   className?: string
+  /** Draw a strike line through the amount (e.g. an original/before price). */
+  strikethrough?: boolean
 }) {
   if (currency === BASE_CURRENCY) {
     return (
-      <span className={cn("inline-flex items-center gap-1", className)}>
+      <span
+        className={cn(
+          "inline-flex items-center gap-1",
+          // `text-decoration: line-through` isn't painted across the atomic
+          // inline-flex box or the SVG glyph, so draw the strike ourselves.
+          strikethrough &&
+            "relative before:absolute before:inset-x-0 before:top-1/2 before:h-px before:-translate-y-1/2 before:bg-current before:content-['']",
+          className,
+        )}
+      >
         <DirhamSign />
         <span>{formatAmount(fils, { locale, currency, rate })}</span>
       </span>
     )
   }
   return (
-    <span className={className}>
+    <span className={cn(strikethrough && "line-through", className)}>
       {formatMoney(fils, { locale, currency, rate })}
     </span>
   )

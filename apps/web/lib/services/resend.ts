@@ -12,6 +12,8 @@
  */
 import { Resend } from "resend";
 
+import { formatMoney, isCurrencyCode } from "@/lib/currency";
+
 export type Locale = "ar" | "en";
 
 export interface OrderEmailLineItem {
@@ -30,7 +32,21 @@ export interface OrderEmailPayload {
   subtotalFils: number;
   shippingFils: number;
   totalFils: number;
+  /** Display currency the shopper saw (ISO code, e.g. "SAR"). Defaults to AED. */
+  currency?: string;
+  /** AED→currency rate at order time. Defaults to 1 (base AED). */
+  fxRate?: number;
+  /**
+   * Estimated delivery window (business days) for the order's destination.
+   * Both default to the historical AE values (1–3) when not supplied.
+   */
+  deliveryMinDays?: number;
+  deliveryMaxDays?: number;
 }
+
+/** Default delivery window used when the order omits an explicit range. */
+const DEFAULT_DELIVERY_MIN_DAYS = 1;
+const DEFAULT_DELIVERY_MAX_DAYS = 3;
 
 export interface SendOrderEmailInput {
   to: string;
@@ -111,9 +127,20 @@ function renderSubject(locale: Locale, orderNumber: string): string {
     : `Your order ${orderNumber} has been received — S Fashion`;
 }
 
-function formatAedFils(fils: number): string {
-  const aed = fils / 100;
-  return `AED ${aed.toFixed(2)}`;
+/**
+ * Build a money formatter for the order's display currency. Money is stored in
+ * base AED fils; the email renders it in the currency the shopper saw at
+ * checkout (falls back to AED at rate 1 for legacy orders / unknown codes).
+ */
+function moneyFormatter(
+  locale: Locale,
+  currencyRaw: string | undefined,
+  fxRate: number | undefined,
+): (fils: number) => string {
+  const currency =
+    currencyRaw && isCurrencyCode(currencyRaw) ? currencyRaw : "AED";
+  const rate = currency === "AED" ? 1 : fxRate && fxRate > 0 ? fxRate : 1;
+  return (fils: number) => formatMoney(fils, { locale, currency, rate });
 }
 
 function escapeHtml(value: string): string {
@@ -133,7 +160,7 @@ interface Strings {
   subtotalLabel: string;
   shippingLabel: string;
   totalLabel: string;
-  outro: string;
+  outro: (minDays: number, maxDays: number) => string;
   signature: string;
 }
 
@@ -147,7 +174,7 @@ const STRINGS: Record<Locale, Strings> = {
     subtotalLabel: "المجموع الفرعي",
     shippingLabel: "رسوم التوصيل",
     totalLabel: "الإجمالي",
-    outro: "التوصيل خلال 1-3 أيام عمل.",
+    outro: (minDays, maxDays) => `التوصيل خلال ${minDays}-${maxDays} أيام عمل.`,
     signature: "مع تحياتنا، فريق S Fashion",
   },
   en: {
@@ -160,15 +187,34 @@ const STRINGS: Record<Locale, Strings> = {
     subtotalLabel: "Subtotal",
     shippingLabel: "Shipping",
     totalLabel: "Total",
-    outro: "Expected delivery within 1-3 business days.",
+    outro: (minDays, maxDays) =>
+      `Expected delivery within ${minDays}-${maxDays} business days.`,
     signature: "With care, the S Fashion team",
   },
 };
+
+/** Resolve the order's delivery window, applying defaults for missing fields. */
+function deliveryWindow(order: OrderEmailPayload): {
+  minDays: number;
+  maxDays: number;
+} {
+  const minDays =
+    typeof order.deliveryMinDays === "number"
+      ? order.deliveryMinDays
+      : DEFAULT_DELIVERY_MIN_DAYS;
+  const maxDays =
+    typeof order.deliveryMaxDays === "number"
+      ? order.deliveryMaxDays
+      : DEFAULT_DELIVERY_MAX_DAYS;
+  return { minDays, maxDays };
+}
 
 function renderOrderHtml(locale: Locale, order: OrderEmailPayload): string {
   const t = STRINGS[locale];
   const dir = locale === "ar" ? "rtl" : "ltr";
   const lang = locale;
+  const fmt = moneyFormatter(locale, order.currency, order.fxRate);
+  const { minDays, maxDays } = deliveryWindow(order);
 
   const rows = order.items
     .map((item) => {
@@ -182,7 +228,7 @@ function renderOrderHtml(locale: Locale, order: OrderEmailPayload): string {
             <div style="color:#666;font-size:12px;">${escapeHtml(t.qtyLabel)}: ${item.quantity}</div>
           </td>
           <td style="padding:8px 0;border-bottom:1px solid #eee;text-align:${dir === "rtl" ? "left" : "right"};white-space:nowrap;">
-            ${escapeHtml(formatAedFils(item.unitPriceFils * item.quantity))}
+            ${escapeHtml(fmt(item.unitPriceFils * item.quantity))}
           </td>
         </tr>`;
     })
@@ -216,19 +262,19 @@ function renderOrderHtml(locale: Locale, order: OrderEmailPayload): string {
                   ${rows}
                   <tr>
                     <td style="padding:8px 0;">${escapeHtml(t.subtotalLabel)}</td>
-                    <td style="padding:8px 0;text-align:${dir === "rtl" ? "left" : "right"};">${escapeHtml(formatAedFils(order.subtotalFils))}</td>
+                    <td style="padding:8px 0;text-align:${dir === "rtl" ? "left" : "right"};">${escapeHtml(fmt(order.subtotalFils))}</td>
                   </tr>
                   <tr>
                     <td style="padding:8px 0;">${escapeHtml(t.shippingLabel)}</td>
-                    <td style="padding:8px 0;text-align:${dir === "rtl" ? "left" : "right"};">${escapeHtml(formatAedFils(order.shippingFils))}</td>
+                    <td style="padding:8px 0;text-align:${dir === "rtl" ? "left" : "right"};">${escapeHtml(fmt(order.shippingFils))}</td>
                   </tr>
                   <tr>
                     <td style="padding:12px 0;border-top:1px solid #222;font-weight:bold;">${escapeHtml(t.totalLabel)}</td>
-                    <td style="padding:12px 0;border-top:1px solid #222;font-weight:bold;text-align:${dir === "rtl" ? "left" : "right"};">${escapeHtml(formatAedFils(order.totalFils))}</td>
+                    <td style="padding:12px 0;border-top:1px solid #222;font-weight:bold;text-align:${dir === "rtl" ? "left" : "right"};">${escapeHtml(fmt(order.totalFils))}</td>
                   </tr>
                 </table>
 
-                <p style="margin:24px 0 0 0;color:#666;font-size:13px;">${escapeHtml(t.outro)}</p>
+                <p style="margin:24px 0 0 0;color:#666;font-size:13px;">${escapeHtml(t.outro(minDays, maxDays))}</p>
                 <p style="margin:24px 0 0 0;font-size:13px;">${escapeHtml(t.signature)}</p>
               </td>
             </tr>
@@ -242,6 +288,8 @@ function renderOrderHtml(locale: Locale, order: OrderEmailPayload): string {
 
 function renderOrderText(locale: Locale, order: OrderEmailPayload): string {
   const t = STRINGS[locale];
+  const fmt = moneyFormatter(locale, order.currency, order.fxRate);
+  const { minDays, maxDays } = deliveryWindow(order);
   const lines: string[] = [
     "S FASHION",
     "",
@@ -257,16 +305,16 @@ function renderOrderText(locale: Locale, order: OrderEmailPayload): string {
       ? `${item.productName} — ${item.variantLabel}`
       : item.productName;
     lines.push(
-      `- ${label} (${t.qtyLabel}: ${item.quantity}) — ${formatAedFils(item.unitPriceFils * item.quantity)}`,
+      `- ${label} (${t.qtyLabel}: ${item.quantity}) — ${fmt(item.unitPriceFils * item.quantity)}`,
     );
   }
   lines.push(
     "",
-    `${t.subtotalLabel}: ${formatAedFils(order.subtotalFils)}`,
-    `${t.shippingLabel}: ${formatAedFils(order.shippingFils)}`,
-    `${t.totalLabel}: ${formatAedFils(order.totalFils)}`,
+    `${t.subtotalLabel}: ${fmt(order.subtotalFils)}`,
+    `${t.shippingLabel}: ${fmt(order.shippingFils)}`,
+    `${t.totalLabel}: ${fmt(order.totalFils)}`,
     "",
-    t.outro,
+    t.outro(minDays, maxDays),
     "",
     t.signature,
   );

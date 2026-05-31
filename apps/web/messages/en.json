@@ -59,7 +59,15 @@
     "trust_delivery_title": "Fast delivery",
     "trust_delivery_desc": "1–3 business days",
     "trust_support_title": "WhatsApp support",
-    "trust_support_desc": "We're a message away"
+    "trust_support_desc": "We're a message away",
+    "bestsellers": {
+      "heading": "Best sellers",
+      "subheading": "The pieces everyone's loving right now."
+    },
+    "shop_by": {
+      "heading": "Shop by",
+      "subheading": "Explore our edits and find your next favourite."
+    }
   },
   "product": {
     "select_size": "Select size",
@@ -96,7 +104,8 @@
       "description": "Description",
       "additional_info": "Additional Information",
       "shipping_return": "Shipping & Return",
-      "size_chart": "Size Chart"
+      "size_chart": "Size Chart",
+      "reviews": "Reviews"
     },
     "size_chart_heading": "Size chart",
     "size_chart_unit": "All measurements in centimetres",
@@ -143,6 +152,7 @@
     "name": "Full name",
     "phone": "Phone number",
     "phone_hint": "We'll send a verification code by SMS",
+    "phone_placeholder": "Phone number",
     "email": "Email (optional)",
     "emirate": "Emirate",
     "emirate_placeholder": "Select an emirate",
@@ -153,6 +163,7 @@
     "subtotal": "Subtotal",
     "shipping_fee": "Shipping",
     "shipping_free": "Free",
+    "savings": "You save",
     "total": "Total",
     "place_order": "Place order",
     "placing_order": "Sending code…",
@@ -171,6 +182,8 @@
     "error_too_many": "Too many attempts. Please try again later.",
     "error_invalid_code": "Invalid code. Please check and try again.",
     "error_out_of_stock": "Sorry, one or more items just went out of stock.",
+    "error_verification": "Couldn't verify you're human. Please try again.",
+    "error_check_details": "Please check your details and try again.",
     "field_required": "This field is required.",
     "invalid_phone": "Enter a valid phone number.",
     "invalid_email": "Enter a valid email address.",
@@ -178,7 +191,27 @@
     "address_too_short": "Please enter a complete address.",
     "marketing_consent": "Send me offers & new arrivals on WhatsApp",
     "country": "Country",
-    "country_placeholder": "Select a country"
+    "country_placeholder": "Select a country",
+    "coupon": {
+      "label": "Coupon",
+      "placeholder": "Coupon code",
+      "apply": "Apply",
+      "remove": "Remove",
+      "discount": "Coupon discount",
+      "error": {
+        "not_found": "Coupon not found.",
+        "inactive": "This coupon is no longer active.",
+        "expired": "This coupon has expired.",
+        "not_started": "This coupon isn't available yet.",
+        "below_min": "Your order doesn't meet this coupon's minimum.",
+        "first_order_only": "This coupon is for first orders only.",
+        "max_redemptions": "This coupon has reached its limit.",
+        "per_customer_limit": "You've already used this coupon.",
+        "phone_required": "Enter your phone number to use this coupon.",
+        "coupon_unavailable": "This coupon is no longer available.",
+        "invalid_request": "Could not apply this coupon."
+      }
+    }
   },
   "order": {
     "success_heading": "We've received your order",
@@ -205,7 +238,8 @@
       "DELIVERED": "Delivered",
       "REFUSED": "Refused",
       "CANCELLED": "Cancelled"
-    }
+    },
+    "discount": "Discount"
   },
   "tracking": {
     "title": "Track your order",
@@ -257,6 +291,8 @@
     "fees_heading": "Delivery fees",
     "fees_flat": "A flat delivery fee of {flat} applies to every order, anywhere in the UAE.",
     "fees_free": "Enjoy free delivery on orders over {threshold}.",
+    "fees_delivery_window": "Estimated delivery: {minDays}–{maxDays} business days.",
+    "delivery_estimate": "Estimated delivery: {minDays}–{maxDays} business days.",
     "sections": [
       {
         "heading": "Delivery times",
@@ -287,12 +323,12 @@
   },
   "returns": {
     "title": "Returns & Exchanges",
-    "intro": "Not quite right? We want you to love what you wear. You can return or exchange most items within 14 days of delivery.",
+    "intro": "Not quite right? We want you to love what you wear. You can return or exchange most items within {days} days of delivery.",
     "sections": [
       {
         "heading": "Return window",
         "body": [
-          "You have 14 days from the day your order arrives to request a return or exchange. Reach out before the window closes and we'll take care of the rest."
+          "You have {days} days from the day your order arrives to request a return or exchange. Reach out before the window closes and we'll take care of the rest."
         ]
       },
       {
@@ -378,14 +414,19 @@
     "soon": "Soon",
     "logout": "Log out",
     "view_store": "View store",
+    "expand_content": "Expand content width",
+    "collapse_content": "Collapse content width",
     "language_label": "Language",
     "language_toggle": "العربية",
     "nav": {
       "dashboard": "Dashboard",
       "orders": "Orders",
       "customers": "Customers",
+      "leads": "Leads",
       "products": "Products",
-      "settings": "Settings"
+      "settings": "Settings",
+      "reviews": "Reviews",
+      "coupons": "Coupons"
     },
     "login": {
       "title": "Admin sign in",
@@ -487,7 +528,16 @@
         "mark_delivered": "Mark delivered",
         "refused": "Refused",
         "cancel_reason_prompt": "Reason for cancelling (optional):",
-        "refuse_reason_prompt": "Reason for refusal (optional):"
+        "refuse_reason_prompt": "Reason for refusal (optional):",
+        "set_status": "Set status",
+        "set_status_hint": "Choose any status. Reverting a cancelled or refused order will re-deduct stock.",
+        "confirm_title": "Change order status",
+        "confirm_body": "Change this order from {from} to {to}?",
+        "reason_label": "Reason (optional)",
+        "reason_placeholder": "Add an internal note for this change",
+        "cancel_dialog": "Cancel",
+        "confirm_action": "Confirm change",
+        "insufficient_stock": "Can't apply this change — one or more items are out of stock."
       },
       "timeline": {
         "heading": "Timeline",
@@ -543,7 +593,8 @@
       "sections": {
         "images": "Images",
         "basics": "Basics",
-        "variants": "Variants"
+        "variants": "Variants",
+        "size_chart": "Size chart"
       },
       "form": {
         "new_title": "New product",
@@ -597,6 +648,19 @@
         "hint": "Each image you upload is analyzed — its colour is added as a variant; name and description are filled while empty.",
         "analyze_error": "Could not analyze the image."
       },
+      "size_chart": {
+        "use_global": "Use global default",
+        "use_global_desc": "Off to set a size chart just for this product.",
+        "col_size": "Size",
+        "col_bust": "Bust (cm)",
+        "col_waist": "Waist (cm)",
+        "col_hips": "Hips (cm)",
+        "col_length": "Length (cm)",
+        "size_label_aria": "Size label",
+        "remove_row_aria": "Remove row",
+        "add_row": "Add row",
+        "blank_hint": "Leave a measurement blank to hide that column for a row."
+      },
       "validation": {
         "name_en_required": "English name is required.",
         "name_ar_required": "Arabic name is required.",
@@ -605,7 +669,10 @@
         "cost_price_invalid": "Cost price is required and must be 0 or more.",
         "compare_at_invalid": "Compare-at price must be a valid amount.",
         "variants_required": "Add at least one variant.",
-        "variant_unique": "Each colour + size combination must be unique."
+        "variant_unique": "Each colour + size combination must be unique.",
+        "size_chart_empty": "Add at least one size-chart row, or use the global default.",
+        "size_chart_size_required": "Every size-chart row needs a size label.",
+        "size_chart_length_invalid": "Enter a valid length for size {size}."
       },
       "toast": {
         "created": "Product created.",
@@ -628,10 +695,12 @@
         "grid": "Grid layout",
         "size_chart": "Size chart",
         "shipping_return": "Shipping & Return",
+        "returns": "Returns",
         "limits": "Order limits",
         "ai": "AI",
         "markets": "Markets",
-        "currency": "Currency"
+        "currency": "Currency",
+        "shop_by": "Shop by"
       },
       "hero": {
         "card_title": "Home hero",
@@ -649,6 +718,13 @@
         "remove_image_aria": "Remove image",
         "uploading": "Uploading…",
         "upload_prompt": "Upload image · JPEG, PNG, WebP · ≤ 8 MB",
+        "video_label": "Background video (optional)",
+        "video_help": "Paste a video URL (MP4/WebM). When set, the slide plays this video; the image above is the still fallback (used under reduced motion).",
+        "poster_label": "Video poster (optional)",
+        "poster_upload_prompt": "Upload poster · JPEG, PNG, WebP · ≤ 8 MB",
+        "poster_preview_alt": "Slide {number} poster preview",
+        "remove_poster_aria": "Remove poster",
+        "poster_help": "Shown before the video loads and as the reduced-motion still. Falls back to the slide image when empty.",
         "ai_idle_hint": "Upload a slide image and AI will suggest the eyebrow, headline, subtext, and button label.",
         "eyebrow_label": "Eyebrow (small label above the headline)",
         "headline_label": "Headline",
@@ -679,8 +755,15 @@
         "card_description": "Used by the floating WhatsApp button and the footer.",
         "whatsapp_label": "WhatsApp number",
         "whatsapp_help": "International format with country code, e.g. +971501234567.",
+        "email_label": "Contact email",
+        "email_help": "Shown on the contact page. Leave blank to use the default address.",
         "hours_en_label": "Business hours (English)",
         "hours_ar_label": "Business hours (Arabic)",
+        "social_heading": "Social links",
+        "social_help": "Shown as icons in the footer. Leave a field blank to hide that icon.",
+        "instagram_label": "Instagram URL",
+        "tiktok_label": "TikTok URL",
+        "snapchat_label": "Snapchat URL",
         "saved_toast": "Contact settings saved."
       },
       "grid": {
@@ -738,12 +821,22 @@
       },
       "markets": {
         "card_title": "Shipping by country",
-        "card_description": "Set a flat fee and free-shipping threshold per country. Amounts are in AED.",
+        "card_description": "Set a flat fee, free-shipping threshold, and delivery window per country. Amounts are in AED.",
         "flat_label": "Flat fee (AED)",
         "threshold_label": "Free shipping over (AED)",
-        "help": "Fees are stored in AED and shown to customers in their own currency.",
-        "invalid": "Please enter valid amounts.",
+        "min_days_label": "Delivery — min days",
+        "max_days_label": "Delivery — max days",
+        "help": "Fees are stored in AED and shown to customers in their own currency. Delivery days are business days.",
+        "invalid": "Please enter valid amounts and a delivery window where max is not below min.",
         "saved_toast": "Shipping settings saved."
+      },
+      "returns": {
+        "card_title": "Returns window",
+        "card_description": "How many days after delivery customers can request a return or exchange.",
+        "window_days_label": "Return window (days)",
+        "window_days_help": "Surfaced on the public Returns page. Set to 0 to disable returns messaging.",
+        "invalid": "Return window must be between 0 and 90 days.",
+        "saved_toast": "Returns settings saved."
       },
       "currency": {
         "card_title": "Currencies & rates",
@@ -752,6 +845,39 @@
         "help": "AED is the base currency (always 1). Customers see prices converted at these rates.",
         "invalid": "Please enter a valid rate.",
         "saved_toast": "Currency settings saved."
+      },
+      "shop_by": {
+        "card_title": "Shop by tiles",
+        "card_description": "Image tiles on the home page that link into filtered product listings.",
+        "show_label": "Show shop-by grid",
+        "show_help": "When off, the grid is hidden from the home page.",
+        "empty_state": "No tiles yet. Add one to get started.",
+        "add_tile": "Add tile",
+        "tile_number": "Tile {number}",
+        "move_up_aria": "Move tile up",
+        "move_down_aria": "Move tile down",
+        "remove_tile_aria": "Remove tile",
+        "image_label": "Image",
+        "image_preview_alt": "Tile {number} preview",
+        "remove_image_aria": "Remove image",
+        "upload_prompt": "Upload image",
+        "uploading": "Uploading…",
+        "image_uploaded_toast": "Image uploaded.",
+        "label_english": "Label (English)",
+        "label_arabic": "Label (Arabic)",
+        "target_label": "Target",
+        "target_placeholder": "Choose a preset…",
+        "target_help": "Or enter a path manually, e.g. /products?on_sale=1.",
+        "preset_on_sale": "On sale",
+        "preset_new_in": "New in",
+        "preset_in_stock": "In stock",
+        "preset_best_selling": "Best selling",
+        "preset_color": "Color: {name}",
+        "preset_size": "Size: {size}",
+        "error_no_tiles": "Add at least one tile before enabling the grid.",
+        "error_missing_image": "Every tile needs an image.",
+        "error_missing_href": "Every tile needs a target link.",
+        "saved_toast": "Shop-by tiles saved."
       }
     },
     "customers": {
@@ -823,6 +949,32 @@
         }
       }
     },
+    "leads": {
+      "title": "Leads",
+      "summary": "{count, plural, one {# subscriber who hasn't ordered yet} other {# subscribers who haven't ordered yet}}",
+      "search_label": "Search name or phone",
+      "search_placeholder": "Name or +9715…",
+      "apply": "Search",
+      "clear": "Clear",
+      "empty": "No leads yet. Subscribers who haven't placed an order will appear here.",
+      "table": {
+        "name": "Name",
+        "phone": "Phone",
+        "source": "Source",
+        "location": "Location",
+        "subscribed": "Subscribed"
+      },
+      "source": {
+        "home_capture": "Home signup",
+        "checkout": "Checkout",
+        "other": "Other"
+      },
+      "pagination": {
+        "page": "Page {current} of {total}",
+        "previous": "Previous",
+        "next": "Next"
+      }
+    },
     "ai": {
       "rewrite": {
         "trigger": "Rewrite with AI",
@@ -886,6 +1038,122 @@
         "admin": "Admin",
         "dashboard": "Dashboard"
       }
+    },
+    "reviews": {
+      "list": {
+        "title": "Reviews",
+        "count": "{count, plural, =0 {No reviews} one {# review} other {# reviews}}",
+        "new": "Add review",
+        "empty": "No reviews yet.",
+        "pending": "{count, plural, one {# review awaiting approval} other {# reviews awaiting approval}}"
+      },
+      "table": {
+        "image": "Photo",
+        "author": "Author",
+        "rating": "Rating",
+        "product": "Product",
+        "featured": "Featured",
+        "visible": "Visible",
+        "actions": "Actions",
+        "edit": "Edit",
+        "delete": "Delete",
+        "deleted": "Review deleted",
+        "confirm_delete": "Delete this review?",
+        "pending": "Pending"
+      },
+      "form": {
+        "rating": "Rating",
+        "rating_star": "{n} stars",
+        "author_name": "Author name",
+        "author_handle": "Handle (optional)",
+        "body": "Review text",
+        "body_placeholder": "What the customer said…",
+        "source": "Source",
+        "source_placeholder": "Select a source",
+        "source_none": "None",
+        "product": "Linked product",
+        "product_placeholder": "Select a product",
+        "product_none": "No product",
+        "image": "Photo",
+        "image_preview_alt": "Review photo",
+        "upload": "Upload",
+        "uploading": "Uploading…",
+        "image_uploaded": "Image uploaded",
+        "remove_image": "Remove image",
+        "display_date": "Display date",
+        "sort_order": "Sort order",
+        "featured": "Featured (home page)",
+        "visible": "Visible",
+        "create": "Create review",
+        "save": "Save",
+        "cancel": "Cancel",
+        "created": "Review created",
+        "saved": "Review saved",
+        "error_author_required": "Author name is required"
+      },
+      "source": {
+        "instagram": "Instagram",
+        "tiktok": "TikTok",
+        "google": "Google",
+        "whatsapp": "WhatsApp",
+        "website": "Website"
+      }
+    },
+    "coupons": {
+      "list": {
+        "title": "Coupons",
+        "summary": "{count} coupons",
+        "new": "New coupon",
+        "empty": "No coupons yet."
+      },
+      "table": {
+        "code": "Code",
+        "type": "Type",
+        "value": "Value",
+        "min_cap": "Min / Cap",
+        "first_order": "First order",
+        "limits": "Limits",
+        "redeemed": "Redeemed",
+        "active": "Active",
+        "edit": "Edit",
+        "toggle_active": "Toggle active",
+        "yes": "Yes",
+        "min_value": "min {value}",
+        "cap_value": "cap {value}",
+        "global_limit": "{count} total",
+        "per_customer": "{count}/customer"
+      },
+      "form": {
+        "create_title": "New coupon",
+        "edit_title": "Edit coupon",
+        "code": "Code",
+        "code_placeholder": "e.g. WELCOME10",
+        "type": "Type",
+        "type_percent": "Percentage",
+        "type_fixed": "Fixed amount",
+        "value_percent": "Percent off (1–100)",
+        "value_fixed": "Amount off (AED)",
+        "min_subtotal": "Minimum subtotal (AED)",
+        "no_minimum": "No minimum",
+        "max_discount": "Max discount (AED)",
+        "no_cap": "No cap",
+        "max_redemptions": "Total redemption limit",
+        "per_customer_limit": "Per-customer limit",
+        "unlimited": "Unlimited",
+        "starts_at": "Starts at",
+        "expires_at": "Expires at",
+        "first_order_only": "First order only",
+        "first_order_only_hint": "Valid only for a customer's first order.",
+        "active": "Active",
+        "create": "Create coupon",
+        "save": "Save changes",
+        "cancel": "Cancel"
+      },
+      "toast": {
+        "created": "Coupon created.",
+        "updated": "Coupon updated.",
+        "deactivated": "Coupon deactivated."
+      }
     }
   },
   "country": {
@@ -904,5 +1172,84 @@
     "QAR": "Qatari Riyal",
     "BHD": "Bahraini Dinar",
     "OMR": "Omani Rial"
+  },
+  "products": {
+    "title": "Shop all",
+    "subtitle": "Browse our full collection of handcrafted mukhawar.",
+    "count": "{count, plural, =0 {No products} one {# product} other {# products}}",
+    "empty": "No products match your filters.",
+    "filters_label": "Filters",
+    "filters_button": "Filter & sort",
+    "sort_label": "Sort by",
+    "sort": {
+      "newest": "Newest",
+      "price_asc": "Price: low to high",
+      "price_desc": "Price: high to low",
+      "best_selling": "Best selling"
+    },
+    "color_label": "Colour",
+    "size_label": "Size",
+    "price_label": "Price (AED)",
+    "price_min_aria": "Minimum price",
+    "price_max_aria": "Maximum price",
+    "in_stock_only": "In stock only",
+    "apply": "Apply",
+    "clear": "Clear all"
+  },
+  "reviews": {
+    "pdp_heading": "Customer reviews",
+    "testimonials_heading": "What our customers say",
+    "testimonials_subheading": "Real words from real shoppers",
+    "ugc_heading": "As seen on Instagram",
+    "ugc_subheading": "Tag us with #SFashion to be featured",
+    "empty": "No reviews yet — be the first to share your thoughts.",
+    "form": {
+      "heading": "Write a review",
+      "subheading": "Share your experience with this product.",
+      "rating_label": "Your rating",
+      "rating_value": "{count, plural, one {# star} other {# stars}}",
+      "name_label": "Your name",
+      "name_placeholder": "e.g. Sara A.",
+      "email_label": "Email (optional)",
+      "email_placeholder": "you@example.com",
+      "comment_label": "Your review",
+      "comment_placeholder": "What did you like? How was the fit and quality?",
+      "submit": "Submit review",
+      "submitting": "Submitting…",
+      "success_title": "Thank you!",
+      "success_body": "Your review has been submitted and will appear once it's approved.",
+      "error": {
+        "rating_required": "Please select a star rating.",
+        "name_required": "Please enter your name.",
+        "comment_too_short": "Please write at least a few words.",
+        "bot": "Verification failed. Please try again.",
+        "product_not_found": "This product is no longer available.",
+        "invalid_request": "Please check your details and try again.",
+        "generic": "Something went wrong. Please try again."
+      }
+    }
+  },
+  "marketing": {
+    "badge": "WhatsApp offers",
+    "headline": "Get 10% off your first order",
+    "subcopy": "Join on WhatsApp for new arrivals and exclusive offers.",
+    "name_label": "Name",
+    "name_placeholder": "Your name",
+    "phone_label": "WhatsApp number",
+    "phone_placeholder": "50 123 4567",
+    "submit": "Get my code",
+    "submitting": "Sending…",
+    "consent": "By joining you agree to receive WhatsApp marketing messages. Unsubscribe anytime.",
+    "success_title": "You're in! Here's your code",
+    "success_body": "Use it at checkout on your first order.",
+    "copy_code": "Copy code",
+    "popup_title": "10% off your first order",
+    "popup_subcopy": "Join our WhatsApp list and get a welcome code now.",
+    "error": {
+      "name_required": "Please enter your name.",
+      "invalid_phone": "Enter a valid phone number.",
+      "invalid_request": "Please check your details.",
+      "generic": "Something went wrong. Please try again."
+    }
   }
 }

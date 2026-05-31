@@ -42,7 +42,7 @@ export function Header() {
         {/* Desktop-only: top nav. */}
         <nav className="hidden md:flex md:flex-1 md:items-center md:justify-center md:gap-8">
           <Link
-            href={`/${locale}`}
+            href={`/${locale}/products`}
             className="text-xs font-semibold tracking-widest text-foreground/80 uppercase hover:text-foreground"
           >
             {t("shop_all")}

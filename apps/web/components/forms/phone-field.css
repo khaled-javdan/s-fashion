@@ -1,0 +1,135 @@
+/*
+ * Phone field chrome. The control is a single bordered, muted container that
+ * mirrors the shared <Input>:  [ flag ▾  +971 | number ].  It's always laid
+ * out left-to-right (the component sets dir="ltr"); only the country dropdown
+ * list follows the document locale.
+ *
+ * Design tokens: --muted, --border, --ring, --destructive, --radius,
+ * --foreground, --muted-foreground, --background.
+ */
+
+.cn-phone-field {
+  display: flex;
+  align-items: center;
+  height: 2.75rem; /* h-11 — matches Input */
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  background-color: color-mix(in oklab, var(--muted) 60%, transparent);
+  padding-inline: 0.375rem 0.875rem;
+  transition:
+    color 150ms,
+    background-color 150ms,
+    border-color 150ms,
+    box-shadow 150ms;
+}
+
+@media (min-width: 768px) {
+  .cn-phone-field {
+    height: 2.5rem; /* md:h-10 */
+  }
+}
+
+.cn-phone-field:hover {
+  background-color: var(--muted);
+}
+
+/* Focus ring is carried by the whole field, not the inner segments. */
+.cn-phone-field:focus-within {
+  border-color: var(--ring);
+  background-color: var(--background);
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--ring) 30%, transparent);
+}
+
+/* Strip the shared SelectTrigger's own border/bg/ring so the country segment
+ * reads as part of the field. Compound selector outranks the trigger's
+ * single-class utilities. */
+.cn-phone-field [data-slot="select-trigger"],
+.cn-phone-field [data-slot="select-trigger"]:hover,
+.cn-phone-field [data-slot="select-trigger"]:focus-visible {
+  height: 100%;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.cn-phone-code {
+  font-size: 0.875rem;
+  color: var(--foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Flag swatch — fixed width, library SVG scales to fit. */
+.cn-phone-flag {
+  display: inline-flex;
+  flex: none;
+  width: 1.375rem;
+  overflow: hidden;
+  border-radius: 2px;
+  line-height: 0;
+}
+
+.cn-phone-flag svg,
+.cn-phone-flag img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* National number input — transparent; the wrapper carries the chrome. A
+ * divider sits between the country segment and the number. */
+.cn-phone-number {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  margin-inline-start: 0.125rem;
+  padding-inline-start: 0.625rem;
+  border: none;
+  border-inline-start: 1px solid var(--border);
+  outline: none;
+  background: transparent;
+  color: var(--foreground);
+  font-size: 1rem; /* text-base */
+}
+
+@media (min-width: 768px) {
+  .cn-phone-number {
+    font-size: 0.875rem; /* md:text-sm */
+  }
+}
+
+.cn-phone-number::placeholder {
+  color: var(--muted-foreground);
+}
+
+/* Invalid state — mirror the shared Input's aria-invalid styling. */
+.cn-phone-field--invalid {
+  border-color: var(--destructive);
+  background-color: color-mix(in oklab, var(--destructive) 5%, transparent);
+}
+
+.cn-phone-field--invalid:focus-within {
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--destructive) 20%, transparent);
+}
+
+/* Dropdown rows: [ flag ]  Country name            +code */
+.cn-phone-menu {
+  min-width: 15rem;
+}
+
+.cn-phone-option {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.cn-phone-name {
+  flex: 1 1 auto;
+}
+
+.cn-phone-code-item {
+  margin-inline-start: 0.5rem;
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
+}

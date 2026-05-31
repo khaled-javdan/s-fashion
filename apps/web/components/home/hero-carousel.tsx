@@ -12,6 +12,10 @@ export type HeroSlide = {
   id: string
   href: string
   imageUrl: string
+  /** When set, the slide plays this video instead of the image. */
+  videoUrl?: string
+  /** Poster frame for the video (also the reduced-motion still). */
+  posterUrl?: string
   alt: string
   eyebrow: string
   title: string
@@ -44,10 +48,39 @@ export function HeroCarousel({ slides, isRtl, autoplayMs = 6000 }: Props) {
   const t = useTranslations("home")
   const trackRef = useRef<HTMLDivElement>(null)
   const slideRefs = useRef<(HTMLAnchorElement | null)[]>([])
+  const videoRefs = useRef<(HTMLVideoElement | null)[]>([])
   const [active, setActive] = useState(0)
   const [paused, setPaused] = useState(false)
   const [onScreen, setOnScreen] = useState(true)
+  const [reducedMotion, setReducedMotion] = useState(false)
   const count = slides.length
+
+  // Track the user's reduced-motion preference reactively, so videos fall back
+  // to their poster still (and autoplay stays off) without a reload.
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)")
+    const sync = () => setReducedMotion(mq.matches)
+    sync()
+    mq.addEventListener("change", sync)
+    return () => mq.removeEventListener("change", sync)
+  }, [])
+
+  // Pause every hero video whenever the carousel scrolls offscreen, the tab is
+  // hidden, or reduced motion is on — and resume only the active slide's video
+  // when it's safe. Mirrors the autoplay gating below.
+  useEffect(() => {
+    const videos = videoRefs.current
+    videos.forEach((v, i) => {
+      if (!v) return
+      const shouldPlay = onScreen && !reducedMotion && i === active
+      if (shouldPlay) {
+        void v.play().catch(() => {})
+      } else {
+        v.pause()
+      }
+    })
+  }, [active, onScreen, reducedMotion, count])
 
   // Track the active slide by nearest-center to the track viewport. This is
   // direction-agnostic, so it behaves the same under RTL and LTR.
@@ -167,14 +200,30 @@ export function HeroCarousel({ slides, isRtl, autoplayMs = 6000 }: Props) {
             aria-label={`${i + 1} / ${count}`}
             className="group relative h-[68svh] min-h-[440px] w-full shrink-0 snap-start overflow-hidden sm:h-[560px] lg:h-[680px]"
           >
-            <Image
-              src={slide.imageUrl}
-              alt={slide.alt}
-              fill
-              priority={i === 0}
-              sizes="100vw"
-              className="object-cover transition-transform duration-[1200ms] ease-out group-hover:scale-105"
-            />
+            {slide.videoUrl && !reducedMotion ? (
+              <video
+                ref={(el) => {
+                  videoRefs.current[i] = el
+                }}
+                src={slide.videoUrl}
+                poster={slide.posterUrl || slide.imageUrl}
+                muted
+                loop
+                playsInline
+                preload="metadata"
+                aria-label={slide.alt}
+                className="absolute inset-0 size-full object-cover transition-transform duration-[1200ms] ease-out group-hover:scale-105"
+              />
+            ) : (
+              <Image
+                src={slide.posterUrl && reducedMotion ? slide.posterUrl : slide.imageUrl}
+                alt={slide.alt}
+                fill
+                priority={i === 0}
+                sizes="100vw"
+                className="object-cover transition-transform duration-[1200ms] ease-out group-hover:scale-105"
+              />
+            )}
             {/* Legibility scrim — stronger toward the bottom-start text. */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/15 to-transparent" />
 

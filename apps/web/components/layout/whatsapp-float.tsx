@@ -15,19 +15,22 @@ import { MessageCircle } from "lucide-react"
  * Hidden on `/admin/*` (admin operators don't need a customer-facing
  * WhatsApp deeplink).
  *
- * The phone number is hardcoded in Round 1; Track B's settings repo
- * (`contact.whatsapp_number`) will replace this in Round 2.
+ * Client component — the phone number is resolved server-side from the
+ * `contact.whatsapp_number` setting and passed in as a prop.
  */
-const WHATSAPP_NUMBER = "+971501234567" // placeholder — TODO: read from Setting in Round 2
-const WHATSAPP_NUMBER_DIGITS = WHATSAPP_NUMBER.replace(/[^0-9]/g, "")
+const FALLBACK_WHATSAPP_NUMBER = "+971501234567"
 
-export function WhatsappFloat() {
+export function WhatsappFloat({ phoneNumber }: { phoneNumber?: string }) {
   const pathname = usePathname()
   const t = useTranslations("whatsapp")
 
   if (pathname?.startsWith("/admin")) return null
 
-  const url = `https://wa.me/${WHATSAPP_NUMBER_DIGITS}?text=${encodeURIComponent(
+  const digits = (phoneNumber || FALLBACK_WHATSAPP_NUMBER).replace(
+    /[^0-9]/g,
+    "",
+  )
+  const url = `https://wa.me/${digits}?text=${encodeURIComponent(
     t("prefill_message"),
   )}`
 

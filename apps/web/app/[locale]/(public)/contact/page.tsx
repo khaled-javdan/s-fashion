@@ -12,7 +12,8 @@ import { getSetting } from "@/lib/repos/settings.repo"
 
 /** Fallback mirrors the placeholder used by the floating WhatsApp button. */
 const DEFAULT_WHATSAPP_NUMBER = "+971501234567"
-const CONTACT_EMAIL = "hello@sfashion.ae"
+/** Fallback used when no `contact.email` setting has been configured. */
+const DEFAULT_CONTACT_EMAIL = "hello@sfashion.ae"
 
 export async function generateMetadata({
   params,
@@ -38,13 +39,16 @@ export default async function ContactPage({
   const t = await getTranslations("contact")
   const tWhatsapp = await getTranslations("whatsapp")
 
-  const [whatsappNumber, hoursAr, hoursEn] = await Promise.all([
+  const [whatsappNumber, hoursAr, hoursEn, email] = await Promise.all([
     getSetting("contact.whatsapp_number"),
     getSetting("contact.business_hours_ar"),
     getSetting("contact.business_hours_en"),
+    getSetting("contact.email"),
   ])
 
   const number = whatsappNumber ?? DEFAULT_WHATSAPP_NUMBER
+  const contactEmail =
+    email && email.trim() !== "" ? email.trim() : DEFAULT_CONTACT_EMAIL
   const digits = number.replace(/[^0-9]/g, "")
   const waUrl = `https://wa.me/${digits}?text=${encodeURIComponent(
     tWhatsapp("prefill_message"),
@@ -70,8 +74,8 @@ export default async function ContactPage({
         <p>{t("email_desc")}</p>
         <p className="flex items-center gap-2 font-medium text-foreground">
           <Mail className="size-4 text-primary" aria-hidden />
-          <a href={`mailto:${CONTACT_EMAIL}`} className="hover:underline">
-            {CONTACT_EMAIL}
+          <a href={`mailto:${contactEmail}`} className="hover:underline">
+            {contactEmail}
           </a>
         </p>
       </ContentSection>

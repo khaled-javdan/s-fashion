@@ -1,6 +1,11 @@
 import { prisma, OrderStatus, Prisma } from "@workspace/db";
 import type { Order, OrderItem, OrderEvent } from "@workspace/db";
 import { generateOrderNumber } from "@/lib/order-number";
+import { upsertCustomerForOrder } from "@/lib/repos/customers.repo";
+import {
+  CouponExhaustedError,
+  recordCouponRedemption,
+} from "@/lib/repos/coupons.repo";
 import {
   decrementVariantStock,
   InsufficientStockError,
@@ -25,120 +30,172 @@ export type ResolvedOrderItem = OrderItemInput & {
   unitCostFils: number;
 };
 
-export type CreateOrderInput = Omit<OrderCreateInput, "items"> & {
+export type CreateOrderInput = Omit<OrderCreateInput, "items" | "couponCode"> & {
   subtotalFils: number;
   shippingFils: number;
   totalFils: number;
+  /** Coupon discount applied (server-recomputed fils); 0 when no coupon. */
+  discountFils: number;
+  /** Stored coupon code snapshot (display); null when no coupon. */
+  couponCode?: string | null;
+  /** Coupon id to link + redeem; null when no coupon. */
+  couponId?: string | null;
   /** Currency the customer saw + the AED→currency rate at order time. */
   displayCurrency: string;
   fxRate: number;
 };
 
 /**
- * Create an order atomically:
+ * Whether an error is a unique-constraint violation on `Order.orderNumber`.
+ * `generateOrderNumber` derives the suffix from a count, so two concurrent
+ * checkouts can race to the same number under READ COMMITTED; the @unique index
+ * is the authoritative guard and we retry the transaction when it fires.
+ */
+function isOrderNumberCollision(err: unknown): boolean {
+  if (
+    err instanceof Prisma.PrismaClientKnownRequestError &&
+    err.code === "P2002"
+  ) {
+    const target = err.meta?.target;
+    if (Array.isArray(target)) return target.includes("orderNumber");
+    if (typeof target === "string") return target.includes("orderNumber");
+    // Order creation has no other unique column that can collide, so treat an
+    // unknown-target P2002 as an order-number race worth retrying.
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Create an order atomically. The phone has already been OTP-verified before
+ * this is called, so the order is born `NEW` + `phoneVerified` (no fragile
+ * second write). In one transaction:
  *   1. Reserve stock (decrementVariantStock).
- *   2. Generate order number from the in-transaction count.
- *   3. Insert order + snapshot items + initial status_change event.
+ *   2. Upsert + link the customer (records marketing consent).
+ *   3. Generate the order number from the in-transaction count.
+ *   4. Insert order + snapshot items + initial status_change event.
  *
- * Throws `InsufficientStockError` if any variant has insufficient stock; the entire
- * transaction is rolled back in that case.
+ * Throws `InsufficientStockError` if any variant has insufficient stock; the
+ * entire transaction is rolled back in that case. Retries up to 3× on an
+ * order-number collision.
  */
 export async function createOrder(
   input: CreateOrderInput,
   items: ResolvedOrderItem[],
 ): Promise<{ id: string; orderNumber: string }> {
-  return prisma.$transaction(async (tx) => {
-    // 1. Reserve stock for every line item up-front. Any failure aborts the tx.
-    for (const item of items) {
-      await decrementVariantStock(item.variantId, item.quantity, tx);
-    }
+  const MAX_ATTEMPTS = 3;
+  let lastErr: unknown;
 
-    // 2. Derive a fresh order number inside the transaction.
-    const orderNumber = await generateOrderNumber(tx);
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    try {
+      return await prisma.$transaction(async (tx) => {
+        // 1. Reserve stock for every line item up-front. Any failure aborts the tx.
+        for (const item of items) {
+          await decrementVariantStock(item.variantId, item.quantity, tx);
+        }
 
-    // 3. Insert the order with snapshot items.
-    const order = await tx.order.create({
-      data: {
-        orderNumber,
-        status: OrderStatus.PENDING_VERIFICATION,
-        customerName: input.customerName,
-        phone: input.phone,
-        phoneVerified: false,
-        email: input.email ?? null,
-        country: input.country,
-        emirate: input.emirate ?? null,
-        city: input.city,
-        addressLine1: input.addressLine1,
-        addressLine2: input.addressLine2 ?? null,
-        notes: input.notes ?? null,
-        subtotalFils: input.subtotalFils,
-        shippingFils: input.shippingFils,
-        totalFils: input.totalFils,
-        displayCurrency: input.displayCurrency,
-        fxRate: input.fxRate,
-        locale: input.locale,
-        items: {
-          create: items.map((item) => ({
-            variantId: item.variantId,
-            productNameAr: item.productNameAr,
-            productNameEn: item.productNameEn,
-            colorNameAr: item.colorNameAr,
-            colorNameEn: item.colorNameEn,
-            size: item.size,
-            unitPriceFils: item.unitPriceFils,
-            unitCostFils: item.unitCostFils,
-            quantity: item.quantity,
-          })),
-        },
-        events: {
-          create: {
-            type: "status_change",
-            payload: { to: OrderStatus.PENDING_VERIFICATION },
-            actorId: null,
+        // 2. Upsert the customer behind this order (phone is verified) and keep
+        //    the id so the order links to it. Records marketing consent.
+        const customerId = await upsertCustomerForOrder(
+          {
+            phone: input.phone,
+            name: input.customerName,
+            email: input.email ?? null,
+            locale: input.locale,
+            country: input.country,
+            emirate: input.emirate ?? null,
+            city: input.city,
+            addressLine1: input.addressLine1,
+            addressLine2: input.addressLine2 ?? null,
+            marketingConsent: input.marketingConsent ?? false,
           },
-        },
-      },
-      select: { id: true, orderNumber: true },
-    });
+          tx,
+        );
 
-    return order;
-  });
+        // 3. Derive a fresh order number inside the transaction.
+        const orderNumber = await generateOrderNumber(tx);
+
+        // 4. Insert the order with snapshot items.
+        const order = await tx.order.create({
+          data: {
+            orderNumber,
+            status: OrderStatus.NEW,
+            customer: { connect: { id: customerId } },
+            customerName: input.customerName,
+            phone: input.phone,
+            phoneVerified: true,
+            email: input.email ?? null,
+            country: input.country,
+            emirate: input.emirate ?? null,
+            city: input.city,
+            addressLine1: input.addressLine1,
+            addressLine2: input.addressLine2 ?? null,
+            notes: input.notes ?? null,
+            subtotalFils: input.subtotalFils,
+            shippingFils: input.shippingFils,
+            totalFils: input.totalFils,
+            discountFils: input.discountFils,
+            couponCode: input.couponCode ?? null,
+            ...(input.couponId
+              ? { coupon: { connect: { id: input.couponId } } }
+              : {}),
+            displayCurrency: input.displayCurrency,
+            fxRate: input.fxRate,
+            locale: input.locale,
+            items: {
+              create: items.map((item) => ({
+                variantId: item.variantId,
+                productNameAr: item.productNameAr,
+                productNameEn: item.productNameEn,
+                colorNameAr: item.colorNameAr,
+                colorNameEn: item.colorNameEn,
+                size: item.size,
+                unitPriceFils: item.unitPriceFils,
+                unitCostFils: item.unitCostFils,
+                quantity: item.quantity,
+              })),
+            },
+            events: {
+              create: {
+                type: "status_change",
+                payload: { to: OrderStatus.NEW },
+                actorId: null,
+              },
+            },
+          },
+          select: { id: true, orderNumber: true },
+        });
+
+        // Redeem the coupon inside the same transaction so the global-cap guard
+        // (CouponExhaustedError) rolls back the whole order — the discount the
+        // customer is charged is exactly the one recorded as redeemed.
+        if (input.couponId) {
+          await recordCouponRedemption(
+            { couponId: input.couponId, orderId: order.id, phone: input.phone },
+            tx,
+          );
+        }
+
+        return order;
+      });
+    } catch (err) {
+      // Retry only on an order-number race; surface everything else immediately
+      // (notably InsufficientStockError).
+      if (isOrderNumberCollision(err) && attempt < MAX_ATTEMPTS - 1) {
+        lastErr = err;
+        continue;
+      }
+      throw err;
+    }
+  }
+
+  throw lastErr ?? new Error("createOrder: exhausted order-number retries");
 }
 
 /** Re-export so callers handle the error without depending on products.repo. */
 export { InsufficientStockError };
-
-/** Mark phone verified and move PENDING_VERIFICATION → NEW. Idempotent: no-ops if already NEW+. */
-export async function markPhoneVerified(orderId: string): Promise<Order> {
-  return prisma.$transaction(async (tx) => {
-    const order = await tx.order.findUniqueOrThrow({
-      where: { id: orderId },
-    });
-
-    if (order.phoneVerified && order.status !== OrderStatus.PENDING_VERIFICATION) {
-      return order;
-    }
-
-    const updated = await tx.order.update({
-      where: { id: orderId },
-      data: {
-        phoneVerified: true,
-        status: OrderStatus.NEW,
-      },
-    });
-
-    await tx.orderEvent.create({
-      data: {
-        orderId,
-        type: "status_change",
-        payload: { from: order.status, to: OrderStatus.NEW, reason: "phone_verified" },
-        actorId: null,
-      },
-    });
-
-    return updated;
-  });
-}
+/** Re-export so callers handle a coupon-cap race without importing coupons.repo. */
+export { CouponExhaustedError };
 
 export async function getOrderById(
   id: string,
@@ -199,7 +256,7 @@ export async function getDashboardOrderStats(): Promise<DashboardOrderStats> {
 }
 
 // Statuses that count as real sales (placed + progressing through fulfilment).
-const SALES_STATUSES: OrderStatus[] = [
+export const SALES_STATUSES: OrderStatus[] = [
   OrderStatus.NEW,
   OrderStatus.CONFIRMED,
   OrderStatus.SHIPPED,
@@ -396,6 +453,34 @@ export async function getSalesAnalytics(
   };
 }
 
+/**
+ * Order IDs whose notifications haven't all been delivered yet — i.e. the
+ * Telegram owner alert is unstamped, or the customer has an email but the
+ * confirmation is unstamped. Scoped to real (verified) orders placed within the
+ * lookback window so the retry cron never resurrects ancient or abandoned
+ * (PENDING_VERIFICATION) orders. Newest first, capped to `take`.
+ */
+export async function listOrderIdsAwaitingNotification(
+  lookbackHours = 24,
+  take = 50,
+): Promise<string[]> {
+  const since = new Date(Date.now() - lookbackHours * 60 * 60 * 1000);
+  const rows = await prisma.order.findMany({
+    where: {
+      status: { not: OrderStatus.PENDING_VERIFICATION },
+      createdAt: { gte: since },
+      OR: [
+        { adminNotifiedAt: null },
+        { AND: [{ email: { not: null } }, { customerEmailedAt: null }] },
+      ],
+    },
+    orderBy: { createdAt: "desc" },
+    take,
+    select: { id: true },
+  });
+  return rows.map((r) => r.id);
+}
+
 export type ListOrdersFilter = {
   status?: OrderStatus | OrderStatus[];
   phone?: string;
@@ -448,11 +533,20 @@ const RECREDIT_STATUSES = new Set<OrderStatus>([
 ]);
 
 /**
- * Move an order to a new status. Idempotent (no-op if already there).
+ * Move an order to a new status. Idempotent (no-op if already there) and
+ * symmetric with respect to stock:
  * - Appends an OrderEvent of type "status_change".
  * - Sets the timestamp column corresponding to the target status.
- * - On CANCELLED/REFUSED, re-credits stock for every line item (unless already credited
- *   — we guard via the current status check at the top so this only runs on first transition).
+ * - ENTERING a recredit status (CANCELLED/REFUSED) from a non-recredit one
+ *   re-credits each line's stock (the goods go back on the shelf).
+ * - LEAVING a recredit status back to a non-recredit one re-DEDUCTS each line's
+ *   stock via {@link decrementVariantStock} — reversing a cancel/refusal pulls
+ *   the goods back off the shelf. Throws {@link InsufficientStockError} (which
+ *   rolls back the whole transaction) if anything sold out in the meantime, so
+ *   the caller can surface a clear "can't un-cancel, out of stock" message.
+ *
+ * The recredit/redecrement only fire on a *crossing* of the recredit boundary,
+ * so repeated moves within the same side never double-credit or double-deduct.
  */
 export async function updateOrderStatus(
   orderId: string,
@@ -480,6 +574,19 @@ export async function updateOrderStatus(
       (data as Record<string, unknown>)[tsCol] = new Date();
     }
 
+    const enteringRecredit =
+      RECREDIT_STATUSES.has(newStatus) && !RECREDIT_STATUSES.has(order.status);
+    const leavingRecredit =
+      !RECREDIT_STATUSES.has(newStatus) && RECREDIT_STATUSES.has(order.status);
+
+    // Re-deduct BEFORE writing the new status: if any line is out of stock the
+    // InsufficientStockError aborts the transaction and the order stays put.
+    if (leavingRecredit) {
+      for (const item of order.items) {
+        await decrementVariantStock(item.variantId, item.quantity, tx);
+      }
+    }
+
     const updated = await tx.order.update({
       where: { id: orderId },
       data,
@@ -498,11 +605,8 @@ export async function updateOrderStatus(
       },
     });
 
-    // Re-credit stock only when crossing into a cancellation state for the first time.
-    if (
-      RECREDIT_STATUSES.has(newStatus) &&
-      !RECREDIT_STATUSES.has(order.status)
-    ) {
+    // Re-credit stock when crossing into a cancellation state for the first time.
+    if (enteringRecredit) {
       for (const item of order.items) {
         await tx.productVariant.update({
           where: { id: item.variantId },

@@ -169,6 +169,22 @@ export default async function OrderConfirmationPage({
                 : <Money fils={order.shippingFils} locale={locale} currency={currency} rate={rate} />}
             </span>
           </div>
+          {order.discountFils > 0 ? (
+            <div className="flex items-center justify-between font-medium text-emerald-600 dark:text-emerald-500">
+              <span>
+                {t("discount")}
+                {order.couponCode ? (
+                  <span className="text-muted-foreground ms-1 font-normal uppercase">
+                    ({order.couponCode})
+                  </span>
+                ) : null}
+              </span>
+              <span dir="ltr" className="inline-flex items-center gap-0.5 tabular-nums">
+                <span aria-hidden="true">−</span>
+                <Money fils={order.discountFils} locale={locale} currency={currency} rate={rate} />
+              </span>
+            </div>
+          ) : null}
           <Separator className="my-1" />
           <div className="flex items-center justify-between text-base font-semibold">
             <span>{t("total")}</span>

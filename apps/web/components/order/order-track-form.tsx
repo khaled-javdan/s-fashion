@@ -14,6 +14,8 @@ import { OrderStatusTracker } from "@/components/order/order-status-tracker"
 import type { TrackedOrder } from "@/components/order/order-tracking-types"
 import { trackOrderAction } from "@/app/[locale]/(public)/orders/track/actions"
 import { Price } from "@/components/currency/price"
+import { PhoneField } from "@/components/forms/phone-field"
+import { COUNTRY_CODES } from "@/lib/geo"
 import type { Locale } from "@/lib/locale"
 
 type Props = {
@@ -69,16 +71,13 @@ export function OrderTrackForm({ locale, defaultOrderNumber = "" }: Props) {
         </div>
         <div className="grid gap-2">
           <Label htmlFor="track-phone">{t("phone_label")}</Label>
-          <Input
+          <PhoneField
             id="track-phone"
-            type="tel"
-            inputMode="tel"
-            dir="ltr"
             value={phone}
-            onChange={(e) => setPhone(e.target.value)}
+            onChange={setPhone}
+            defaultCountry="AE"
+            countries={[...COUNTRY_CODES]}
             placeholder={t("phone_placeholder")}
-            autoComplete="tel"
-            required
           />
         </div>
         <Button type="submit" size="lg" disabled={pending} className="w-full sm:w-auto">

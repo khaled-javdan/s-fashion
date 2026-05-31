@@ -43,10 +43,17 @@ const TABLET_CLASS: Record<number, string> = {
   4: "sm:grid-cols-4",
 }
 const DESKTOP_CLASS: Record<number, string> = {
+  2: "lg:grid-cols-2",
   3: "lg:grid-cols-3",
   4: "lg:grid-cols-4",
   5: "lg:grid-cols-5",
 }
+
+/**
+ * Desktop column counts a shopper can pick via the grid toggle. Wider than the
+ * admin range (`DESKTOP_COLS`, 3–5) on the low end so they can spread cards out.
+ */
+export const DESKTOP_TOGGLE_COLS = [2, 3, 4, 5] as const
 
 export function mobileColsClass(n: number): string {
   return MOBILE_CLASS[n] ?? MOBILE_CLASS[DEFAULT_GRID.mobile]!
