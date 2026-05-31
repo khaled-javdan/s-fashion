@@ -13,6 +13,26 @@ import { z } from "zod"
 /** A single hero slide. `imageUrl` is required — a slide must have an image. */
 export const heroSlideSchema = z.object({
   imageUrl: z.string().url(),
+  /**
+   * Optional background video. When set, the slide renders this video instead
+   * of the image (the image still acts as the reduced-motion / no-JS fallback).
+   * Empty string means "no video"; a non-empty value must be a valid URL.
+   */
+  videoUrl: z
+    .string()
+    .trim()
+    .refine((v) => v === "" || z.string().url().safeParse(v).success, {
+      message: "Enter a valid video URL.",
+    })
+    .default(""),
+  /** Optional poster shown before the video loads / under reduced motion. */
+  posterUrl: z
+    .string()
+    .trim()
+    .refine((v) => v === "" || z.string().url().safeParse(v).success, {
+      message: "Enter a valid poster URL.",
+    })
+    .default(""),
   eyebrowAr: z.string().trim().max(80).default(""),
   eyebrowEn: z.string().trim().max(80).default(""),
   headlineAr: z.string().trim().max(120).default(""),
@@ -52,6 +72,8 @@ export const DEFAULT_HERO: HeroConfig = { enabled: false, slides: [] }
 
 export const EMPTY_SLIDE: HeroSlideConfig = {
   imageUrl: "",
+  videoUrl: "",
+  posterUrl: "",
   eyebrowAr: "",
   eyebrowEn: "",
   headlineAr: "",

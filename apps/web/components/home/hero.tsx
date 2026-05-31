@@ -38,6 +38,8 @@ export async function Hero({
       id: `hero-${i}`,
       href: resolveHeroHref(s.ctaHref, locale) || "#shop",
       imageUrl: s.imageUrl,
+      videoUrl: s.videoUrl || undefined,
+      posterUrl: s.posterUrl || undefined,
       alt: (locale === "ar" ? s.headlineAr : s.headlineEn) || "S Fashion",
       eyebrow: locale === "ar" ? s.eyebrowAr : s.eyebrowEn,
       title: locale === "ar" ? s.headlineAr : s.headlineEn,

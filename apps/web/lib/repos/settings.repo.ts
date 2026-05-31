@@ -4,6 +4,7 @@ import type { Setting } from "@workspace/db";
 import type { CurrencyConfig } from "@/lib/currency-config";
 import type { GridConfig } from "@/lib/grid-config";
 import type { ShippingConfig } from "@/lib/shipping-config";
+import type { ShopByConfig } from "@/lib/shop-by-config";
 
 /**
  * Known settings registry — keep in sync with the seed file and SPEC §4.
@@ -17,6 +18,16 @@ export type KnownSettings = {
   "contact.whatsapp_number": string;
   "contact.business_hours_ar": string;
   "contact.business_hours_en": string;
+  /** Public contact email shown on the contact page (may be empty). */
+  "contact.email": string;
+  /** Social profile URLs surfaced in the footer (each may be empty). */
+  "contact.social": {
+    instagram: string;
+    tiktok: string;
+    snapchat: string;
+  };
+  /** Returns window in days, surfaced on the returns page. */
+  "returns.window_days": number;
   "size_chart.cm": {
     unit: "cm";
     rows: Array<{
@@ -33,6 +44,8 @@ export type KnownSettings = {
   "ai.model": string;
   /** Storefront product-grid columns per breakpoint. */
   "home.grid": GridConfig;
+  /** Admin-configured "Shop by" image tiles on the home page. */
+  "home.shop_by": ShopByConfig;
   /**
    * Bilingual shipping & return copy rendered in the PDP tabs. Shared across
    * every product (per-product overrides intentionally not modelled).

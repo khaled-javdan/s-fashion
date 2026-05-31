@@ -17,7 +17,10 @@ export type UpsertCustomerInput = {
   name: string;
   email?: string | null;
   locale: string;
-  emirate: Emirate;
+  /** ISO 3166-1 alpha-2 destination country (e.g. "AE", "SA"). */
+  country: string;
+  /** UAE-only sub-region; null for other countries. */
+  emirate?: Emirate | null;
   city: string;
   addressLine1: string;
   addressLine2?: string | null;
@@ -43,7 +46,8 @@ export async function upsertCustomerForOrder(
     name: input.name,
     email: input.email ?? null,
     locale: input.locale,
-    emirate: input.emirate,
+    country: input.country,
+    emirate: input.emirate ?? null,
     city: input.city,
     addressLine1: input.addressLine1,
     addressLine2: input.addressLine2 ?? null,
@@ -69,6 +73,49 @@ export async function upsertCustomerForOrder(
     update: {
       ...snapshot,
       ...grantConsent,
+    },
+    select: { id: true },
+  });
+
+  return customer.id;
+}
+
+export type SubscribeMarketingInput = {
+  phone: string; // canonical E.164
+  name: string;
+  locale: string;
+};
+
+/**
+ * Idempotent marketing opt-in keyed on the unique phone. Used by the home /
+ * popup WhatsApp capture (consentSource "home_capture"). Refreshes name + locale
+ * and GRANTS consent on both create + update; never revokes. Returns the
+ * customer id. This is a standalone opt-in — unlike the checkout upsert it
+ * doesn't carry an address snapshot, so it leaves address fields untouched.
+ */
+export async function subscribeMarketing(
+  input: SubscribeMarketingInput,
+  db: Db = prisma,
+): Promise<string> {
+  const consent = {
+    marketingConsent: true,
+    consentAt: new Date(),
+    consentSource: "home_capture",
+    unsubscribedAt: null,
+  };
+
+  const customer = await db.customer.upsert({
+    where: { phone: input.phone },
+    create: {
+      phone: input.phone,
+      name: input.name,
+      locale: input.locale,
+      ...consent,
+    },
+    update: {
+      name: input.name,
+      locale: input.locale,
+      ...consent,
     },
     select: { id: true },
   });
@@ -194,4 +241,46 @@ export async function getCustomerById(
 /** Total count of customers (for the admin header). */
 export async function countCustomers(): Promise<number> {
   return prisma.customer.count();
+}
+
+export type LeadsFilter = {
+  /** Free-text match against name or phone. */
+  q?: string;
+  skip?: number;
+  take?: number;
+};
+
+/**
+ * WHERE for "leads": consented contacts who haven't bought yet — no order in a
+ * real-sale status. (A contact whose only orders were cancelled/refused still
+ * counts as a lead to re-engage.) Optional name/phone search.
+ */
+function leadsWhere(q?: string): Prisma.CustomerWhereInput {
+  const where: Prisma.CustomerWhereInput = {
+    marketingConsent: true,
+    orders: { none: { status: { in: SALES_STATUSES } } },
+  };
+  if (q) {
+    const term = q.trim();
+    where.OR = [
+      { name: { contains: term, mode: "insensitive" } },
+      { phone: { contains: term.replace(/\s/g, "") } },
+    ];
+  }
+  return where;
+}
+
+/** Leads (consented, no purchase yet), newest opt-in first. */
+export async function listLeads(filter: LeadsFilter = {}): Promise<Customer[]> {
+  return prisma.customer.findMany({
+    where: leadsWhere(filter.q),
+    orderBy: [{ consentAt: "desc" }, { createdAt: "desc" }],
+    skip: filter.skip,
+    take: filter.take ?? 20,
+  });
+}
+
+/** Total leads matching the optional search (for the header + pagination). */
+export async function countLeads(q?: string): Promise<number> {
+  return prisma.customer.count({ where: leadsWhere(q) });
 }

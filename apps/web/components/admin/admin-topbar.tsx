@@ -2,12 +2,13 @@
 
 import { useTranslations } from "next-intl"
 import { usePathname } from "next/navigation"
-import { Store } from "lucide-react"
+import { Maximize2, Minimize2, Store } from "lucide-react"
 
 import { Button } from "@workspace/ui/components/button"
 import { SidebarTrigger } from "@workspace/ui/components/sidebar"
 import { cn } from "@workspace/ui/lib/utils"
 
+import { useAdminContentWidth } from "@/components/admin/admin-content-width"
 import { AdminSaveBar, useSaveBarState } from "@/components/admin/save-bar"
 import { useAdminLocale } from "@/components/admin/use-admin-locale"
 import { LOCALES, type Locale } from "@/lib/locale"
@@ -21,6 +22,7 @@ export function AdminTopbar({ email }: Props) {
   const locale = useAdminLocale()
   const pathname = usePathname()
   const { dirty } = useSaveBarState()
+  const { expanded, toggle } = useAdminContentWidth()
 
   // Build the "switch to other locale" URL by swapping the leading segment.
   const otherLocale: Locale = LOCALES.find((l) => l !== locale) ?? locale
@@ -44,6 +46,21 @@ export function AdminTopbar({ email }: Props) {
           </div>
 
           <div className="ms-auto flex items-center gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={toggle}
+              aria-pressed={expanded}
+              aria-label={t(expanded ? "collapse_content" : "expand_content")}
+              title={t(expanded ? "collapse_content" : "expand_content")}
+            >
+              {expanded ? (
+                <Minimize2 className="size-4" />
+              ) : (
+                <Maximize2 className="size-4" />
+              )}
+            </Button>
             <Button asChild variant="ghost" size="sm">
               <a href={`/${locale}`} target="_blank" rel="noopener noreferrer">
                 <Store className="size-4" />

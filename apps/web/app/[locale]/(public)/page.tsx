@@ -8,14 +8,21 @@ import { PackageSearch } from "lucide-react"
 import { Button } from "@workspace/ui/components/button"
 
 import { AdminEditBar } from "@/components/admin-bar/admin-edit-bar"
+import { BestSellers } from "@/components/home/best-sellers"
 import { Hero } from "@/components/home/hero"
 import { ProductGrid } from "@/components/home/product-grid"
+import { ShopBy } from "@/components/home/shop-by"
+import { Testimonials } from "@/components/home/testimonials"
+import { UgcStrip } from "@/components/home/ugc-strip"
 import { ValueProps } from "@/components/home/value-props"
+import { WhatsappSignup } from "@/components/home/whatsapp-signup"
+import { WhatsappPopup } from "@/components/marketing/whatsapp-popup"
 import { ProductCard } from "@/components/product/product-card"
 import { RecentlyViewed } from "@/components/product/recently-viewed"
 import { parseGridConfig } from "@/lib/grid-config"
 import { LOCALES, type Locale } from "@/lib/locale"
 import { listActiveProducts } from "@/lib/repos/products.repo"
+import { getRatingSummaries } from "@/lib/repos/reviews.repo"
 import { getSetting } from "@/lib/repos/settings.repo"
 
 export async function generateMetadata({
@@ -47,6 +54,7 @@ export default async function HomePage({
     getSetting("home.grid"),
   ])
   const grid = parseGridConfig(gridRaw)
+  const ratings = await getRatingSummaries(products.map((p) => p.id))
 
   return (
     <>
@@ -57,9 +65,10 @@ export default async function HomePage({
       />
       <Hero products={products} locale={typedLocale} />
       <ValueProps locale={typedLocale} />
+      <ShopBy locale={typedLocale} />
 
       <section className="border-y border-border bg-card">
-        <div className="mx-auto flex w-full max-w-7xl flex-col items-center gap-4 px-4 py-8 text-center sm:flex-row sm:justify-between sm:px-6 sm:text-start">
+        <div className="mx-auto flex w-full max-w-7xl flex-col items-center gap-4 px-4 py-8 text-center sm:flex-row sm:justify-between sm:px-6 sm:text-start lg:px-0">
           <div className="flex items-center gap-3">
             <PackageSearch
               className="size-6 shrink-0 text-primary"
@@ -82,9 +91,15 @@ export default async function HomePage({
         </div>
       </section>
 
+      <BestSellers locale={typedLocale} />
+
+      <Testimonials locale={typedLocale} />
+      <UgcStrip locale={typedLocale} />
+      <WhatsappSignup locale={typedLocale} />
+
       <section
         id="shop"
-        className="mx-auto w-full max-w-7xl scroll-mt-24 px-4 py-12 sm:px-6 sm:py-16"
+        className="mx-auto w-full max-w-7xl scroll-mt-24 px-4 py-12 sm:px-6 sm:py-16 lg:px-0"
       >
         <div className="mb-8 flex flex-col gap-1">
           <h2 className="font-heading text-2xl tracking-wide sm:text-3xl">
@@ -106,6 +121,7 @@ export default async function HomePage({
                   product={product}
                   locale={typedLocale}
                   priority={index < 4}
+                  rating={ratings.get(product.id)}
                 />
               </li>
             ))}
@@ -117,6 +133,8 @@ export default async function HomePage({
           title={tProduct("recently_viewed")}
         />
       </section>
+
+      <WhatsappPopup />
     </>
   )
 }

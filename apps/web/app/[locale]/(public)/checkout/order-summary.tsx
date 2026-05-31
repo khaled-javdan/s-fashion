@@ -3,13 +3,16 @@
 import { useState } from "react"
 import Image from "next/image"
 import { useLocale, useTranslations } from "next-intl"
-import { ChevronDown } from "lucide-react"
+import { ChevronDown, Loader2, X } from "lucide-react"
 
+import { Button } from "@workspace/ui/components/button"
+import { Input } from "@workspace/ui/components/input"
 import { Separator } from "@workspace/ui/components/separator"
 
 import { FreeShippingProgress } from "@/app/[locale]/(public)/checkout/free-shipping-progress"
 import {
   selectItems,
+  selectSavingsFils,
   selectSubtotalFils,
   useCartStore,
 } from "@/lib/cart-store"
@@ -25,26 +28,116 @@ import { Price } from "@/components/currency/price"
  * server-side at order creation. We mirror the same rule (free over threshold)
  * so the customer sees a consistent total.
  */
+/** Coupon state + handlers, lifted to the checkout form so the order action
+ *  can send the applied code. The component renders apply/remove UI + the
+ *  discount line; pricing here is display-only (re-checked server-side). */
+export type CouponUi = {
+  /** Currently applied code (normalized), or null when none. */
+  code: string | null
+  /** Server-previewed discount in fils for the applied code. */
+  discountFils: number
+  /** True while applyCouponAction is in flight. */
+  applying: boolean
+  /** A tagged reason the last apply attempt failed, or null. */
+  error: string | null
+  onApply: (code: string) => void
+  onRemove: () => void
+}
+
 export function OrderSummary({
   shippingConfig,
   country,
+  coupon,
 }: {
   shippingConfig: ShippingConfig
   country: CountryCode
+  coupon?: CouponUi
 }) {
   const t = useTranslations("checkout")
+  const tShipping = useTranslations("shipping")
   const locale = useLocale() as Locale
   const [expanded, setExpanded] = useState(false)
+  const [codeInput, setCodeInput] = useState("")
 
   const items = useCartStore(selectItems)
   const subtotalFils = useCartStore(selectSubtotalFils)
+  const savingsFils = useCartStore(selectSavingsFils)
 
-  const { shippingFils, freeThresholdFils } = resolveShipping(
+  const { shippingFils, freeThresholdFils, minDays, maxDays } = resolveShipping(
     shippingConfig,
     country,
     subtotalFils,
   )
-  const totalFils = subtotalFils + shippingFils
+  // Coupon discount is display-only here; the server recomputes + clamps it at
+  // order time. Clamp locally too so the preview never shows a negative total.
+  const discountFils = coupon?.code
+    ? Math.min(coupon.discountFils, subtotalFils)
+    : 0
+  const totalFils = subtotalFils - discountFils + shippingFils
+
+  const couponBlock = coupon ? (
+    <div className="space-y-2">
+      {coupon.code ? (
+        <div className="flex items-center justify-between gap-2 rounded-md border border-border bg-muted/40 px-3 py-2 text-sm">
+          <span className="inline-flex items-center gap-1.5 font-medium">
+            <span className="text-muted-foreground">{t("coupon.label")}</span>
+            <span className="font-mono uppercase tracking-wide" dir="ltr">
+              {coupon.code}
+            </span>
+          </span>
+          <button
+            type="button"
+            onClick={coupon.onRemove}
+            className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-xs underline-offset-4 hover:underline"
+          >
+            <X className="size-3.5" aria-hidden="true" />
+            {t("coupon.remove")}
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-1.5">
+          <div className="flex items-stretch gap-2">
+            <Input
+              value={codeInput}
+              onChange={(e) => setCodeInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault()
+                  if (codeInput.trim()) coupon.onApply(codeInput.trim())
+                }
+              }}
+              placeholder={t("coupon.placeholder")}
+              aria-label={t("coupon.label")}
+              autoCapitalize="characters"
+              autoComplete="off"
+              dir="ltr"
+              className="h-9 uppercase"
+              aria-invalid={!!coupon.error}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-9 shrink-0"
+              disabled={coupon.applying || !codeInput.trim()}
+              onClick={() => coupon.onApply(codeInput.trim())}
+            >
+              {coupon.applying ? (
+                <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+              ) : (
+                t("coupon.apply")
+              )}
+            </Button>
+          </div>
+          {coupon.error ? (
+            <p className="text-destructive text-xs font-medium">
+              {coupon.error}
+            </p>
+          ) : null}
+        </div>
+      )}
+    </div>
+  ) : null
 
   const totalsBlock = (
     <div className="space-y-2 text-sm">
@@ -60,11 +153,32 @@ export function OrderSummary({
             : <Price fils={shippingFils} />}
         </span>
       </div>
+      {savingsFils > 0 ? (
+        <div className="flex items-center justify-between font-medium text-emerald-600 dark:text-emerald-500">
+          <span>{t("savings")}</span>
+          <span dir="ltr" className="inline-flex items-center gap-0.5 tabular-nums">
+            <span aria-hidden="true">−</span>
+            <Price fils={savingsFils} />
+          </span>
+        </div>
+      ) : null}
+      {discountFils > 0 ? (
+        <div className="flex items-center justify-between font-medium text-emerald-600 dark:text-emerald-500">
+          <span>{t("coupon.discount")}</span>
+          <span dir="ltr" className="inline-flex items-center gap-0.5 tabular-nums">
+            <span aria-hidden="true">−</span>
+            <Price fils={discountFils} />
+          </span>
+        </div>
+      ) : null}
       <Separator className="my-1" />
       <div className="flex items-center justify-between text-base font-semibold">
         <span>{t("total")}</span>
         <span className="tabular-nums"><Price fils={totalFils} /></span>
       </div>
+      <p className="text-muted-foreground pt-1 text-xs">
+        {tShipping("delivery_estimate", { minDays, maxDays })}
+      </p>
     </div>
   )
 
@@ -141,6 +255,12 @@ export function OrderSummary({
           subtotalFils={subtotalFils}
           thresholdFils={freeThresholdFils}
         />
+        {couponBlock ? (
+          <>
+            {couponBlock}
+            <Separator />
+          </>
+        ) : null}
         {totalsBlock}
       </div>
     </div>

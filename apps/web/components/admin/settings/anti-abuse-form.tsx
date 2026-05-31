@@ -9,6 +9,7 @@ import { Label } from "@workspace/ui/components/label"
 
 import { updateSettingsAction } from "@/app/[locale]/admin/(authed)/settings/actions"
 import { useSaveBar } from "@/components/admin/save-bar"
+import { ABSOLUTE_MAX_QTY_PER_VARIANT } from "@/lib/order-limits"
 
 type Props = {
   maxItems: number
@@ -36,7 +37,11 @@ export function AntiAbuseForm({ maxItems, maxQtyPerVariant }: Props) {
       toast.error(t("limits.max_items_min_error"))
       return
     }
-    if (!Number.isFinite(qtyNum) || qtyNum < 1) {
+    if (
+      !Number.isFinite(qtyNum) ||
+      qtyNum < 1 ||
+      qtyNum > ABSOLUTE_MAX_QTY_PER_VARIANT
+    ) {
       toast.error(t("limits.max_qty_min_error"))
       return
     }
@@ -89,6 +94,7 @@ export function AntiAbuseForm({ maxItems, maxQtyPerVariant }: Props) {
           <Input
             type="number"
             min={1}
+            max={ABSOLUTE_MAX_QTY_PER_VARIANT}
             value={qty}
             onChange={(e) => setQty(e.target.value)}
           />

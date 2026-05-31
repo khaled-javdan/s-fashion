@@ -206,7 +206,9 @@ function SlideCard({
 }) {
   const t = useTranslations("admin.settings")
   const [uploading, setUploading] = useState(false)
+  const [uploadingPoster, setUploadingPoster] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
+  const posterInputRef = useRef<HTMLInputElement>(null)
 
   async function onFile(file: File) {
     setUploading(true)
@@ -222,6 +224,23 @@ function SlideCard({
       }
     } finally {
       setUploading(false)
+    }
+  }
+
+  async function onPosterFile(file: File) {
+    setUploadingPoster(true)
+    try {
+      const fd = new FormData()
+      fd.append("file", file)
+      const res = await uploadHeroImageAction(fd)
+      if (res.ok) {
+        onChange({ posterUrl: res.data.url })
+        toast.success(t("hero.image_uploaded_toast"))
+      } else {
+        toast.error(res.error)
+      }
+    } finally {
+      setUploadingPoster(false)
     }
   }
 
@@ -326,6 +345,77 @@ function SlideCard({
           }}
         />
       </div>
+
+      <div className="grid gap-2">
+        <Label>{t("hero.video_label")}</Label>
+        <Input
+          dir="ltr"
+          className="font-mono"
+          value={slide.videoUrl}
+          onChange={(e) => onChange({ videoUrl: e.target.value })}
+          placeholder="https://…/hero.mp4"
+        />
+        <p className="text-muted-foreground text-xs">
+          {t("hero.video_help")}
+        </p>
+      </div>
+
+      {slide.videoUrl ? (
+        <div className="grid gap-2">
+          <Label>{t("hero.poster_label")}</Label>
+          {slide.posterUrl ? (
+            <div className="relative aspect-[16/9] w-full max-w-md overflow-hidden rounded-md border">
+              <Image
+                src={slide.posterUrl}
+                alt={t("hero.poster_preview_alt", { number: index + 1 })}
+                fill
+                sizes="448px"
+                className="object-cover"
+              />
+              <button
+                type="button"
+                onClick={() => onChange({ posterUrl: "" })}
+                aria-label={t("hero.remove_poster_aria")}
+                className="bg-background/80 hover:bg-background absolute end-2 top-2 rounded-full p-1.5 shadow transition"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => posterInputRef.current?.click()}
+              disabled={uploadingPoster}
+              className="border-input text-muted-foreground hover:bg-muted flex aspect-[16/9] w-full max-w-md flex-col items-center justify-center gap-2 rounded-md border border-dashed text-sm transition disabled:opacity-60"
+            >
+              {uploadingPoster ? (
+                <Loader2 className="size-5 animate-spin" />
+              ) : (
+                <Upload className="size-5" />
+              )}
+              <span>
+                {uploadingPoster
+                  ? t("hero.uploading")
+                  : t("hero.poster_upload_prompt")}
+              </span>
+            </button>
+          )}
+          <input
+            ref={posterInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className="sr-only"
+            onChange={(e) => {
+              const f = e.target.files?.[0]
+              if (f) onPosterFile(f)
+              e.target.value = ""
+            }}
+          />
+          <p className="text-muted-foreground text-xs">
+            {t("hero.poster_help")}
+          </p>
+        </div>
+      ) : null}
 
       <AiImageAnalyzePanel
         imageUrls={slide.imageUrl ? [slide.imageUrl] : []}

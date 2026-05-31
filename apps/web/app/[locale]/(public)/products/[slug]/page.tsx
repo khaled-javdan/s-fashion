@@ -13,6 +13,8 @@ import {
   type GalleryImage,
 } from "@/components/product/product-gallery"
 import { ProductJsonLd } from "@/components/product/product-jsonld"
+import { ProductReviews } from "@/components/reviews/product-reviews"
+import { StarRating } from "@/components/reviews/star-rating"
 import { ProductTabs } from "@/components/product/product-tabs"
 import { htmlToPlainText } from "@/components/product/rich-text"
 import { RecentlyViewed } from "@/components/product/recently-viewed"
@@ -25,10 +27,14 @@ import {
 import { Money } from "@/components/currency/money"
 import { getCurrencyContext } from "@/lib/currency-context.server"
 import { LOCALES, type Locale } from "@/lib/locale"
-import { getProductBySlug, listSimilarProducts } from "@/lib/repos/products.repo"
+import { DEFAULT_MAX_QTY_PER_VARIANT } from "@/lib/order-limits"
+import {
+  getProductBySlug,
+  listSimilarProducts,
+  parseProductSizeChartRows,
+} from "@/lib/repos/products.repo"
+import { getProductRatingSummary } from "@/lib/repos/reviews.repo"
 import { getSetting } from "@/lib/repos/settings.repo"
-
-const DEFAULT_MAX_QTY = 2
 
 function canonicalUrl(locale: string, slug: string): string {
   const base = process.env.NEXT_PUBLIC_APP_URL ?? "https://sfashion.ae"
@@ -88,14 +94,16 @@ export default async function ProductPage({
     shippingReturn,
     whatsappNumber,
     similar,
+    ratingSummary,
   ] = await Promise.all([
     getSetting("order.max_qty_per_variant"),
     getSetting("size_chart.cm"),
     getSetting("product.shipping_return"),
     getSetting("contact.whatsapp_number"),
     listSimilarProducts({ excludeId: product.id, priceFils: product.priceFils }),
+    getProductRatingSummary(product.id),
   ])
-  const maxQtyPerVariant = maxQtySetting ?? DEFAULT_MAX_QTY
+  const maxQtyPerVariant = maxQtySetting ?? DEFAULT_MAX_QTY_PER_VARIANT
 
   const name = typedLocale === "ar" ? product.nameAr : product.nameEn
   const description = typedLocale === "ar" ? product.descAr : product.descEn
@@ -124,6 +132,18 @@ export default async function ProductPage({
 
   const onSale =
     product.compareAtFils != null && product.compareAtFils > product.priceFils
+  // Same percent-off calc the product card uses, only when genuinely on sale.
+  const percentOff = onSale
+    ? Math.round((1 - product.priceFils / (product.compareAtFils as number)) * 100)
+    : 0
+  const numberFormat = new Intl.NumberFormat(
+    typedLocale === "ar" ? "ar-AE" : "en-AE",
+  )
+
+  // Prefer the product's own size chart override; fall back to the global
+  // `size_chart.cm` setting when the product has none.
+  const sizeChartRows =
+    parseProductSizeChartRows(product.sizeChart) ?? sizeChart?.rows ?? []
 
   // Prefilled WhatsApp enquiry referencing the product name + canonical URL.
   const waText = t("share_whatsapp_text", { name, url })
@@ -151,19 +171,25 @@ export default async function ProductPage({
             <h1 className="font-heading text-3xl tracking-wide sm:text-4xl">
               {name}
             </h1>
-            <div className="flex items-baseline gap-3">
-              <span className="text-2xl font-medium">
-                <Money fils={product.priceFils} locale={typedLocale} currency={currency} rate={rate} />
-              </span>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-baseline gap-3">
+                <span className="text-2xl font-medium">
+                  <Money fils={product.priceFils} locale={typedLocale} currency={currency} rate={rate} />
+                </span>
+                {onSale ? (
+                  <span className="text-muted-foreground/70 text-lg">
+                    <Money fils={product.compareAtFils!} locale={typedLocale} currency={currency} rate={rate} strikethrough />
+                  </span>
+                ) : null}
+              </div>
               {onSale ? (
-                <>
-                  <span className="text-muted-foreground/70 text-lg line-through">
-                    <Money fils={product.compareAtFils!} locale={typedLocale} currency={currency} rate={rate} />
-                  </span>
-                  <span className="bg-destructive text-destructive-foreground rounded-sm px-2 py-0.5 text-xs font-semibold uppercase">
-                    {t("sale_badge")}
-                  </span>
-                </>
+                <span className="bg-destructive text-destructive-foreground rounded-sm px-2 py-0.5 text-xs font-semibold uppercase leading-none">
+                  {percentOff > 0
+                    ? t("discount_badge", {
+                        percent: numberFormat.format(percentOff),
+                      })
+                    : t("sale_badge")}
+                </span>
               ) : null}
             </div>
           </div>
@@ -175,6 +201,7 @@ export default async function ProductPage({
               nameAr: product.nameAr,
               nameEn: product.nameEn,
               priceFils: product.priceFils,
+              compareAtFils: product.compareAtFils,
               imageUrl: product.images[0]?.url ?? null,
             }}
             variants={pickerVariants}
@@ -182,8 +209,21 @@ export default async function ProductPage({
             maxQtyPerVariant={maxQtyPerVariant}
           />
 
+          {ratingSummary.count > 0 ? (
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium tabular-nums">
+                {numberFormat.format(ratingSummary.average)}
+              </span>
+              <StarRating
+                value={ratingSummary.average}
+                count={ratingSummary.count}
+                size="md"
+              />
+            </div>
+          ) : null}
+
           <div className="flex flex-wrap items-center gap-4">
-            <SizeChartModal rows={sizeChart?.rows ?? []} />
+            <SizeChartModal rows={sizeChartRows} />
             {waHref ? (
               <a
                 href={waHref}
@@ -205,7 +245,10 @@ export default async function ProductPage({
             description={description ?? null}
             additionalInfo={additionalInfo ?? null}
             shippingReturn={shippingReturnText}
-            sizeChartRows={sizeChart?.rows ?? []}
+            sizeChartRows={sizeChartRows}
+            reviews={
+              <ProductReviews productId={product.id} locale={typedLocale} />
+            }
           />
         </div>
       </ProductColorProvider>

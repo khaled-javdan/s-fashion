@@ -5,6 +5,9 @@ import {
   Package,
   Settings,
   ShoppingBag,
+  Star,
+  Ticket,
+  UserPlus,
   Users,
   type LucideIcon,
 } from "lucide-react"
@@ -26,7 +29,15 @@ import {
 
 import { useAdminLocale } from "@/components/admin/use-admin-locale"
 
-type NavKey = "dashboard" | "orders" | "customers" | "products" | "settings"
+type NavKey =
+  | "dashboard"
+  | "orders"
+  | "customers"
+  | "leads"
+  | "products"
+  | "reviews"
+  | "coupons"
+  | "settings"
 type NavItem = {
   key: NavKey
   href: string
@@ -55,9 +66,24 @@ export function AdminSidebar() {
       icon: Users,
     },
     {
+      key: "leads",
+      href: `${root}/leads`,
+      icon: UserPlus,
+    },
+    {
       key: "products",
       href: `${root}/products`,
       icon: Package,
+    },
+    {
+      key: "reviews",
+      href: `${root}/reviews`,
+      icon: Star,
+    },
+    {
+      key: "coupons",
+      href: `${root}/coupons`,
+      icon: Ticket,
     },
     {
       key: "settings",

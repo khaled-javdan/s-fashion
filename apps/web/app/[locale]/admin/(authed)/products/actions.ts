@@ -14,6 +14,7 @@ import {
   productUpdateSchema,
   type ProductCreateInput,
   type ProductUpdateInput,
+  type SizeChartInput,
 } from "@/lib/schemas/product.schema"
 import {
   deleteProductImage,
@@ -31,6 +32,9 @@ const ALLOWED_IMAGE_TYPES = new Set([
   "image/webp",
 ])
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024 // 8 MB
+
+/** Per-product size chart the form submits (centimetre measurements). */
+export type SizeChartFormChart = SizeChartInput
 
 /**
  * The form submits AED decimals for money fields. The action converts them to
@@ -50,6 +54,11 @@ export type ProductFormPayload = {
   costPriceAed: number
   isActive: boolean
   isFinalSale: boolean
+  /**
+   * Per-product size chart override. `null` (or omitted) means "use the global
+   * default"; a value is the per-product chart (measurements in centimetres).
+   */
+  sizeChart?: SizeChartFormChart | null
   variants: Array<{
     id?: string
     colorNameAr?: string | null
@@ -163,6 +172,7 @@ function toCreateInput(payload: ProductFormPayload): ProductCreateInput {
     costPriceFils: aedToFils(payload.costPriceAed),
     isActive: payload.isActive,
     isFinalSale: payload.isFinalSale,
+    sizeChart: payload.sizeChart ?? null,
     variants: payload.variants.map((v) => ({
       id: v.id,
       colorNameAr: v.colorNameAr ?? null,
@@ -200,6 +210,7 @@ function toUpdateInput(payload: ProductFormPayload): ProductUpdateInput {
     costPriceFils: aedToFils(payload.costPriceAed),
     isActive: payload.isActive,
     isFinalSale: payload.isFinalSale,
+    sizeChart: payload.sizeChart ?? null,
     variants: payload.variants.map((v) => ({
       id: v.id,
       colorNameAr: v.colorNameAr ?? null,

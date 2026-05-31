@@ -20,6 +20,10 @@ export type CountryShipping = {
   flatFils: number
   /** Subtotal (base AED fils) at/above which shipping is free. */
   freeThresholdFils: number
+  /** Lower bound of the estimated delivery window, in business days. */
+  minDays: number
+  /** Upper bound of the estimated delivery window, in business days. */
+  maxDays: number
 }
 
 export type ShippingConfig = {
@@ -35,6 +39,13 @@ export const countryShippingSchema = z.object({
   enabled: z.boolean().default(true),
   flatFils: z.number().int().min(0),
   freeThresholdFils: z.number().int().min(0),
+  /**
+   * Estimated delivery window, in business days. Optional in the stored shape
+   * so rows written before delivery windows were modelled still parse;
+   * `parseShippingConfig` backfills missing values from the country defaults.
+   */
+  minDays: z.number().int().min(0).max(60).optional(),
+  maxDays: z.number().int().min(0).max(60).optional(),
 })
 
 export const shippingConfigSchema = z.object({
@@ -44,12 +55,54 @@ export const shippingConfigSchema = z.object({
 /** GCC defaults. AE mirrors the previous single-country values (25 / 600 AED). */
 export const DEFAULT_SHIPPING_CONFIG: ShippingConfig = {
   countries: [
-    { country: "AE", enabled: true, flatFils: 2500, freeThresholdFils: 60000 },
-    { country: "SA", enabled: true, flatFils: 5000, freeThresholdFils: 75000 },
-    { country: "KW", enabled: true, flatFils: 6000, freeThresholdFils: 75000 },
-    { country: "QA", enabled: true, flatFils: 6000, freeThresholdFils: 75000 },
-    { country: "BH", enabled: true, flatFils: 6000, freeThresholdFils: 75000 },
-    { country: "OM", enabled: true, flatFils: 6000, freeThresholdFils: 75000 },
+    {
+      country: "AE",
+      enabled: true,
+      flatFils: 2500,
+      freeThresholdFils: 60000,
+      minDays: 1,
+      maxDays: 3,
+    },
+    {
+      country: "SA",
+      enabled: true,
+      flatFils: 5000,
+      freeThresholdFils: 75000,
+      minDays: 3,
+      maxDays: 7,
+    },
+    {
+      country: "KW",
+      enabled: true,
+      flatFils: 6000,
+      freeThresholdFils: 75000,
+      minDays: 3,
+      maxDays: 7,
+    },
+    {
+      country: "QA",
+      enabled: true,
+      flatFils: 6000,
+      freeThresholdFils: 75000,
+      minDays: 3,
+      maxDays: 7,
+    },
+    {
+      country: "BH",
+      enabled: true,
+      flatFils: 6000,
+      freeThresholdFils: 75000,
+      minDays: 3,
+      maxDays: 7,
+    },
+    {
+      country: "OM",
+      enabled: true,
+      flatFils: 6000,
+      freeThresholdFils: 75000,
+      minDays: 3,
+      maxDays: 7,
+    },
   ],
 }
 
@@ -62,8 +115,17 @@ export function parseShippingConfig(raw: unknown): ShippingConfig {
   const result = shippingConfigSchema.safeParse(raw)
   const stored = result.success ? result.data.countries : []
   const byCode = new Map(stored.map((c) => [c.country, c]))
-  const countries = DEFAULT_SHIPPING_CONFIG.countries.map(
-    (def) => byCode.get(def.country) ?? def,
+  const countries: CountryShipping[] = DEFAULT_SHIPPING_CONFIG.countries.map(
+    (def) => {
+      const row = byCode.get(def.country)
+      if (!row) return def
+      // Backfill delivery-window fields for rows stored before they existed.
+      return {
+        ...row,
+        minDays: row.minDays ?? def.minDays,
+        maxDays: row.maxDays ?? def.maxDays,
+      }
+    },
   )
   return { countries }
 }
@@ -76,6 +138,9 @@ export function enabledCountries(config: ShippingConfig): CountryCode[] {
 export type ResolvedShipping = {
   shippingFils: number
   freeThresholdFils: number
+  /** Estimated delivery window for the resolved country, in business days. */
+  minDays: number
+  maxDays: number
 }
 
 /**
@@ -88,11 +153,17 @@ export function resolveShipping(
   country: string,
   subtotalFils: number,
 ): ResolvedShipping {
+  const fallback = DEFAULT_SHIPPING_CONFIG.countries[0]!
   const row =
     config.countries.find((c) => c.country === country && c.enabled) ??
     config.countries.find((c) => c.country === DEFAULT_COUNTRY) ??
-    DEFAULT_SHIPPING_CONFIG.countries[0]!
+    fallback
   const { flatFils, freeThresholdFils } = row
   const shippingFils = subtotalFils >= freeThresholdFils ? 0 : flatFils
-  return { shippingFils, freeThresholdFils }
+  return {
+    shippingFils,
+    freeThresholdFils,
+    minDays: row.minDays ?? fallback.minDays,
+    maxDays: row.maxDays ?? fallback.maxDays,
+  }
 }

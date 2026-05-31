@@ -35,9 +35,17 @@ import {
   makeEmptyVariant,
   type FormVariant,
 } from "@/components/admin/products/variants-editor"
+import {
+  ProductSizeChartEditor,
+  type SizeChartFormRow,
+} from "@/components/admin/products/product-size-chart-editor"
 import { filsToAed } from "@/lib/money"
 import type { Locale } from "@/lib/locale"
-import type { ProductWithRelations } from "@/lib/repos/products.repo"
+import {
+  parseProductSizeChartRows,
+  type ProductWithRelations,
+} from "@/lib/repos/products.repo"
+import type { SizeChartFormChart } from "@/app/[locale]/admin/(authed)/products/actions"
 
 type Props =
   | { mode: "create"; locale: Locale; product?: undefined }
@@ -58,6 +66,24 @@ type FormState = {
   isActive: boolean
   variants: FormVariant[]
   images: FormImage[]
+  /** `null` = use the global default; rows = per-product override. */
+  sizeChart: SizeChartFormRow[] | null
+}
+
+/** Map stored size-chart rows into string-backed form rows (or null). */
+function toSizeChartFormRows(
+  product?: ProductWithRelations,
+): SizeChartFormRow[] | null {
+  if (!product) return null
+  const rows = parseProductSizeChartRows(product.sizeChart)
+  if (!rows) return null
+  return rows.map((r) => ({
+    size: r.size,
+    bust: r.bust == null ? "" : String(r.bust),
+    waist: r.waist == null ? "" : String(r.waist),
+    hips: r.hips == null ? "" : String(r.hips),
+    length: String(r.length),
+  }))
 }
 
 
@@ -78,6 +104,7 @@ function initialState(product?: ProductWithRelations): FormState {
       isActive: true,
       variants: [makeEmptyVariant()],
       images: [],
+      sizeChart: null,
     }
   }
   return {
@@ -112,6 +139,7 @@ function initialState(product?: ProductWithRelations): FormState {
       colorHex: i.colorHex,
       position: i.position,
     })),
+    sizeChart: toSizeChartFormRows(product),
   }
 }
 
@@ -281,7 +309,37 @@ export function ProductForm(props: Props) {
       if (seen.has(key)) return t("validation.variant_unique")
       seen.add(key)
     }
+    if (state.sizeChart !== null) {
+      if (state.sizeChart.length < 1)
+        return t("validation.size_chart_empty")
+      for (const r of state.sizeChart) {
+        if (r.size.trim() === "") return t("validation.size_chart_size_required")
+        const length = Number(r.length)
+        if (r.length.trim() === "" || !Number.isFinite(length) || length < 0)
+          return t("validation.size_chart_length_invalid", { size: r.size })
+      }
+    }
     return null
+  }
+
+  /** Convert the form's size-chart rows into the action payload (or null). */
+  const buildSizeChart = (): SizeChartFormChart | null => {
+    if (state.sizeChart === null || state.sizeChart.length === 0) return null
+    const measure = (value: string): number | null => {
+      if (value.trim() === "") return null
+      const n = Math.floor(Number(value))
+      return Number.isFinite(n) && n >= 0 ? n : null
+    }
+    return {
+      unit: "cm",
+      rows: state.sizeChart.map((r) => ({
+        size: r.size.trim(),
+        bust: measure(r.bust),
+        waist: measure(r.waist),
+        hips: measure(r.hips),
+        length: Math.floor(Number(r.length)),
+      })),
+    }
   }
 
   const buildPayload = (): ProductFormPayload => ({
@@ -298,6 +356,7 @@ export function ProductForm(props: Props) {
     costPriceAed: Number(state.costPriceAed),
     isActive: state.isActive,
     isFinalSale: state.isFinalSale,
+    sizeChart: buildSizeChart(),
     variants: state.variants.map((v) => ({
       id: v.id,
       colorNameAr: v.colorNameAr?.trim() || null,
@@ -609,6 +668,13 @@ export function ProductForm(props: Props) {
         <VariantsEditor
           variants={state.variants}
           onChange={(variants) => set("variants", variants)}
+        />
+      </Section>
+
+      <Section title={t("sections.size_chart")}>
+        <ProductSizeChartEditor
+          rows={state.sizeChart}
+          onChange={(rows) => set("sizeChart", rows)}
         />
       </Section>
 

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useLocale, useTranslations } from "next-intl"
 import { useForm, type Resolver } from "react-hook-form"
@@ -24,7 +24,13 @@ import {
 
 import { OrderSummary } from "@/app/[locale]/(public)/checkout/order-summary"
 import { OtpStep } from "@/app/[locale]/(public)/checkout/otp-step"
+import { PhoneField } from "@/components/forms/phone-field"
 import {
+  TurnstileWidget,
+  type TurnstileHandle,
+} from "@/app/[locale]/(public)/checkout/turnstile-widget"
+import {
+  applyCouponAction,
   sendOtpAction,
   verifyOtpAndCreateOrderAction,
 } from "@/app/[locale]/(public)/checkout/actions"
@@ -77,6 +83,38 @@ const DEFAULT_VALUES: CheckoutFormValues = {
   marketingConsent: false,
 }
 
+// sessionStorage key for the in-progress checkout form (survives accidental
+// reloads / navigation; cleared on successful order). Scoped to sessionStorage
+// — not localStorage — so it doesn't linger across browser sessions.
+const FORM_STORAGE_KEY = "s-fashion-checkout-form"
+
+/**
+ * Map a server-reported field name (the `OrderCreateInput` shape) onto a form
+ * field. Only `customerName` differs from the client field name (`name`); the
+ * rest line up. Returns null for anything not directly editable in the form.
+ */
+function serverFieldToFormField(
+  field: string | undefined,
+): keyof CheckoutFormValues | null {
+  if (!field) return null
+  if (field === "customerName") return "name"
+  const known: readonly (keyof CheckoutFormValues)[] = [
+    "name",
+    "phone",
+    "email",
+    "country",
+    "emirate",
+    "city",
+    "addressLine1",
+    "addressLine2",
+    "notes",
+    "marketingConsent",
+  ]
+  return (known as readonly string[]).includes(field)
+    ? (field as keyof CheckoutFormValues)
+    : null
+}
+
 /**
  * Single-page checkout form (Contact + Delivery sections) with a sticky order
  * summary on desktop. Validation is done with a manual Zod-free resolver that
@@ -98,6 +136,7 @@ export function CheckoutForm({
   enabledCountries: CountryCode[]
 }) {
   const t = useTranslations("checkout")
+  const tCoupon = useTranslations("checkout.coupon")
   const locale = useLocale() as Locale
   const router = useRouter()
   const { setCountry } = useCurrency()
@@ -110,6 +149,30 @@ export function CheckoutForm({
   const [submitting, setSubmitting] = useState(false)
   const [otpError, setOtpError] = useState<string | null>(null)
 
+  // Coupon state (display preview). The applied code is sent with the order and
+  // re-validated server-side, so this is best-effort UI only.
+  const [couponCode, setCouponCode] = useState<string | null>(null)
+  const [couponDiscountFils, setCouponDiscountFils] = useState(0)
+  const [couponApplying, setCouponApplying] = useState(false)
+  const [couponError, setCouponError] = useState<string | null>(null)
+
+  /** Map a validateCoupon reason to its translated message. */
+  function couponReasonMessage(reason: string): string {
+    const known = new Set([
+      "not_found",
+      "inactive",
+      "expired",
+      "not_started",
+      "below_min",
+      "first_order_only",
+      "max_redemptions",
+      "per_customer_limit",
+      "phone_required",
+      "invalid_request",
+    ])
+    return tCoupon(`error.${known.has(reason) ? reason : "invalid_request"}`)
+  }
+
   // Client-side validation resolver. Mirrors the server schema's rules and
   // returns translated messages.
   const resolver: Resolver<CheckoutFormValues> = async (values) => {
@@ -118,6 +181,8 @@ export function CheckoutForm({
     if (values.name.trim().length < 2) {
       errors.name = { type: "min", message: t("name_too_short") }
     }
+    // PhoneField emits E.164 (already carries the country code); the country arg
+    // is a harmless fallback for any national-format value.
     const parsedPhone = parsePhoneNumberFromString(
       values.phone.trim(),
       values.country,
@@ -156,6 +221,7 @@ export function CheckoutForm({
     getValues,
     setValue,
     setError,
+    reset,
     watch,
     formState: { errors },
   } = useForm<CheckoutFormValues>({
@@ -163,21 +229,126 @@ export function CheckoutForm({
     defaultValues: { ...DEFAULT_VALUES, country: defaultCountry },
   })
 
+  // Cloudflare Turnstile token holder (no-op when not configured).
+  const turnstileRef = useRef<TurnstileHandle>(null)
+
+  // Whether the form has been hydrated from sessionStorage yet. Gates the
+  // persistence subscription so we never clobber saved data with defaults.
+  const [formHydrated, setFormHydrated] = useState(false)
+
+  // Restore an in-progress form from sessionStorage on first mount.
+  useEffect(() => {
+    if (formHydrated) return
+    try {
+      const raw = sessionStorage.getItem(FORM_STORAGE_KEY)
+      if (raw) {
+        const saved = JSON.parse(raw) as Partial<CheckoutFormValues>
+        reset({ ...DEFAULT_VALUES, country: defaultCountry, ...saved })
+        // Keep the global ship-to currency in sync with the restored country.
+        if (saved.country) setCountry(saved.country)
+      }
+    } catch {
+      // Corrupt/unavailable storage — fall back to defaults.
+    }
+    setFormHydrated(true)
+  }, [formHydrated, reset, defaultCountry, setCountry])
+
+  // Persist form values to sessionStorage on every change (after hydration).
   // react-hook-form's `watch` subscription is opaque to the React Compiler
   // (react-hooks/incompatible-library); the component is correct as written.
-  // eslint-disable-next-line react-hooks/incompatible-library
+  // The directive sits on the first `watch` use — the compiler attributes the
+  // whole-component skip to it, so the later watch() calls don't need their own.
+  useEffect(() => {
+    if (!formHydrated) return
+    // eslint-disable-next-line react-hooks/incompatible-library
+    const subscription = watch((values) => {
+      try {
+        sessionStorage.setItem(FORM_STORAGE_KEY, JSON.stringify(values))
+      } catch {
+        // Storage full / unavailable — persistence is best-effort.
+      }
+    })
+    return () => subscription.unsubscribe()
+  }, [formHydrated, watch])
+
   const emirate = watch("emirate")
   const country = watch("country")
+  const phone = watch("phone")
   const hasEmirates = countryHasEmirates(country)
   const marketingConsent = watch("marketingConsent")
 
+  // `phone` is driven by the controlled <PhoneField> (via setValue), but still
+  // register it so RHF tracks the field for the resolver + error mapping.
+  useEffect(() => {
+    register("phone")
+  }, [register])
+
   // Canonical E.164 phone for the current form value (used by OTP/verify).
+  // <PhoneField> already emits E.164, so the country arg only matters as a
+  // fallback for any restored/national value.
   function canonicalPhone(): string | null {
     const parsed = parsePhoneNumberFromString(
       getValues("phone").trim(),
       getValues("country"),
     )
     return parsed && parsed.isValid() ? parsed.number : null
+  }
+
+  // Cart lines in the wire shape the server actions expect.
+  function cartPayload() {
+    return items.map((i) => ({ variantId: i.variantId, quantity: i.quantity }))
+  }
+
+  // Apply a coupon code — DISPLAY preview only. The server re-validates at order
+  // time, so an out-of-date preview can never grant an unearned discount.
+  async function applyCoupon(code: string) {
+    if (!code.trim()) return
+    if (items.length === 0) {
+      setCouponError(couponReasonMessage("invalid_request"))
+      return
+    }
+    setCouponApplying(true)
+    setCouponError(null)
+    try {
+      const result = await applyCouponAction({
+        code,
+        items: cartPayload(),
+        country: getValues("country"),
+        phone: canonicalPhone() ?? undefined,
+      })
+      if (result.ok) {
+        setCouponCode(result.code)
+        setCouponDiscountFils(result.discountFils)
+      } else {
+        setCouponCode(null)
+        setCouponDiscountFils(0)
+        setCouponError(couponReasonMessage(result.reason))
+      }
+    } catch {
+      setCouponError(couponReasonMessage("invalid_request"))
+    } finally {
+      setCouponApplying(false)
+    }
+  }
+
+  function removeCoupon() {
+    setCouponCode(null)
+    setCouponDiscountFils(0)
+    setCouponError(null)
+  }
+
+  // Map a send-OTP error code to a toast. The cart pre-check can surface
+  // out-of-stock here (before any SMS is spent), so handle it like the form step.
+  function reportSendError(error: string) {
+    if (error === "Too many attempts") {
+      toast.error(t("error_too_many"))
+    } else if (error === "out_of_stock") {
+      toast.error(t("error_out_of_stock"))
+    } else if (error === "verification_failed") {
+      toast.error(t("error_verification"))
+    } else {
+      toast.error(t("error_generic"))
+    }
   }
 
   // Step 1 — send OTP.
@@ -195,13 +366,16 @@ export function CheckoutForm({
     setSubmitting(true)
     setOtpError(null)
     try {
-      const result = await sendOtpAction({ phone, locale })
+      const result = await sendOtpAction({
+        phone,
+        locale,
+        items: cartPayload(),
+        turnstileToken: turnstileRef.current?.getToken(),
+      })
+      // The Turnstile token is single-use — drop it so a resend re-challenges.
+      turnstileRef.current?.reset()
       if (!result.ok) {
-        toast.error(
-          result.error === "Too many attempts"
-            ? t("error_too_many")
-            : t("error_generic"),
-        )
+        reportSendError(result.error)
         return
       }
       setStep("otp")
@@ -239,12 +413,10 @@ export function CheckoutForm({
         notes: values.notes.trim() || undefined,
         email: values.email.trim() || undefined,
         marketingConsent: values.marketingConsent,
+        couponCode: couponCode ?? undefined,
         locale,
         otpCode: code,
-        items: items.map((i) => ({
-          variantId: i.variantId,
-          quantity: i.quantity,
-        })),
+        items: cartPayload(),
       })
 
       if (!result.ok) {
@@ -253,14 +425,41 @@ export function CheckoutForm({
         } else if (result.error === "out_of_stock") {
           toast.error(t("error_out_of_stock"))
           setStep("form")
+        } else if (result.error === "coupon_unavailable") {
+          // The coupon's cap was hit between preview + creation. Clear it and
+          // return to the form so the customer can re-place without it.
+          removeCoupon()
+          toast.error(tCoupon("error.coupon_unavailable"))
+          setStep("form")
+        } else if (result.error === "verification_failed") {
+          toast.error(t("error_verification"))
+          setStep("form")
+        } else if (result.field) {
+          // A field-level problem slipped past client validation (e.g. a stale
+          // bundle or an edge the resolver missed). Return to the form and
+          // highlight the offending field so it's actionable, not a dead end.
+          const formField = serverFieldToFormField(result.field)
+          setStep("form")
+          if (formField) {
+            setError(formField, {
+              type: "server",
+              message: t("error_check_details"),
+            })
+          }
+          toast.error(t("error_check_details"))
         } else {
           setOtpError(t("error_generic"))
         }
         return
       }
 
-      // Success — clear cart and navigate to confirmation.
+      // Success — clear cart + saved form and navigate to confirmation.
       clear()
+      try {
+        sessionStorage.removeItem(FORM_STORAGE_KEY)
+      } catch {
+        // best-effort
+      }
       router.push(`/${locale}/orders/${result.orderNumber}`)
     } catch {
       setOtpError(t("error_generic"))
@@ -272,13 +471,16 @@ export function CheckoutForm({
   async function handleResend() {
     const phone = canonicalPhone()
     if (!phone) return
-    const result = await sendOtpAction({ phone, locale })
+    const result = await sendOtpAction({
+      phone,
+      locale,
+      items: cartPayload(),
+      turnstileToken: turnstileRef.current?.getToken(),
+    })
+    // Single-use token — reset so a subsequent resend re-challenges.
+    turnstileRef.current?.reset()
     if (!result.ok) {
-      toast.error(
-        result.error === "Too many attempts"
-          ? t("error_too_many")
-          : t("error_generic"),
-      )
+      reportSendError(result.error)
     }
   }
 
@@ -328,15 +530,17 @@ export function CheckoutForm({
                 hint={t("phone_hint")}
                 error={errors.phone?.message}
               >
-                <Input
+                <PhoneField
                   id="checkout-phone"
-                  type="tel"
-                  inputMode="tel"
-                  autoComplete="tel"
-                  placeholder="+9715XXXXXXXX"
-                  dir="ltr"
-                  aria-invalid={!!errors.phone}
-                  {...register("phone")}
+                  value={phone}
+                  onChange={(next) =>
+                    setValue("phone", next, { shouldValidate: true })
+                  }
+                  defaultCountry={country}
+                  countries={enabledCountries}
+                  placeholder={t("phone_placeholder")}
+                  locale={locale}
+                  invalid={!!errors.phone}
                 />
               </Field>
 
@@ -487,6 +691,10 @@ export function CheckoutForm({
               </span>
             </label>
 
+            {/* Invisible/managed bot challenge. Renders nothing when Turnstile
+                is not configured. */}
+            <TurnstileWidget ref={turnstileRef} />
+
             <Button type="submit" className="w-full" disabled={submitting}>
               {submitting ? (
                 <>
@@ -515,7 +723,18 @@ export function CheckoutForm({
 
       <div className="order-1 lg:order-2">
         <div className="lg:sticky lg:top-20">
-          <OrderSummary shippingConfig={shippingConfig} country={country} />
+          <OrderSummary
+            shippingConfig={shippingConfig}
+            country={country}
+            coupon={{
+              code: couponCode,
+              discountFils: couponDiscountFils,
+              applying: couponApplying,
+              error: couponError,
+              onApply: applyCoupon,
+              onRemove: removeCoupon,
+            }}
+          />
         </div>
       </div>
     </div>

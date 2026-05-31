@@ -1,10 +1,13 @@
 import { AnalyticsProvider } from "@/components/analytics/analytics-provider"
+import { CartConfigMount } from "@/components/cart/cart-config-mount"
 import { CartToasterMount } from "@/components/cart/cart-toaster-mount"
 import { Footer } from "@/components/layout/footer"
 import { Header } from "@/components/layout/header"
 import { WhatsappFloat } from "@/components/layout/whatsapp-float"
 import { CurrencyProvider } from "@/components/providers/currency-provider"
 import { getCurrencyContext } from "@/lib/currency-context.server"
+import { DEFAULT_MAX_QTY_PER_VARIANT } from "@/lib/order-limits"
+import { getSetting } from "@/lib/repos/settings.repo"
 
 /**
  * Customer-facing shell. Wraps the home + PDP + content pages with header,
@@ -19,8 +22,16 @@ export default async function PublicLayout({
 }: {
   children: React.ReactNode
 }) {
-  const { country, currency, rate, enabledCountries } =
-    await getCurrencyContext()
+  const [
+    { country, currency, rate, enabledCountries },
+    maxQtySetting,
+    whatsappNumber,
+  ] = await Promise.all([
+    getCurrencyContext(),
+    getSetting("order.max_qty_per_variant"),
+    getSetting("contact.whatsapp_number"),
+  ])
+  const maxQtyPerVariant = maxQtySetting ?? DEFAULT_MAX_QTY_PER_VARIANT
 
   return (
     <CurrencyProvider
@@ -33,9 +44,10 @@ export default async function PublicLayout({
         <Header />
         <main className="flex-1">{children}</main>
         <Footer />
-        <WhatsappFloat />
+        <WhatsappFloat phoneNumber={whatsappNumber ?? undefined} />
         <AnalyticsProvider />
         <CartToasterMount />
+        <CartConfigMount maxQtyPerVariant={maxQtyPerVariant} />
       </div>
     </CurrencyProvider>
   )

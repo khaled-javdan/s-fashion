@@ -1,25 +1,57 @@
 import Link from "next/link"
-import { useLocale, useTranslations } from "next-intl"
+import { getLocale, getTranslations } from "next-intl/server"
 
 import type { Locale } from "@/lib/locale"
+import { getSetting } from "@/lib/repos/settings.repo"
 
 /**
- * Public footer (Round 1).
+ * Public footer.
  *
  * Layout:
  *  - Brand wordmark + tagline.
  *  - Two link columns: "Shop" and "Help".
- *  - Social icons (Instagram, TikTok, Snapchat) — placeholder hrefs.
- *  - Business hours line. NOTE: hardcoded in Round 1; Track B's settings
- *    repo lands later and Round 2 wires this up.
+ *  - Social icons (Instagram, TikTok, Snapchat) — links come from the
+ *    `contact.social` setting; a link is hidden when its URL is empty.
+ *  - Business hours line — read from `contact.business_hours_{ar,en}`,
+ *    falling back to the localized copy when unset.
  *  - Bottom strip: copyright + "Made with care in the UAE".
  *
- * Server Component — no interactivity.
+ * Async Server Component — reads contact settings; no interactivity.
  */
-export function Footer() {
-  const t = useTranslations("footer")
-  const locale = useLocale() as Locale
+export async function Footer() {
+  const t = await getTranslations("footer")
+  const locale = (await getLocale()) as Locale
   const year = new Date().getUTCFullYear()
+
+  const [social, hoursAr, hoursEn] = await Promise.all([
+    getSetting("contact.social"),
+    getSetting("contact.business_hours_ar"),
+    getSetting("contact.business_hours_en"),
+  ])
+
+  const settingHours = locale === "ar" ? hoursAr : hoursEn
+  const businessHours = settingHours ?? t("business_hours")
+
+  const socialLinks = [
+    {
+      key: "instagram" as const,
+      href: social?.instagram ?? "",
+      label: t("instagram"),
+      Icon: InstagramIcon,
+    },
+    {
+      key: "tiktok" as const,
+      href: social?.tiktok ?? "",
+      label: t("tiktok"),
+      Icon: TikTokIcon,
+    },
+    {
+      key: "snapchat" as const,
+      href: social?.snapchat ?? "",
+      label: t("snapchat"),
+      Icon: SnapchatIcon,
+    },
+  ].filter((link) => link.href.trim() !== "")
 
   return (
     <footer className="border-t border-border bg-card text-card-foreground">
@@ -43,7 +75,7 @@ export function Footer() {
           <ul className="mt-4 space-y-2 text-sm">
             <li>
               <Link
-                href={`/${locale}`}
+                href={`/${locale}/products`}
                 className="text-muted-foreground hover:text-foreground"
               >
                 {t("shop_all")}
@@ -101,50 +133,35 @@ export function Footer() {
         </div>
 
         <div className="md:col-span-3">
-          <h2 className="text-xs font-semibold uppercase tracking-widest text-foreground">
-            {t("follow_us")}
-          </h2>
-          <ul className="mt-4 flex items-center gap-3">
-            <li>
-              <a
-                href="#"
-                aria-label={t("instagram")}
-                className="inline-flex size-9 items-center justify-center rounded-full border border-border text-muted-foreground transition hover:border-foreground hover:text-foreground"
-              >
-                <InstagramIcon />
-              </a>
-            </li>
-            <li>
-              <a
-                href="#"
-                aria-label={t("tiktok")}
-                className="inline-flex size-9 items-center justify-center rounded-full border border-border text-muted-foreground transition hover:border-foreground hover:text-foreground"
-              >
-                <TikTokIcon />
-              </a>
-            </li>
-            <li>
-              <a
-                href="#"
-                aria-label={t("snapchat")}
-                className="inline-flex size-9 items-center justify-center rounded-full border border-border text-muted-foreground transition hover:border-foreground hover:text-foreground"
-              >
-                <SnapchatIcon />
-              </a>
-            </li>
-          </ul>
+          {socialLinks.length > 0 ? (
+            <>
+              <h2 className="text-xs font-semibold uppercase tracking-widest text-foreground">
+                {t("follow_us")}
+              </h2>
+              <ul className="mt-4 flex items-center gap-3">
+                {socialLinks.map(({ key, href, label, Icon }) => (
+                  <li key={key}>
+                    <a
+                      href={href}
+                      aria-label={label}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex size-9 items-center justify-center rounded-full border border-border text-muted-foreground transition hover:border-foreground hover:text-foreground"
+                    >
+                      <Icon />
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : null}
 
-          <div className="mt-6">
+          <div className={socialLinks.length > 0 ? "mt-6" : undefined}>
             <h3 className="text-xs font-semibold uppercase tracking-widest text-foreground">
               {t("business_hours_heading")}
             </h3>
-            {/*
-             * TODO(Track B / Round 2): read business hours from the `Setting`
-             * table via `getSetting("contact.business_hours_ar"|"_en")`
-             * instead of from the locale messages bundle.
-             */}
             <p className="mt-2 text-sm text-muted-foreground">
-              {t("business_hours")}
+              {businessHours}
             </p>
           </div>
         </div>

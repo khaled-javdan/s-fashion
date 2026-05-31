@@ -16,17 +16,14 @@ import {
   DialogTitle,
 } from "@workspace/ui/components/dialog"
 
-import {
-  MAX_QTY_PER_VARIANT,
-  useCartStore,
-  type CartItem,
-} from "@/lib/cart-store"
+import { useCartStore, type CartItem } from "@/lib/cart-store"
 import { Price } from "@/components/currency/price"
 import type { Locale } from "@/lib/locale"
 
 /**
  * A single cart line item: thumbnail, name + variant label, quantity stepper
- * (clamped to MAX_QTY_PER_VARIANT), line total, and a remove button.
+ * (clamped to the store's live `maxQtyPerVariant`), line total, and a remove
+ * button.
  *
  * `compact` tightens spacing for the drawer; the full cart page uses the
  * roomier default.
@@ -44,6 +41,7 @@ export function CartLineItem({
 
   const setQuantity = useCartStore((s) => s.setQuantity)
   const remove = useCartStore((s) => s.remove)
+  const maxQtyPerVariant = useCartStore((s) => s.maxQtyPerVariant)
 
   const [confirmOpen, setConfirmOpen] = useState(false)
 
@@ -52,7 +50,7 @@ export function CartLineItem({
   const variantLabel = [colorName, item.size].filter(Boolean).join(" · ")
   const lineTotalFils = item.unitPriceFils * item.quantity
 
-  const atMax = item.quantity >= MAX_QTY_PER_VARIANT
+  const atMax = item.quantity >= maxQtyPerVariant
 
   function handleConfirmRemove() {
     remove(item.variantId)

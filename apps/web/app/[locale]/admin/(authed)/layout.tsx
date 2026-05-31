@@ -1,3 +1,4 @@
+import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 
 import {
@@ -6,6 +7,10 @@ import {
 } from "@workspace/ui/components/sidebar"
 import { TooltipProvider } from "@workspace/ui/components/tooltip"
 
+import {
+  AdminContent,
+  AdminContentWidthProvider,
+} from "@/components/admin/admin-content-width"
 import { AdminSidebar } from "@/components/admin/admin-sidebar"
 import { AdminToasterMount } from "@/components/admin/admin-toaster-mount"
 import { AdminTopbar } from "@/components/admin/admin-topbar"
@@ -28,14 +33,20 @@ export default async function AuthedAdminLayout({
     redirect(`/${locale}/admin/login`)
   }
 
+  const cookieStore = await cookies()
+  const contentExpanded =
+    cookieStore.get("admin_content_expanded")?.value === "1"
+
   return (
     <TooltipProvider delayDuration={0}>
       <SaveBarProvider>
         <SidebarProvider>
           <AdminSidebar />
           <SidebarInset>
-            <AdminTopbar email={session.user.email ?? ""} />
-            <main className="flex flex-1 flex-col gap-6 p-6">{children}</main>
+            <AdminContentWidthProvider initialExpanded={contentExpanded}>
+              <AdminTopbar email={session.user.email ?? ""} />
+              <AdminContent>{children}</AdminContent>
+            </AdminContentWidthProvider>
           </SidebarInset>
         </SidebarProvider>
         <AdminToasterMount />

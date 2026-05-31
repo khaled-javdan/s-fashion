@@ -19,6 +19,8 @@ type Row = {
   enabled: boolean
   flat: string
   threshold: string
+  minDays: string
+  maxDays: string
 }
 
 function toRows(config: ShippingConfig): Row[] {
@@ -27,6 +29,8 @@ function toRows(config: ShippingConfig): Row[] {
     enabled: c.enabled,
     flat: String(filsToAed(c.flatFils)),
     threshold: String(filsToAed(c.freeThresholdFils)),
+    minDays: String(c.minDays),
+    maxDays: String(c.maxDays),
   }))
 }
 
@@ -53,11 +57,18 @@ export function MarketsForm({ initial }: { initial: ShippingConfig }) {
     for (const r of rows) {
       const flat = Number(r.flat)
       const threshold = Number(r.threshold)
+      const minDays = Number(r.minDays)
+      const maxDays = Number(r.maxDays)
       if (
         !Number.isFinite(flat) ||
         flat < 0 ||
         !Number.isFinite(threshold) ||
-        threshold < 0
+        threshold < 0 ||
+        !Number.isInteger(minDays) ||
+        minDays < 0 ||
+        !Number.isInteger(maxDays) ||
+        maxDays < 0 ||
+        maxDays < minDays
       ) {
         toast.error(t("markets.invalid"))
         return
@@ -70,6 +81,8 @@ export function MarketsForm({ initial }: { initial: ShippingConfig }) {
         enabled: r.enabled,
         flatFils: aedToFils(Number(r.flat)),
         freeThresholdFils: aedToFils(Number(r.threshold)),
+        minDays: Math.floor(Number(r.minDays)),
+        maxDays: Math.floor(Number(r.maxDays)),
       })),
     }
 
@@ -103,7 +116,7 @@ export function MarketsForm({ initial }: { initial: ShippingConfig }) {
       {rows.map((r, i) => (
         <div
           key={r.country}
-          className="grid grid-cols-1 gap-3 rounded-md border p-3 sm:grid-cols-[10rem_1fr_1fr]"
+          className="space-y-3 rounded-md border p-3"
         >
           <label className="flex items-center gap-2">
             <Checkbox
@@ -114,27 +127,51 @@ export function MarketsForm({ initial }: { initial: ShippingConfig }) {
               {tc(r.country)} · {r.country}
             </span>
           </label>
-          <div className="grid gap-1">
-            <Label>{t("markets.flat_label")}</Label>
-            <Input
-              type="number"
-              min={0}
-              step="0.01"
-              value={r.flat}
-              disabled={!r.enabled}
-              onChange={(e) => update(i, { flat: e.target.value })}
-            />
-          </div>
-          <div className="grid gap-1">
-            <Label>{t("markets.threshold_label")}</Label>
-            <Input
-              type="number"
-              min={0}
-              step="0.01"
-              value={r.threshold}
-              disabled={!r.enabled}
-              onChange={(e) => update(i, { threshold: e.target.value })}
-            />
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="grid gap-1">
+              <Label>{t("markets.flat_label")}</Label>
+              <Input
+                type="number"
+                min={0}
+                step="0.01"
+                value={r.flat}
+                disabled={!r.enabled}
+                onChange={(e) => update(i, { flat: e.target.value })}
+              />
+            </div>
+            <div className="grid gap-1">
+              <Label>{t("markets.threshold_label")}</Label>
+              <Input
+                type="number"
+                min={0}
+                step="0.01"
+                value={r.threshold}
+                disabled={!r.enabled}
+                onChange={(e) => update(i, { threshold: e.target.value })}
+              />
+            </div>
+            <div className="grid gap-1">
+              <Label>{t("markets.min_days_label")}</Label>
+              <Input
+                type="number"
+                min={0}
+                step="1"
+                value={r.minDays}
+                disabled={!r.enabled}
+                onChange={(e) => update(i, { minDays: e.target.value })}
+              />
+            </div>
+            <div className="grid gap-1">
+              <Label>{t("markets.max_days_label")}</Label>
+              <Input
+                type="number"
+                min={0}
+                step="1"
+                value={r.maxDays}
+                disabled={!r.enabled}
+                onChange={(e) => update(i, { maxDays: e.target.value })}
+              />
+            </div>
           </div>
         </div>
       ))}

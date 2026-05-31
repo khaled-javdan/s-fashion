@@ -24,12 +24,17 @@ model Product {
   // OrderItem at checkout, so changing it here never rewrites the profit of
   // past orders.
   costPriceFils     Int
+  // Optional per-product size chart override. When null the storefront falls
+  // back to the global `size_chart.cm` setting. Shape mirrors that setting:
+  // { unit: "cm", rows: [{ size, bust, waist, hips, length }] }.
+  sizeChart         Json?
   isActive          Boolean          @default(true)
   isFinalSale       Boolean          @default(false)
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
   variants          ProductVariant[]
   images            ProductImage[]
+  reviews           Review[]
 
   @@index([isActive, createdAt])
 }
@@ -120,7 +125,15 @@ model Order {
   notes         String?      @db.Text
   subtotalFils  Int
   shippingFils  Int
+  // Order-level discount from an applied coupon (fils, base AED). 0 = none.
+  // `totalFils` already nets this out: subtotal − discount + shipping.
+  discountFils  Int          @default(0)
   totalFils     Int
+  // Snapshot of the redeemed coupon (code is kept even if the coupon is later
+  // deleted; the FK is set null on delete so history survives).
+  couponCode    String?
+  couponId      String?
+  coupon        Coupon?      @relation(fields: [couponId], references: [id], onDelete: SetNull)
   // Display-currency snapshot. Money columns above stay in base AED fils; these
   // record the currency the customer saw and the AED→currency rate at order time.
   displayCurrency String     @default("AED")
@@ -133,8 +146,15 @@ model Order {
   deliveredAt   DateTime?
   cancelledAt   DateTime?
   cancelReason  String?
+  // Notification delivery stamps (null = not yet sent). These make the
+  // fire-and-forget order notifications durable: a retry cron re-sends any
+  // order still missing a stamp, so a transient Telegram/email failure never
+  // silently loses an order.
+  adminNotifiedAt   DateTime? // Telegram owner alert sent at
+  customerEmailedAt DateTime? // Resend confirmation email sent at
   items         OrderItem[]
   events        OrderEvent[]
+  redemption    CouponRedemption?
 
   @@index([status, createdAt])
   @@index([phone])
@@ -202,6 +222,84 @@ model Setting {
   updatedAt DateTime @updatedAt
 }
 
+/**
+ * Admin-curated customer review / testimonial. The store launches with no
+ * organic reviews, so these are entered by hand from real social-media feedback.
+ * `productId` is optional: a review tied to a product powers that product's
+ * rating + PDP reviews; an untied review is a general site testimonial. `body`
+ * is stored as-written (not translated). Reviews with `imageUrl` drive the home
+ * UGC photo strip; `featured` opts a review into the home testimonials block.
+ */
+model Review {
+  id           String    @id @default(cuid())
+  productId    String?
+  product      Product?  @relation(fields: [productId], references: [id], onDelete: SetNull)
+  rating       Int // 1–5
+  authorName   String
+  authorHandle String? // e.g. "@instagram_handle"
+  authorEmail  String? // captured on customer submissions (admin contact only, never shown)
+  body         String?   @db.Text
+  source       String? // "instagram" | "tiktok" | "google" | "website" | ...
+  imageUrl     String? // screenshot / customer photo (drives the UGC strip)
+  featured     Boolean   @default(false) // show on the home page
+  isVisible    Boolean   @default(true)
+  // Customer-submitted reviews land here with isVisible=false (moderation queue);
+  // admin-curated reviews are created with isVisible=true. Drives the pending count.
+  isCustomerSubmitted Boolean @default(false)
+  displayDate  DateTime? // the original review date (for display/ordering)
+  sortOrder    Int       @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([productId, isVisible])
+  @@index([featured, isVisible])
+  @@index([isCustomerSubmitted, isVisible])
+}
+
+/**
+ * A discount code. Money is base-AED fils. `value` is a percentage (1–100) for
+ * PERCENT or a fils amount for FIXED. `timesRedeemed` is incremented atomically
+ * inside the order transaction (a conditional update guards `maxRedemptions`).
+ */
+model Coupon {
+  id              String             @id @default(cuid())
+  code            String             @unique // stored UPPERCASE-normalized
+  type            CouponType
+  value           Int // PERCENT: 1–100; FIXED: fils
+  minSubtotalFils Int                @default(0)
+  maxDiscountFils Int? // cap for PERCENT coupons
+  firstOrderOnly  Boolean            @default(false)
+  maxRedemptions  Int? // global cap (null = unlimited)
+  perCustomerLimit Int?              @default(1) // per-phone cap (null = unlimited)
+  timesRedeemed   Int                @default(0)
+  startsAt        DateTime?
+  expiresAt       DateTime?
+  isActive        Boolean            @default(true)
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  redemptions     CouponRedemption[]
+  orders          Order[]
+
+  @@index([isActive])
+}
+
+/**
+ * One row per coupon use, written inside the order-creation transaction. The
+ * unique `orderId` makes createOrder retries idempotent; the (couponId, phone)
+ * index backs the per-customer limit check.
+ */
+model CouponRedemption {
+  id        String   @id @default(cuid())
+  couponId  String
+  coupon    Coupon   @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  orderId   String   @unique
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  phone     String
+  createdAt DateTime @default(now())
+
+  @@index([couponId, phone])
+}
+
 enum Size {
   XS
   S
@@ -235,4 +333,9 @@ enum OrderStatus {
   DELIVERED
   REFUSED
   CANCELLED
+}
+
+enum CouponType {
+  PERCENT
+  FIXED
 }
