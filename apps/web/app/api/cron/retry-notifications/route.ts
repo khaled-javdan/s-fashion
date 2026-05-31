@@ -8,10 +8,14 @@
  * being silently lost. The dispatcher is idempotent — already-stamped channels
  * are skipped — so re-running is safe.
  *
- * Scheduled in vercel.json. Vercel cron requests carry
- * `Authorization: Bearer $CRON_SECRET`; we reject anything else when the secret
- * is configured. When CRON_SECRET is unset (local dev) the route runs
- * unauthenticated so it can be exercised by hand.
+ * Scheduled daily in vercel.json (`0 3 * * *`) — the Vercel Hobby plan only
+ * permits once-per-day crons. If sub-daily recovery is needed, either upgrade
+ * to Pro (and restore a `*/15 * * * *` schedule) or hit this endpoint from an
+ * external scheduler with the CRON_SECRET bearer token.
+ *
+ * Vercel cron requests carry `Authorization: Bearer $CRON_SECRET`; we reject
+ * anything else when the secret is configured. When CRON_SECRET is unset (local
+ * dev) the route runs unauthenticated so it can be exercised by hand.
  */
 import { NextResponse } from "next/server";
 
