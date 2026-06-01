@@ -24,6 +24,11 @@ export type PickerVariant = {
   stock: number
 }
 
+export type PickerProductImage = {
+  url: string
+  colorHex: string | null
+}
+
 export type PickerProduct = {
   productId: string
   slug: string
@@ -32,7 +37,8 @@ export type PickerProduct = {
   priceFils: number
   /** Compare-at ("was") price in fils, or `null` when not on sale. */
   compareAtFils: number | null
-  imageUrl: string | null
+  /** All product images, in display order. The first is the default fallback. */
+  images: PickerProductImage[]
 }
 
 type Props = {
@@ -177,6 +183,12 @@ export function VariantPicker({
 
   const cartItem: CartItem | null = useMemo(() => {
     if (!selectedVariant || selectedVariant.stock <= 0) return null
+    // Match the gallery's logic: prefer the first image tagged with the chosen
+    // color, fall back to the first product image.
+    const variantImage =
+      (selectedVariant.colorHex
+        ? product.images.find((img) => img.colorHex === selectedVariant.colorHex)
+        : null) ?? product.images[0]
     return {
       variantId: selectedVariant.id,
       productId: product.productId,
@@ -187,7 +199,7 @@ export function VariantPicker({
       colorNameEn: selectedVariant.colorNameEn,
       colorHex: selectedVariant.colorHex,
       size: selectedVariant.size,
-      imageUrl: product.imageUrl,
+      imageUrl: variantImage?.url ?? null,
       unitPriceFils: product.priceFils,
       compareAtFils: product.compareAtFils,
       quantity: Math.min(quantity, maxQty),

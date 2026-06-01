@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
-import { Emirate } from "@workspace/db";
+import { Emirate } from "@workspace/db/enums";
 
 import { COUNTRY_CODES } from "@/lib/geo";
 import { ABSOLUTE_MAX_QTY_PER_VARIANT } from "@/lib/order-limits";

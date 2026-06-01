@@ -1,33 +1,17 @@
 import { prisma, Prisma, OrderStatus, Size } from "@workspace/db";
-import type {
-  Product,
-  ProductVariant,
-  ProductImage,
-} from "@workspace/db";
 import {
-  sizeChartSchema,
   type ProductCreateInput,
   type ProductUpdateInput,
-  type SizeChartRowInput,
 } from "@/lib/schemas/product.schema";
 
-export type ProductWithRelations = Product & {
-  variants: ProductVariant[];
-  images: ProductImage[];
-};
-
-/**
- * Parse a product's stored `sizeChart` JSON into validated rows, or `null` when
- * the product has no override (and the storefront should fall back to the
- * global `size_chart.cm` setting). Malformed JSON is treated as no override.
- */
-export function parseProductSizeChartRows(
-  value: Product["sizeChart"],
-): SizeChartRowInput[] | null {
-  if (value == null) return null;
-  const parsed = sizeChartSchema.safeParse(value);
-  return parsed.success ? parsed.data.rows : null;
-}
+// Client-safe type + helper live in a prisma-free module so that client
+// components can import them without bundling the server-only Prisma client.
+// Re-exported here for backward compatibility with existing server imports.
+export {
+  parseProductSizeChartRows,
+  type ProductWithRelations,
+} from "@/lib/repos/products.shared";
+import type { ProductWithRelations } from "@/lib/repos/products.shared";
 
 export type ListOpts = {
   take?: number;

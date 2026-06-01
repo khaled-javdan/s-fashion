@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { Size } from "@workspace/db";
+import { Size } from "@workspace/db/enums";
 
 /** Hex color, 3 or 6 digits, leading #. */
 const hexColor = z

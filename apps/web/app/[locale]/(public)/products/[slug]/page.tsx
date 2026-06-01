@@ -202,7 +202,10 @@ export default async function ProductPage({
               nameEn: product.nameEn,
               priceFils: product.priceFils,
               compareAtFils: product.compareAtFils,
-              imageUrl: product.images[0]?.url ?? null,
+              images: product.images.map((img) => ({
+                url: img.url,
+                colorHex: img.colorHex,
+              })),
             }}
             variants={pickerVariants}
             locale={typedLocale}

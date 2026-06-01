@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { CouponType } from "@workspace/db";
+import { CouponType } from "@workspace/db/enums";
 
 /** Coupon code: alphanumeric + dash, normalized UPPERCASE in the repo. */
 const couponCode = z

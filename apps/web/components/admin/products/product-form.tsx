@@ -44,7 +44,7 @@ import type { Locale } from "@/lib/locale"
 import {
   parseProductSizeChartRows,
   type ProductWithRelations,
-} from "@/lib/repos/products.repo"
+} from "@/lib/repos/products.shared"
 import type { SizeChartFormChart } from "@/app/[locale]/admin/(authed)/products/actions"
 
 type Props =
