@@ -198,7 +198,7 @@ export function HeroCarousel({ slides, isRtl, autoplayMs = 6000 }: Props) {
             role="group"
             aria-roledescription="slide"
             aria-label={`${i + 1} / ${count}`}
-            className="group relative h-[68svh] min-h-[440px] w-full shrink-0 snap-start overflow-hidden sm:h-[560px] lg:h-[680px]"
+            className="group relative h-[68svh] min-h-[440px] w-full shrink-0 snap-start overflow-hidden sm:h-[560px] lg:h-[840px]"
           >
             {slide.videoUrl && !reducedMotion ? (
               <video

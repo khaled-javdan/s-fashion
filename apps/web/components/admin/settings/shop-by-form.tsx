@@ -11,8 +11,8 @@ import {
   Upload,
   X,
 } from "lucide-react"
-import { useTranslations } from "next-intl"
-import { useMemo, useRef, useState, useTransition } from "react"
+import { useLocale, useTranslations } from "next-intl"
+import { useRef, useState, useTransition } from "react"
 import { toast } from "sonner"
 
 import { Button } from "@workspace/ui/components/button"
@@ -32,24 +32,21 @@ import {
   uploadHeroImageAction,
 } from "@/app/[locale]/admin/(authed)/settings/actions"
 import { useSaveBar } from "@/components/admin/save-bar"
-import type { CatalogFacets } from "@/lib/repos/products.repo"
 import {
   EMPTY_TILE,
   type ShopByConfig,
+  type ShopByPreset,
   type ShopByTile,
 } from "@/lib/shop-by-config"
-
-/** A single target option offered in the tile's preset picker. */
-type TargetPreset = { value: string; label: string }
 
 type TileDraft = ShopByTile & { _key: string }
 
 export function ShopByForm({
   initial,
-  productFacets,
+  presets,
 }: {
   initial: ShopByConfig
-  productFacets: CatalogFacets
+  presets: ShopByPreset[]
 }) {
   const t = useTranslations("admin.settings")
   const keySeq = useRef(initial.tiles.length)
@@ -61,39 +58,6 @@ export function ShopByForm({
     saved.tiles.map((tile, i) => ({ ...tile, _key: `t-${i}` })),
   )
   const [pending, startTransition] = useTransition()
-
-  // Build the preset target options once: the fixed filter shortcuts plus a
-  // handful of colours/sizes derived from the live catalogue facets.
-  const presets = useMemo<TargetPreset[]>(() => {
-    // Six common catalogue shortcuts, each deep-linking into `/products` with a
-    // supported filter/sort. Colours + sizes from the live facets are appended.
-    const base: TargetPreset[] = [
-      { value: "/products", label: t("shop_by.preset_all") },
-      { value: "/products?sort=newest", label: t("shop_by.preset_new_in") },
-      {
-        value: "/products?sort=best_selling",
-        label: t("shop_by.preset_best_selling"),
-      },
-      { value: "/products?on_sale=1", label: t("shop_by.preset_on_sale") },
-      { value: "/products?in_stock=1", label: t("shop_by.preset_in_stock") },
-      {
-        value: "/products?sort=price_asc",
-        label: t("shop_by.preset_price_low"),
-      },
-    ]
-    const colors: TargetPreset[] = productFacets.colors
-      .filter((c) => c.nameEn)
-      .slice(0, 6)
-      .map((c) => ({
-        value: `/products?color=${(c.nameEn ?? "").toLowerCase()}`,
-        label: t("shop_by.preset_color", { name: c.nameEn ?? "" }),
-      }))
-    const sizes: TargetPreset[] = productFacets.sizes.map((s) => ({
-      value: `/products?size=${s}`,
-      label: t("shop_by.preset_size", { size: s }),
-    }))
-    return [...base, ...colors, ...sizes]
-  }, [productFacets, t])
 
   // Drop the client-only `_key` so the comparison/save payload matches the
   // stored shape exactly.
@@ -235,13 +199,14 @@ function TileCard({
   tile: TileDraft
   index: number
   total: number
-  presets: TargetPreset[]
+  presets: ShopByPreset[]
   onChange: (patch: Partial<ShopByTile>) => void
   onRemove: () => void
   onMoveUp: () => void
   onMoveDown: () => void
 }) {
   const t = useTranslations("admin.settings")
+  const locale = useLocale()
   const [uploading, setUploading] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -250,6 +215,21 @@ function TileCard({
   const presetValue = presets.some((p) => p.value === tile.href)
     ? tile.href
     : ""
+
+  const presetLabel = (p: ShopByPreset) =>
+    locale === "ar" ? p.labelAr : p.labelEn
+
+  // Picking a preset sets the target and overwrites both EN/AR labels with the
+  // preset's bilingual label (the admin can still edit them afterwards).
+  function onPresetChange(href: string) {
+    const patch: Partial<ShopByTile> = { href }
+    const preset = presets.find((p) => p.value === href)
+    if (preset) {
+      patch.labelEn = preset.labelEn
+      patch.labelAr = preset.labelAr
+    }
+    onChange(patch)
+  }
 
   async function onFile(file: File) {
     setUploading(true)
@@ -382,17 +362,14 @@ function TileCard({
 
       <div className="grid gap-2">
         <Label>{t("shop_by.target_label")}</Label>
-        <Select
-          value={presetValue}
-          onValueChange={(href) => onChange({ href })}
-        >
+        <Select value={presetValue} onValueChange={onPresetChange}>
           <SelectTrigger className="w-full">
             <SelectValue placeholder={t("shop_by.target_placeholder")} />
           </SelectTrigger>
           <SelectContent>
             {presets.map((p) => (
               <SelectItem key={p.value} value={p.value}>
-                {p.label}
+                {presetLabel(p)}
               </SelectItem>
             ))}
           </SelectContent>

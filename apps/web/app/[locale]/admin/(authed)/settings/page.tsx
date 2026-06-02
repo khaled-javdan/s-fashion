@@ -28,15 +28,61 @@ import { parseHeroConfig } from "@/lib/hero-config"
 import { parseHomeLayout } from "@/lib/home-sections-config"
 import { DEFAULT_MAX_QTY_PER_VARIANT } from "@/lib/order-limits"
 import { parseShippingConfig } from "@/lib/shipping-config"
-import { parseShopByConfig } from "@/lib/shop-by-config"
+import {
+  parseShopByConfig,
+  type ShopByPreset,
+} from "@/lib/shop-by-config"
 import {
   getCatalogFacets,
   listPopularProducts,
+  type CatalogFacets,
 } from "@/lib/repos/products.repo"
 import {
   getAllSettings,
   type KnownSettings,
 } from "@/lib/repos/settings.repo"
+
+type ShopByTranslator = Awaited<ReturnType<typeof getTranslations>>
+
+/**
+ * Build the shop-by target presets with both English and Arabic labels: six
+ * fixed catalogue shortcuts plus a handful of colours/sizes from the live
+ * facets. `tEn`/`tAr` are translators bound to each locale so each preset
+ * carries both labels.
+ */
+function buildShopByPresets(
+  tEn: ShopByTranslator,
+  tAr: ShopByTranslator,
+  facets: CatalogFacets,
+): ShopByPreset[] {
+  const fixed = [
+    { value: "/products", key: "preset_all" },
+    { value: "/products?sort=newest", key: "preset_new_in" },
+    { value: "/products?sort=best_selling", key: "preset_best_selling" },
+    { value: "/products?on_sale=1", key: "preset_on_sale" },
+    { value: "/products?in_stock=1", key: "preset_in_stock" },
+    { value: "/products?sort=price_asc", key: "preset_price_low" },
+  ] as const
+  const base: ShopByPreset[] = fixed.map((f) => ({
+    value: f.value,
+    labelEn: tEn(f.key),
+    labelAr: tAr(f.key),
+  }))
+  const colors: ShopByPreset[] = facets.colors
+    .filter((c) => c.nameEn)
+    .slice(0, 6)
+    .map((c) => ({
+      value: `/products?color=${(c.nameEn ?? "").toLowerCase()}`,
+      labelEn: tEn("preset_color", { name: c.nameEn ?? "" }),
+      labelAr: tAr("preset_color", { name: c.nameAr ?? c.nameEn ?? "" }),
+    }))
+  const sizes: ShopByPreset[] = facets.sizes.map((s) => ({
+    value: `/products?size=${s}`,
+    labelEn: tEn("preset_size", { size: s }),
+    labelAr: tAr("preset_size", { size: s }),
+  }))
+  return [...base, ...colors, ...sizes]
+}
 
 /** Read a setting from the map with a typed fallback. */
 function read<K extends keyof KnownSettings>(
@@ -96,10 +142,16 @@ export default async function AdminSettingsPage() {
   const grid = parseGridConfig(read(all, "home.grid", DEFAULT_GRID))
   const shopBy = parseShopByConfig(all["home.shop_by"])
   const homeLayout = parseHomeLayout(all["home.sections"])
-  const [productLinks, productFacets] = await Promise.all([
+  const [productLinks, productFacets, tEnShopBy, tArShopBy] = await Promise.all([
     listPopularProducts(10),
     getCatalogFacets(),
+    getTranslations({ locale: "en", namespace: "admin.settings.shop_by" }),
+    getTranslations({ locale: "ar", namespace: "admin.settings.shop_by" }),
   ])
+  // Build the shop-by target presets with BOTH locale labels here on the server
+  // (a client component only has the active locale), so picking a preset can
+  // pre-fill a tile's empty English/Arabic labels.
+  const shopByPresets = buildShopByPresets(tEnShopBy, tArShopBy, productFacets)
 
   return (
     <div className="space-y-6">
@@ -209,7 +261,7 @@ export default async function AdminSettingsPage() {
             title={t("shop_by.card_title")}
             description={t("shop_by.card_description")}
           >
-            <ShopByForm initial={shopBy} productFacets={productFacets} />
+            <ShopByForm initial={shopBy} presets={shopByPresets} />
           </SettingsCard>
         </TabsContent>
 

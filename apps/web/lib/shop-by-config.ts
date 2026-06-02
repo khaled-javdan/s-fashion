@@ -37,6 +37,19 @@ export const shopByConfigSchema = z
 
 export type ShopByConfig = z.infer<typeof shopByConfigSchema>
 
+/**
+ * A selectable target shortcut offered in the tile's preset picker. Carries a
+ * bilingual label so picking a preset can pre-fill a tile's empty EN/AR labels.
+ * Built server-side (where both locales' messages are available) and passed to
+ * the admin form.
+ */
+export type ShopByPreset = {
+  /** Target path, e.g. "/products?on_sale=1". Matches `ShopByTile.href`. */
+  value: string
+  labelEn: string
+  labelAr: string
+}
+
 export const DEFAULT_SHOP_BY: ShopByConfig = { enabled: false, tiles: [] }
 
 export const EMPTY_TILE: ShopByTile = {
