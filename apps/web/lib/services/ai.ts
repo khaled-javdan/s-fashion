@@ -49,60 +49,78 @@ function model(modelId: string): LanguageModel {
 type Suggestions = Record<string, unknown>
 
 /**
+ * Hard ceiling for a single analysis request. Without it a stalled Gateway /
+ * model call would hang forever — the server action would never return, the
+ * panel's progress bar would freeze, and (worse) the in-flight cache entry
+ * would never clear, poisoning that image until a cold start. On timeout the
+ * abort signal rejects `generateObject`, which surfaces as `{ ok: false }`.
+ */
+const ANALYZE_TIMEOUT_MS = 90_000
+
+/**
  * Analyse one or more images and return structured suggestions for the given
  * schema. When several images are passed they are sent together as a single
  * multimodal request so the model can map each image to a colour variant.
  * Cached + deduplicated by (image URLs, schemaKey, schema-version, model).
  * The schema is resolved from the server-side allow-list — never the client.
+ *
+ * Pass `force` to bypass the cached result and recompute (e.g. the admin hit
+ * "regenerate" to re-fill fields the model left blank on the first pass).
  */
 export async function analyzeImage(input: {
   imageUrls: string[]
   schemaKey: SchemaKey
   context: string
+  force?: boolean
 }): Promise<Suggestions> {
-  const { imageUrls, schemaKey, context } = input
+  const { imageUrls, schemaKey, context, force } = input
   const modelId = await getActiveAiModelId()
   // Fold the model + every image URL into the cache key.
   const key = cacheKey(imageUrls.join("|"), schemaKey, `${SCHEMA_VERSION}:${modelId}`)
 
-  return cachedAnalyze(key, async () => {
-    const schema = getSchema(schemaKey)
-    const examples = await getAiFewShotExamples()
-    const system = buildAnalyzePrompt(context, examples)
+  return cachedAnalyze(
+    key,
+    async () => {
+      const schema = getSchema(schemaKey)
+      const examples = await getAiFewShotExamples()
+      const system = buildAnalyzePrompt(context, examples)
 
-    const intro =
-      imageUrls.length > 1
-        ? `Analyse these ${imageUrls.length} images (each a colour variant of the same product) and suggest values for the fields. Return one variant entry per image, in order.`
-        : "Analyse this image and suggest values for the fields. Leave fields empty when you cannot infer them."
+      const intro =
+        imageUrls.length > 1
+          ? `Analyse these ${imageUrls.length} images (each a colour variant of the same product) and suggest values for the fields. Return one variant entry per image, in order.`
+          : "Analyse this image and suggest values for the fields. Leave fields empty when you cannot infer them."
 
-    const { object } = await generateObject({
-      model: model(modelId),
-      schema,
-      system,
-      messages: [
-        {
-          role: "user",
-          content: [
-            { type: "text", text: intro },
-            ...imageUrls.map((url) => ({
-              type: "image" as const,
-              image: new URL(url),
-            })),
-          ],
-        },
-      ],
-    })
+      const { object } = await generateObject({
+        model: model(modelId),
+        schema,
+        system,
+        abortSignal: AbortSignal.timeout(ANALYZE_TIMEOUT_MS),
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: intro },
+              ...imageUrls.map((url) => ({
+                type: "image" as const,
+                image: new URL(url),
+              })),
+            ],
+          },
+        ],
+      })
 
-    // Strip undefined/empty so the form only sees fields worth applying.
-    const out: Suggestions = {}
-    for (const [k, v] of Object.entries(object as Suggestions)) {
-      if (v === undefined || v === null) continue
-      if (typeof v === "string" && v.trim() === "") continue
-      if (Array.isArray(v) && v.length === 0) continue
-      out[k] = v
-    }
-    return out
-  })
+      // Strip undefined/empty so the form only sees fields worth applying.
+      const out: Suggestions = {}
+      for (const [k, v] of Object.entries(object as Suggestions)) {
+        if (v === undefined || v === null) continue
+        if (typeof v === "string" && v.trim() === "") continue
+        if (Array.isArray(v) && v.length === 0) continue
+        out[k] = v
+      }
+      return out
+    },
+    { force },
+  )
 }
 
 /** Translate one bilingual field's value into its sibling language. */

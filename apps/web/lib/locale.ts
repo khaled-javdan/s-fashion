@@ -1,9 +1,9 @@
 /**
- * Locale primitives shared across the public surface of the app.
+ * Locale primitives shared across the app.
  *
  * The Arabic locale is the default and the marketing/checkout surface is
- * Arabic-first. The admin panel is intentionally English-only and lives
- * outside the `/[locale]/...` segment.
+ * Arabic-first. The admin panel now also lives under `/[locale]/admin/...`
+ * and respects the active locale (RTL when ar, LTR when en).
  */
 
 export type Locale = "ar" | "en"

@@ -3,6 +3,7 @@ import {
   type ProductCreateInput,
   type ProductUpdateInput,
 } from "@/lib/schemas/product.schema";
+import type { ProductSource } from "@/lib/home-sections-config";
 
 // Client-safe types + helpers live in a prisma-free module so that client
 // components can import them without bundling the server-only Prisma client.
@@ -44,19 +45,28 @@ export async function listActiveProducts(
   });
 }
 
-/** Sort options for the public products listing. */
+/**
+ * Sort options for the public products listing. `relevance` only makes sense
+ * alongside a text query (`q`) — it ranks by trigram similarity and is the
+ * default sort whenever a query is present.
+ */
 export type ProductSort =
   | "newest"
   | "price_asc"
   | "price_desc"
-  | "best_selling";
+  | "best_selling"
+  | "relevance";
 
 export const PRODUCT_SORTS: readonly ProductSort[] = [
   "newest",
   "price_asc",
   "price_desc",
   "best_selling",
+  "relevance",
 ] as const;
+
+/** Minimum query length before a search runs (shorter inputs are ignored). */
+export const SEARCH_MIN_CHARS = 2;
 
 export type ProductFilter = {
   /** Variant colour hex values (lowercased) to match — OR within colours. */
@@ -71,6 +81,8 @@ export type ProductFilter = {
   inStockOnly?: boolean;
   /** Only products whose compare-at price is above the live price. */
   onSaleOnly?: boolean;
+  /** Free-text search across product name/description (Arabic + English). */
+  q?: string;
   sort?: ProductSort;
   take?: number;
   skip?: number;
@@ -88,8 +100,18 @@ export type FilteredProducts = {
  * ANY of its variants satisfies the (colour AND/OR size) constraint. Price is a
  * product-level scalar range; sale compares compare-at to live price.
  */
-function catalogWhere(filter: ProductFilter): Prisma.ProductWhereInput {
+function catalogWhere(
+  filter: ProductFilter,
+  idIn?: string[],
+): Prisma.ProductWhereInput {
   const where: Prisma.ProductWhereInput = { isActive: true };
+
+  // Restrict to a pre-resolved id set (e.g. trigram search matches). An empty
+  // array means "match nothing" — preserve that rather than treating it as
+  // "no restriction".
+  if (idIn) {
+    where.id = { in: idIn };
+  }
 
   if (filter.minFils != null || filter.maxFils != null) {
     where.priceFils = {
@@ -129,13 +151,47 @@ function catalogWhere(filter: ProductFilter): Prisma.ProductWhereInput {
 }
 
 const SORT_ORDER: Record<
-  Exclude<ProductSort, "best_selling">,
+  Exclude<ProductSort, "best_selling" | "relevance">,
   Prisma.ProductOrderByWithRelationInput
 > = {
   newest: { createdAt: "desc" },
   price_asc: { priceFils: "asc" },
   price_desc: { priceFils: "desc" },
 };
+
+/**
+ * Resolve a free-text query to product ids ranked by trigram similarity. Names
+ * carry the most weight; descriptions are searched too. A literal-substring
+ * (`LIKE`) clause is OR'd in so exact substrings below the trigram similarity
+ * threshold (common for very short queries) still match. English columns are
+ * matched case-insensitively via `lower()`; Arabic has no case. The returned
+ * map preserves no order — callers read scores to rank. Backed by the
+ * `*_trgm` GIN indexes (see migration `product_search_trgm`).
+ */
+async function searchProductIds(q: string): Promise<Map<string, number>> {
+  const like = `%${q}%`;
+  const rows = await prisma.$queryRaw<{ id: string; score: number }[]>`
+    SELECT id, GREATEST(
+      similarity(lower("nameEn"), lower(${q})),
+      similarity("nameAr", ${q}),
+      similarity(coalesce(lower("descEn"), ''), lower(${q})),
+      similarity(coalesce("descAr", ''), ${q})
+    ) AS score
+    FROM "Product"
+    WHERE "isActive" = true AND (
+      lower("nameEn") % lower(${q})
+      OR "nameAr" % ${q}
+      OR lower("descEn") % lower(${q})
+      OR "descAr" % ${q}
+      OR lower("nameEn") LIKE lower(${like})
+      OR "nameAr" LIKE ${like}
+    )
+    ORDER BY score DESC, "createdAt" DESC
+    LIMIT 200
+  `;
+  // Neon may return numeric columns as strings; coerce defensively.
+  return new Map(rows.map((r) => [r.id, Number(r.score)]));
+}
 
 /**
  * Public catalogue with attribute filters, sorting and pagination. There are no
@@ -147,7 +203,23 @@ const SORT_ORDER: Record<
 export async function listProductsFiltered(
   filter: ProductFilter = {},
 ): Promise<FilteredProducts> {
-  const where = catalogWhere(filter);
+  // Resolve a text query to a ranked id set up front. A blank/too-short query is
+  // ignored; a real query that matches nothing short-circuits to an empty page.
+  const query = filter.q?.trim() ?? "";
+  let scores: Map<string, number> | null = null;
+  if (query.length >= SEARCH_MIN_CHARS) {
+    scores = await searchProductIds(query);
+    if (scores.size === 0) return { products: [], total: 0 };
+  }
+
+  // `relevance` is meaningful only with a query; otherwise fall back to newest.
+  // When a query is present and no explicit sort was chosen, default to relevance.
+  const sort: ProductSort =
+    filter.sort === "relevance" && !scores
+      ? "newest"
+      : (filter.sort ?? (scores ? "relevance" : "newest"));
+
+  const where = catalogWhere(filter, scores ? [...scores.keys()] : undefined);
   const take = filter.take;
   const skip = filter.skip;
 
@@ -160,7 +232,29 @@ export async function listProductsFiltered(
         )
       : rows;
 
-  if (filter.sort === "best_selling") {
+  if (scores && sort === "relevance") {
+    // Rank the matched set by trigram score, newest breaking ties. Fetch all
+    // matches (the result set is already capped by the search), sort in memory,
+    // then paginate — mirroring the best-seller path below.
+    const all = await prisma.product.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      include: { variants: activeVariantsInclude, images: { orderBy: { position: "asc" } } },
+    });
+    const matched = onSaleRefine(all);
+    matched.sort((a, b) => {
+      const diff = (scores.get(b.id) ?? 0) - (scores.get(a.id) ?? 0);
+      if (diff !== 0) return diff;
+      return b.createdAt.getTime() - a.createdAt.getTime();
+    });
+    const total = matched.length;
+    const start = skip ?? 0;
+    const page =
+      take != null ? matched.slice(start, start + take) : matched.slice(start);
+    return { products: page, total };
+  }
+
+  if (sort === "best_selling") {
     // Rank by sold quantity across counting orders, then newest. Fetch all
     // matches (the catalogue is small), order in memory, then paginate.
     const all = await prisma.product.findMany({
@@ -214,7 +308,7 @@ export async function listProductsFiltered(
   }
 
   const orderBy =
-    SORT_ORDER[(filter.sort ?? "newest") as Exclude<ProductSort, "best_selling">];
+    SORT_ORDER[sort as Exclude<ProductSort, "best_selling" | "relevance">];
 
   if (filter.onSaleOnly) {
     // In-memory sale refinement + pagination (rare path, small catalogue).
@@ -242,6 +336,69 @@ export async function listProductsFiltered(
     prisma.product.count({ where }),
   ]);
   return { products, total };
+}
+
+/**
+ * Products for an admin-defined home product row, by catalogue `source` preset.
+ * Thin wrapper over {@link listProductsFiltered} mapping each preset to its
+ * filter/sort. Returns at most `limit` products.
+ */
+export async function listProductsForSource(
+  source: ProductSource,
+  limit: number,
+): Promise<ProductWithRelations[]> {
+  const base = { take: limit } as const;
+  switch (source) {
+    case "best_selling":
+      return (await listProductsFiltered({ ...base, sort: "best_selling" }))
+        .products;
+    case "on_sale":
+      return (await listProductsFiltered({ ...base, onSaleOnly: true })).products;
+    case "in_stock":
+      return (await listProductsFiltered({ ...base, inStockOnly: true })).products;
+    case "newest":
+    case "all":
+    default:
+      return (await listProductsFiltered({ ...base, sort: "newest" })).products;
+  }
+}
+
+/** A lightweight product hit for the header search-autocomplete dropdown. */
+export type SearchSuggestion = {
+  id: string;
+  slug: string;
+  nameEn: string;
+  nameAr: string;
+  priceFils: number;
+  compareAtFils: number | null;
+  /** First image (cover) URL, or null when the product has no images. */
+  imageUrl: string | null;
+};
+
+/**
+ * Top product matches for live search suggestions. Reuses the relevance-ranked
+ * search path and projects each hit to the minimal shape the dropdown needs.
+ * Returns an empty list for blank/too-short queries.
+ */
+export async function searchSuggestions(
+  q: string,
+  limit = 6,
+): Promise<SearchSuggestion[]> {
+  if ((q?.trim().length ?? 0) < SEARCH_MIN_CHARS) return [];
+  const { products } = await listProductsFiltered({
+    q,
+    sort: "relevance",
+    take: limit,
+  });
+  return products.map((p) => ({
+    id: p.id,
+    slug: p.slug,
+    nameEn: p.nameEn,
+    nameAr: p.nameAr,
+    priceFils: p.priceFils,
+    compareAtFils: p.compareAtFils,
+    imageUrl: p.images[0]?.url ?? null,
+  }));
 }
 
 /** A selectable colour facet — hex plus a bilingual label drawn from variants. */
@@ -511,6 +668,47 @@ export async function listAllProductsForAdmin(
       images: { orderBy: { position: "asc" } },
     },
   });
+}
+
+/**
+ * Normalize an arbitrary string into a valid product slug: lowercase, ASCII
+ * alphanumerics, single hyphens between words, no leading/trailing hyphen.
+ * Mirrors the `slugRegex` enforced by `productCreateSchema`.
+ */
+function normalizeSlug(value: string): string {
+  return value
+    .normalize("NFKD")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+/**
+ * Return a slug guaranteed not to collide with an existing product. If the
+ * normalized `base` is free it's returned as-is; otherwise a numeric suffix is
+ * appended (`-2`, `-3`, …) until a free one is found. Used to keep AI-suggested
+ * slugs unique so a later save doesn't fail on the `Product.slug` unique index.
+ *
+ * `excludeId` lets an *edit* flow ignore the product's own current slug so
+ * re-suggesting on an existing product doesn't needlessly bump it.
+ */
+export async function generateUniqueSlug(
+  base: string,
+  excludeId?: string,
+): Promise<string> {
+  const normalized = normalizeSlug(base) || "product";
+  const rows = await prisma.product.findMany({
+    where: {
+      OR: [{ slug: normalized }, { slug: { startsWith: `${normalized}-` } }],
+      ...(excludeId ? { NOT: { id: excludeId } } : {}),
+    },
+    select: { slug: true },
+  });
+  const taken = new Set(rows.map((r) => r.slug));
+  if (!taken.has(normalized)) return normalized;
+  let n = 2;
+  while (taken.has(`${normalized}-${n}`)) n++;
+  return `${normalized}-${n}`;
 }
 
 /** Create a product + its variants + images in one transaction. */

@@ -32,7 +32,13 @@
     "shipping": "Shipping & Delivery",
     "returns": "Returns & Exchanges",
     "contact": "Contact",
-    "about": "About"
+    "about": "About",
+    "search_placeholder": "Search products…",
+    "search_label": "Search products",
+    "search_clear": "Clear search",
+    "search_loading": "Searching…",
+    "search_empty": "No matching products.",
+    "search_see_all": "See all results for “{query}”"
   },
   "footer": {
     "tagline": "Elegance, made for you.",
@@ -612,6 +618,7 @@
       "sales_over_time": "Sales vs collected",
       "top_products": "Top products",
       "revenue": "Revenue",
+      "units_short": "{count, plural, one {# sold} other {# sold}}",
       "no_sales": "No sales in this period yet."
     },
     "orders": {
@@ -756,7 +763,7 @@
         "price": "Price (AED)",
         "compare_at": "Compare-at price (AED, optional)",
         "cost_price": "Cost price (AED)",
-        "weight": "Weight (grams, optional)",
+        "weight": "Weight (grams)",
         "weight_placeholder": "e.g. 400",
         "final_sale": "Final sale",
         "final_sale_desc": "No returns or exchanges",
@@ -827,7 +834,7 @@
         "price_invalid": "Price must be a valid amount.",
         "cost_price_invalid": "Cost price is required and must be 0 or more.",
         "compare_at_invalid": "Compare-at price must be a valid amount.",
-        "weight_invalid": "Weight must be a whole number of grams (0 or more).",
+        "weight_invalid": "Weight is required and must be a whole number of grams (0 or more).",
         "variants_required": "Add at least one variant.",
         "variant_unique": "Each colour + size combination must be unique.",
         "size_chart_empty": "Add at least one size-chart row, or use the global default.",
@@ -861,7 +868,45 @@
         "ai": "AI",
         "markets": "Markets",
         "currency": "Currency",
-        "shop_by": "Shop by"
+        "shop_by": "Shop by",
+        "home_sections": "Sections"
+      },
+      "home_sections": {
+        "card_title": "Home sections",
+        "card_description": "Reorder and show/hide the sections on the storefront home page, and add your own product rows. The hero banner is always shown at the top.",
+        "help": "Use the arrows to reorder, the switch to show/hide. Add product rows (Best Sellers, New Arrivals, On Sale, …) below. Changes go live immediately.",
+        "shown": "Shown",
+        "hidden": "Hidden",
+        "toggle_aria": "Toggle {name}",
+        "move_up_aria": "Move section up",
+        "move_down_aria": "Move section down",
+        "remove_aria": "Remove section",
+        "add_row": "Add product section",
+        "untitled_row": "Untitled product row",
+        "title_en_label": "Title (English)",
+        "title_ar_label": "Title (Arabic)",
+        "source_label": "Products to show",
+        "limit_label": "Items to show",
+        "cta_label": "“See all” link",
+        "cta_help": "Where the “See all” button goes. Leave blank to use the default products filter for the selected source.",
+        "error_title_required": "Give each product section a title (English or Arabic).",
+        "saved_toast": "Home sections saved.",
+        "source": {
+          "all": "All products",
+          "newest": "New arrivals",
+          "best_selling": "Best selling",
+          "on_sale": "On sale",
+          "in_stock": "In stock"
+        },
+        "section": {
+          "value_props": "Value props",
+          "shop_by": "Shop by",
+          "track_order": "Track-order banner",
+          "testimonials": "Testimonials",
+          "ugc_strip": "Instagram strip",
+          "whatsapp_signup": "WhatsApp signup",
+          "recently_viewed": "Recently viewed"
+        }
       },
       "hero": {
         "card_title": "Home hero",
@@ -1047,10 +1092,12 @@
         "target_label": "Target",
         "target_placeholder": "Choose a preset…",
         "target_help": "Or enter a path manually, e.g. /products?on_sale=1.",
-        "preset_on_sale": "On sale",
+        "preset_all": "Shop all",
         "preset_new_in": "New in",
-        "preset_in_stock": "In stock",
         "preset_best_selling": "Best selling",
+        "preset_on_sale": "On sale",
+        "preset_in_stock": "In stock",
+        "preset_price_low": "Price: low to high",
         "preset_color": "Color: {name}",
         "preset_size": "Size: {size}",
         "error_no_tiles": "Add at least one tile before enabling the grid.",
@@ -1374,7 +1421,13 @@
     "price_max_aria": "Maximum price",
     "in_stock_only": "In stock only",
     "apply": "Apply",
-    "clear": "Clear all"
+    "clear": "Clear all",
+    "search_placeholder": "Search products…",
+    "search_label": "Search products",
+    "search_clear": "Clear search",
+    "search_title": "Results for “{query}”",
+    "search_results": "{count, plural, =0 {No results for “{query}”} one {# result for “{query}”} other {# results for “{query}”}}",
+    "search_empty": "No products found for “{query}”. Try a different keyword."
   },
   "reviews": {
     "pdp_heading": "Customer reviews",

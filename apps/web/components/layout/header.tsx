@@ -4,6 +4,8 @@ import { useLocale, useTranslations } from "next-intl"
 import { LocaleSwitcher } from "@/components/layout/locale-switcher"
 import { CartButton } from "@/components/layout/cart-button"
 import { MobileMenu } from "@/components/layout/mobile-menu"
+import { MobileSearch } from "@/components/layout/mobile-search"
+import { SearchBox } from "@/components/layout/search-box"
 import { ShipToSwitcher } from "@/components/layout/ship-to-switcher"
 import type { Locale } from "@/lib/locale"
 
@@ -56,8 +58,15 @@ export function Header() {
           </Link>
         </nav>
 
-        {/* Cart + (desktop only) ship-to + locale switcher pinned to the end. */}
+        {/* Cart + (desktop only) search + ship-to + locale switcher at the end. */}
         <div className="flex flex-1 items-center justify-end gap-1 md:gap-2">
+          <div className="hidden w-48 md:block lg:w-64">
+            <SearchBox />
+          </div>
+          {/* Mobile-only: search icon next to the cart. */}
+          <div className="md:hidden">
+            <MobileSearch />
+          </div>
           <CartButton label={t("cart")} locale={locale} />
           <div className="hidden md:block">
             <ShipToSwitcher />

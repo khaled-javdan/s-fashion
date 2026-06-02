@@ -226,9 +226,29 @@ function safeJson(value: unknown): string {
  * `{ ok: false, error }` result. Unexpected errors get a `(ref: …)` suffix so a
  * customer/admin can quote it for support, and the same id appears in the logs
  * and Telegram alert.
+ *
+ * Options:
+ *  - `extra`  — structured context (e.g. `{ slug, productId }`) forwarded to the
+ *    log line and the Telegram alert so the team can see *which* operation failed.
+ *  - `diagnostic` — for **trusted (admin-only)** call sites: append the
+ *    normalized code and the raw error detail to the returned message so the
+ *    admin can see the actual cause inline instead of digging through server
+ *    logs. Never set this for customer-facing actions — it would leak internals.
  */
-export function toActionError(context: string, err: unknown): string {
+export function toActionError(
+  context: string,
+  err: unknown,
+  options?: { extra?: Record<string, unknown>; diagnostic?: boolean },
+): string {
   const norm = normalizeError(err)
-  const id = reportError(context, err)
-  return norm.expected ? norm.message : `${norm.message} (ref: ${id})`
+  const id = reportError(context, err, options?.extra)
+  if (norm.expected) return norm.message
+
+  let message = `${norm.message} (ref: ${id})`
+  if (options?.diagnostic) {
+    const detail =
+      err instanceof Error ? `${err.name}: ${err.message}` : String(err)
+    message += `\n[${norm.code}] ${detail}`
+  }
+  return message
 }

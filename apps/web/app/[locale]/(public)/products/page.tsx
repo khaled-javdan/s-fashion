@@ -6,6 +6,7 @@ import { ChevronDown, SlidersHorizontal } from "lucide-react"
 
 import { Size } from "@workspace/db"
 
+import { CatalogSearch } from "@/components/product/catalog-search"
 import { ProductCard } from "@/components/product/product-card"
 import { ProductFilters } from "@/components/product/product-filters"
 import { ProductGrid } from "@/components/home/product-grid"
@@ -82,10 +83,15 @@ export default async function ProductsPage({
   const maxAed = intParam(sp.max)
   const inStockOnly = firstParam(sp.in_stock) === "1"
   const onSaleOnly = firstParam(sp.on_sale) === "1"
+  const q = firstParam(sp.q)?.trim() || undefined
   const sortParam = firstParam(sp.sort)
+  // A search query defaults to relevance ranking unless the shopper picks a
+  // different sort; without a query we keep newest-first as before.
   const sort: ProductSort = PRODUCT_SORTS.includes(sortParam as ProductSort)
     ? (sortParam as ProductSort)
-    : "newest"
+    : q
+      ? "relevance"
+      : "newest"
 
   const [facets, gridRaw, { products, total }] = await Promise.all([
     getCatalogFacets(),
@@ -97,6 +103,7 @@ export default async function ProductsPage({
       maxFils: maxAed != null ? aedToFils(maxAed) : undefined,
       inStockOnly,
       onSaleOnly,
+      q,
       sort,
     }),
   ])
@@ -138,13 +145,20 @@ export default async function ProductsPage({
 
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-0">
-      <header className="mb-8 flex flex-col gap-1">
-        <h1 className="font-heading text-3xl tracking-wide sm:text-4xl">
-          {t("title")}
-        </h1>
-        <p className="text-muted-foreground text-sm">
-          {t("count", { count: total })}
-        </p>
+      <header className="mb-8 flex flex-col gap-4">
+        <div className="flex flex-col gap-1">
+          <h1 className="font-heading text-3xl tracking-wide sm:text-4xl">
+            {q ? t("search_title", { query: q }) : t("title")}
+          </h1>
+          <p className="text-muted-foreground text-sm">
+            {q
+              ? t("search_results", { count: total, query: q })
+              : t("count", { count: total })}
+          </p>
+        </div>
+        <div className="max-w-md">
+          <CatalogSearch initialQuery={q ?? ""} />
+        </div>
       </header>
 
       <div className="grid gap-8 lg:grid-cols-[16rem_1fr] lg:gap-12">
@@ -178,7 +192,7 @@ export default async function ProductsPage({
         <div>
           {products.length === 0 ? (
             <p className="text-muted-foreground py-16 text-center">
-              {t("empty")}
+              {q ? t("search_empty", { query: q }) : t("empty")}
             </p>
           ) : (
             <ProductGrid config={grid} desktopToggle storageScope="products">

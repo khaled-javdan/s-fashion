@@ -86,7 +86,9 @@ export function AiProductAnalyzePanel({ imageUrls, onApply, className }: Props) 
   // Guards against double-fire (e.g. an impatient second click mid-run).
   const runningRef = useRef(false)
 
-  const run = async () => {
+  // `force` recomputes server-side (bypasses the analysis cache) so a
+  // regenerate can re-fill fields the model left blank on the first pass.
+  const run = async (opts?: { force?: boolean }) => {
     if (runningRef.current || imageUrls.length === 0) return
     runningRef.current = true
 
@@ -104,50 +106,56 @@ export function AiProductAnalyzePanel({ imageUrls, onApply, className }: Props) 
     const seenHex = new Set<string>()
     let errors = 0
 
-    for (const url of imageUrls) {
-      let suggestions: Record<string, unknown> | null = null
-      try {
-        const res = await analyzeImageAction({
-          imageUrls: [url],
-          context: "product",
-          schemaDescriptor: "product-suggestions-v3",
-        })
-        if (res.ok) suggestions = res.suggestions
-        else errors += 1
-      } catch {
-        errors += 1
-      }
-
-      if (suggestions) {
-        for (const key of SCALAR_KEYS) {
-          if (aggScalars[key]) continue
-          const v = suggestions[key]
-          if (typeof v === "string" && v.trim() !== "") aggScalars[key] = v.trim()
-        }
-        const sv = Array.isArray(suggestions.variants)
-          ? (suggestions.variants[0] as VariantSuggestion | undefined)
-          : undefined
-        const hex = validHex(sv?.colorHex)
-        if (hex && !seenHex.has(hex.toLowerCase())) {
-          seenHex.add(hex.toLowerCase())
-          aggColors.push({
-            url,
-            colorHex: hex,
-            colorNameEn: sv?.colorNameEn?.trim() ?? "",
-            colorNameAr: sv?.colorNameAr?.trim() ?? "",
+    // try/finally guarantees the panel leaves the "running" phase even if a
+    // request or the aggregation throws — otherwise the spinner would hang and
+    // the regenerate button (disabled while running) couldn't recover it.
+    try {
+      for (const url of imageUrls) {
+        let suggestions: Record<string, unknown> | null = null
+        try {
+          const res = await analyzeImageAction({
+            imageUrls: [url],
+            context: "product",
+            schemaDescriptor: "product-suggestions-v3",
+            force: opts?.force,
           })
+          if (res.ok) suggestions = res.suggestions
+          else errors += 1
+        } catch {
+          errors += 1
         }
+
+        if (suggestions) {
+          for (const key of SCALAR_KEYS) {
+            if (aggScalars[key]) continue
+            const v = suggestions[key]
+            if (typeof v === "string" && v.trim() !== "") aggScalars[key] = v.trim()
+          }
+          const sv = Array.isArray(suggestions.variants)
+            ? (suggestions.variants[0] as VariantSuggestion | undefined)
+            : undefined
+          const hex = validHex(sv?.colorHex)
+          if (hex && !seenHex.has(hex.toLowerCase())) {
+            seenHex.add(hex.toLowerCase())
+            aggColors.push({
+              url,
+              colorHex: hex,
+              colorNameEn: sv?.colorNameEn?.trim() ?? "",
+              colorNameAr: sv?.colorNameAr?.trim() ?? "",
+            })
+          }
+        }
+
+        // Surface results as they stream in.
+        setScalars({ ...aggScalars })
+        setColors([...aggColors])
+        setDone((n) => n + 1)
       }
-
-      // Surface results as they stream in.
-      setScalars({ ...aggScalars })
-      setColors([...aggColors])
-      setDone((n) => n + 1)
+    } finally {
+      setErrorCount(errors)
+      setPhase("done")
+      runningRef.current = false
     }
-
-    setErrorCount(errors)
-    setPhase("done")
-    runningRef.current = false
   }
 
   const visibleScalars = SCALAR_KEYS.filter(
@@ -200,7 +208,7 @@ export function AiProductAnalyzePanel({ imageUrls, onApply, className }: Props) 
   if (phase === "idle") {
     return (
       <div className={cn("flex justify-end", className)}>
-        <Button type="button" variant="outline" size="sm" onClick={run}>
+        <Button type="button" variant="outline" size="sm" onClick={() => run()}>
           <Sparkles className="text-primary" aria-hidden />
           {t("analyze.trigger")}
         </Button>
@@ -217,7 +225,7 @@ export function AiProductAnalyzePanel({ imageUrls, onApply, className }: Props) 
           type="button"
           variant="ghost"
           size="sm"
-          onClick={run}
+          onClick={() => run({ force: true })}
           title={t("analyze.regenerate")}
         >
           <RefreshCw aria-hidden />
@@ -254,7 +262,7 @@ export function AiProductAnalyzePanel({ imageUrls, onApply, className }: Props) 
             variant="ghost"
             size="icon-xs"
             disabled={running}
-            onClick={run}
+            onClick={() => run({ force: true })}
             title={t("analyze.regenerate")}
           >
             <RefreshCw className={cn(running && "animate-spin")} aria-hidden />

@@ -8,6 +8,7 @@ import { auth } from "@/lib/auth"
 import { toActionError } from "@/lib/errors"
 import { currencyConfigSchema } from "@/lib/currency-config"
 import { gridConfigSchema } from "@/lib/grid-config"
+import { homeLayoutConfigSchema } from "@/lib/home-sections-config"
 import { ABSOLUTE_MAX_QTY_PER_VARIANT } from "@/lib/order-limits"
 import { shippingConfigSchema } from "@/lib/shipping-config"
 import { heroConfigSchema, type HeroConfig } from "@/lib/hero-config"
@@ -89,6 +90,7 @@ const settingValidators: Record<SettingKey, z.ZodTypeAny> = {
     .refine(isAllowedModelId, "Unknown AI model."),
   "home.grid": gridConfigSchema,
   "home.shop_by": shopByConfigSchema,
+  "home.sections": homeLayoutConfigSchema,
   "product.shipping_return": z.object({
     contentAr: z.string().trim().max(4000),
     contentEn: z.string().trim().max(4000),
@@ -134,6 +136,7 @@ export async function updateSettingsAction(input: {
     if (
       input.key === "home.grid" ||
       input.key === "home.shop_by" ||
+      input.key === "home.sections" ||
       input.key === "shipping.countries" ||
       input.key === "currency.config" ||
       input.key === "returns.window_days"
@@ -200,6 +203,9 @@ async function persist(
       return
     case "home.shop_by":
       await setSetting(key, value as KnownSettings["home.shop_by"])
+      return
+    case "home.sections":
+      await setSetting(key, value as KnownSettings["home.sections"])
       return
     case "product.shipping_return":
       await setSetting(key, value as KnownSettings["product.shipping_return"])

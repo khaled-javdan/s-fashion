@@ -98,7 +98,8 @@ export function ProductSizeChartEditor({ chart, onChange }: Props) {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
-        <Switch checked={enabled} onCheckedChange={(v) => toggle(!v)} />
+        {/* Checked = "use global default" (chart is null); off = custom chart. */}
+        <Switch checked={!enabled} onCheckedChange={(v) => toggle(!v)} />
         <div>
           <div className="text-sm font-medium">{t("use_global")}</div>
           <div className="text-muted-foreground text-xs">

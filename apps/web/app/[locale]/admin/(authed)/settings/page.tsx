@@ -1,11 +1,12 @@
 import { getTranslations } from "next-intl/server"
 
 import {
-  Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
 } from "@workspace/ui/components/tabs"
+
+import { SettingsTabs } from "@/components/admin/settings/settings-tabs"
 
 import { DEFAULT_AI_MODEL_ID } from "@/components/admin/ai/types"
 import { AiModelForm } from "@/components/admin/settings/ai-model-form"
@@ -14,6 +15,7 @@ import { CompanyForm } from "@/components/admin/settings/company-form"
 import { ContactForm } from "@/components/admin/settings/contact-form"
 import { GridForm } from "@/components/admin/settings/grid-form"
 import { HeroForm } from "@/components/admin/settings/hero-form"
+import { HomeSectionsForm } from "@/components/admin/settings/home-sections-form"
 import { CurrencyForm } from "@/components/admin/settings/currency-form"
 import { MarketsForm } from "@/components/admin/settings/markets-form"
 import { ReturnsForm } from "@/components/admin/settings/returns-form"
@@ -23,6 +25,7 @@ import { SizeChartEditor } from "@/components/admin/settings/size-chart-editor"
 import { parseCurrencyConfig } from "@/lib/currency-config"
 import { DEFAULT_GRID, parseGridConfig } from "@/lib/grid-config"
 import { parseHeroConfig } from "@/lib/hero-config"
+import { parseHomeLayout } from "@/lib/home-sections-config"
 import { DEFAULT_MAX_QTY_PER_VARIANT } from "@/lib/order-limits"
 import { parseShippingConfig } from "@/lib/shipping-config"
 import { parseShopByConfig } from "@/lib/shop-by-config"
@@ -92,6 +95,7 @@ export default async function AdminSettingsPage() {
   const hero = parseHeroConfig(all["home.hero"])
   const grid = parseGridConfig(read(all, "home.grid", DEFAULT_GRID))
   const shopBy = parseShopByConfig(all["home.shop_by"])
+  const homeLayout = parseHomeLayout(all["home.sections"])
   const [productLinks, productFacets] = await Promise.all([
     listPopularProducts(10),
     getCatalogFacets(),
@@ -106,9 +110,12 @@ export default async function AdminSettingsPage() {
         </p>
       </div>
 
-      <Tabs defaultValue="hero">
+      <SettingsTabs defaultValue="hero">
         <TabsList className="max-w-full justify-start overflow-x-auto [&::-webkit-scrollbar]:hidden [&>*]:shrink-0 [scrollbar-width:none]">
           <TabsTrigger value="hero">{t("tabs.hero")}</TabsTrigger>
+          <TabsTrigger value="home-sections">
+            {t("tabs.home_sections")}
+          </TabsTrigger>
           <TabsTrigger value="markets">{t("tabs.markets")}</TabsTrigger>
           <TabsTrigger value="currency">{t("tabs.currency")}</TabsTrigger>
           <TabsTrigger value="contact">{t("tabs.contact")}</TabsTrigger>
@@ -130,6 +137,15 @@ export default async function AdminSettingsPage() {
             description={t("hero.card_description")}
           >
             <HeroForm initial={hero} productLinks={productLinks} />
+          </SettingsCard>
+        </TabsContent>
+
+        <TabsContent value="home-sections" className="pt-4">
+          <SettingsCard
+            title={t("home_sections.card_title")}
+            description={t("home_sections.card_description")}
+          >
+            <HomeSectionsForm initial={homeLayout} />
           </SettingsCard>
         </TabsContent>
 
@@ -247,7 +263,7 @@ export default async function AdminSettingsPage() {
             <AiModelForm current={aiModel} />
           </SettingsCard>
         </TabsContent>
-      </Tabs>
+      </SettingsTabs>
     </div>
   )
 }

@@ -55,8 +55,8 @@ export type ProductFormPayload = {
   costPriceAed: number
   isActive: boolean
   isFinalSale: boolean
-  /** Shipping weight in grams (0/null = no weight, no per-kg surcharge). */
-  weightGrams?: number | null
+  /** Shipping weight in grams. Required; `0` means a genuinely weightless item. */
+  weightGrams: number
   /**
    * Per-product size chart override. `null` (or omitted) means "use the global
    * default"; a value is the per-product chart (measurements in centimetres).
@@ -175,7 +175,7 @@ function toCreateInput(payload: ProductFormPayload): ProductCreateInput {
     costPriceFils: aedToFils(payload.costPriceAed),
     isActive: payload.isActive,
     isFinalSale: payload.isFinalSale,
-    weightGrams: payload.weightGrams ?? null,
+    weightGrams: payload.weightGrams,
     sizeChart: payload.sizeChart ?? null,
     variants: payload.variants.map((v) => ({
       id: v.id,
@@ -214,7 +214,7 @@ function toUpdateInput(payload: ProductFormPayload): ProductUpdateInput {
     costPriceFils: aedToFils(payload.costPriceAed),
     isActive: payload.isActive,
     isFinalSale: payload.isFinalSale,
-    weightGrams: payload.weightGrams ?? null,
+    weightGrams: payload.weightGrams,
     sizeChart: payload.sizeChart ?? null,
     variants: payload.variants.map((v) => ({
       id: v.id,
@@ -254,7 +254,13 @@ export async function createProductAction(
   try {
     input = toCreateInput(payload)
   } catch (err) {
-    return { ok: false, error: toActionError("createProductAction.validate", err) }
+    return {
+      ok: false,
+      error: toActionError("createProductAction.validate", err, {
+        diagnostic: true,
+        extra: { slug: payload.slug },
+      }),
+    }
   }
 
   try {
@@ -262,7 +268,13 @@ export async function createProductAction(
     revalidatePath("/admin/products")
     return { ok: true, data: { id: product.id } }
   } catch (err) {
-    return { ok: false, error: toActionError("createProductAction", err) }
+    return {
+      ok: false,
+      error: toActionError("createProductAction", err, {
+        diagnostic: true,
+        extra: { slug: payload.slug, variants: payload.variants.length },
+      }),
+    }
   }
 }
 
@@ -289,7 +301,13 @@ export async function updateProductAction(
   try {
     input = toUpdateInput(payload)
   } catch (err) {
-    return { ok: false, error: toActionError("updateProductAction.validate", err) }
+    return {
+      ok: false,
+      error: toActionError("updateProductAction.validate", err, {
+        diagnostic: true,
+        extra: { id, slug: payload.slug },
+      }),
+    }
   }
 
   try {
@@ -298,7 +316,13 @@ export async function updateProductAction(
     revalidatePath(`/admin/products/${id}`)
     return { ok: true, data: { id: product.id } }
   } catch (err) {
-    return { ok: false, error: toActionError("updateProductAction", err) }
+    return {
+      ok: false,
+      error: toActionError("updateProductAction", err, {
+        diagnostic: true,
+        extra: { id, slug: payload.slug, variants: payload.variants.length },
+      }),
+    }
   }
 }
 
@@ -319,6 +343,12 @@ export async function toggleProductActiveAction(
     revalidatePath(`/admin/products/${id}`)
     return { ok: true, data: { isActive } }
   } catch (err) {
-    return { ok: false, error: toActionError("toggleProductActiveAction", err) }
+    return {
+      ok: false,
+      error: toActionError("toggleProductActiveAction", err, {
+        diagnostic: true,
+        extra: { id },
+      }),
+    }
   }
 }

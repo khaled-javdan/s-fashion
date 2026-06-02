@@ -12,6 +12,7 @@ import {
   translateText,
 } from "@/lib/services/ai"
 import { isSchemaKey, type SchemaKey } from "@/lib/services/ai-schemas"
+import { generateUniqueSlug } from "@/lib/repos/products.repo"
 import { tryAcquire } from "@/lib/services/rate-limit"
 
 /**
@@ -63,6 +64,8 @@ const analyzeInputSchema = z.object({
     z.string(),
     z.object({ kind: z.string() }),
   ]),
+  // Skip the cached result and recompute (admin hit "regenerate").
+  force: z.boolean().optional(),
 })
 
 function resolveSchemaKey(descriptor: unknown): SchemaKey | null {
@@ -79,6 +82,7 @@ export async function analyzeImageAction(input: {
   imageUrls: string[]
   context: string
   schemaDescriptor: unknown
+  force?: boolean
 }): Promise<
   | { ok: true; suggestions: Record<string, unknown> }
   | { ok: false; error: string }
@@ -100,7 +104,15 @@ export async function analyzeImageAction(input: {
       imageUrls: parsed.data.imageUrls,
       schemaKey,
       context: parsed.data.context,
+      force: parsed.data.force,
     })
+    // The model derives the slug from the name and has no view of the catalog,
+    // so it can suggest one that's already taken — which would later blow up the
+    // save on the `Product.slug` unique index. De-collide it here so the admin
+    // gets a unique slug pre-filled.
+    if (typeof suggestions.slug === "string" && suggestions.slug.trim()) {
+      suggestions.slug = await generateUniqueSlug(suggestions.slug)
+    }
     return { ok: true, suggestions }
   } catch (err) {
     reportError("ai.analyze", err, {

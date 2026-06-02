@@ -3,6 +3,7 @@ import type { Setting } from "@workspace/db";
 
 import type { CurrencyConfig } from "@/lib/currency-config";
 import type { GridConfig } from "@/lib/grid-config";
+import type { HomeLayoutConfig } from "@/lib/home-sections-config";
 import type { ShippingConfig } from "@/lib/shipping-config";
 import type { ShopByConfig } from "@/lib/shop-by-config";
 
@@ -62,6 +63,8 @@ export type KnownSettings = {
   "home.grid": GridConfig;
   /** Admin-configured "Shop by" image tiles on the home page. */
   "home.shop_by": ShopByConfig;
+  /** Home-page layout: ordered static + product blocks (Shopify-style organiser). */
+  "home.sections": HomeLayoutConfig;
   /**
    * Bilingual shipping & return copy rendered in the PDP tabs. Shared across
    * every product (per-product overrides intentionally not modelled).

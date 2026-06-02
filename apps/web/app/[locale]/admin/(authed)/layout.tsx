@@ -37,6 +37,9 @@ export default async function AuthedAdminLayout({
   const contentExpanded =
     cookieStore.get("admin_content_expanded")?.value === "1"
 
+  // Direction (rtl/ltr) is anchored on the outer admin layout div; Radix
+  // primitives (Tooltip, Tabs, Select, etc.) auto-detect the `dir` attribute
+  // from the DOM, so no per-provider plumbing is needed here.
   return (
     <TooltipProvider delayDuration={0}>
       <SaveBarProvider>

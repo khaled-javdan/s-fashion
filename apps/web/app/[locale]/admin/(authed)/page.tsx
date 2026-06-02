@@ -90,6 +90,7 @@ export default async function AdminDashboardPage({
     name: locale === "ar" ? p.nameAr : p.nameEn,
     revenue: filsToAed(p.revenueFils),
     units: p.units,
+    unitsLabel: tA("units_short", { count: p.units }),
   }))
 
   return (

@@ -10,7 +10,13 @@ import {
   YAxis,
 } from "recharts"
 
-type Row = { name: string; revenue: number; units: number }
+type Row = {
+  name: string
+  revenue: number
+  units: number
+  /** Pre-formatted "N sold" copy shown under the product name. */
+  unitsLabel: string
+}
 
 type Props = {
   data: Row[]
@@ -38,6 +44,44 @@ export function TopProductsChart({ data, locale, labels }: Props) {
     maximumFractionDigits: 0,
   })
 
+  // Two-line category tick: product name + the units-sold count, so the number
+  // bought is always visible (not just revenue and not only on hover).
+  const renderTick = (props: {
+    x?: string | number
+    y?: string | number
+    payload?: { value?: unknown; index?: number }
+  }) => {
+    const x = Number(props.x ?? 0)
+    const y = Number(props.y ?? 0)
+    const index = props.payload?.index ?? 0
+    const row = data[index]
+    const anchor = isRtl ? "start" : "end"
+    return (
+      <g transform={`translate(${x},${y})`}>
+        <text
+          x={0}
+          y={0}
+          dy={-1}
+          textAnchor={anchor}
+          fontSize={11}
+          fill="var(--foreground)"
+        >
+          {String(props.payload?.value ?? "")}
+        </text>
+        <text
+          x={0}
+          y={0}
+          dy={12}
+          textAnchor={anchor}
+          fontSize={10}
+          fill="var(--muted-foreground)"
+        >
+          {row?.unitsLabel}
+        </text>
+      </g>
+    )
+  }
+
   return (
     <div className="h-[260px] w-full" dir="ltr">
       <ResponsiveContainer width="100%" height="100%">
@@ -54,11 +98,7 @@ export function TopProductsChart({ data, locale, labels }: Props) {
             width={120}
             tickLine={false}
             axisLine={false}
-            tick={{
-              fontSize: 11,
-              fill: "var(--foreground)",
-              textAnchor: isRtl ? "start" : "end",
-            }}
+            tick={renderTick}
           />
           <Tooltip
             cursor={{ fill: "var(--muted)" }}

@@ -301,7 +301,7 @@ export function ProductForm(props: Props) {
     if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(state.slug))
       return t("validation.slug_invalid")
     const price = Number(state.priceAed)
-    if (!Number.isFinite(price) || price < 0)
+    if (state.priceAed.trim() === "" || !Number.isFinite(price) || price < 0)
       return t("validation.price_invalid")
     const cost = Number(state.costPriceAed)
     if (state.costPriceAed.trim() === "" || !Number.isFinite(cost) || cost < 0)
@@ -311,11 +311,9 @@ export function ProductForm(props: Props) {
       if (!Number.isFinite(cmp) || cmp < 0)
         return t("validation.compare_at_invalid")
     }
-    if (state.weightGrams.trim() !== "") {
-      const weight = Number(state.weightGrams)
-      if (!Number.isInteger(weight) || weight < 0)
-        return t("validation.weight_invalid")
-    }
+    const weight = Number(state.weightGrams)
+    if (state.weightGrams.trim() === "" || !Number.isInteger(weight) || weight < 0)
+      return t("validation.weight_invalid")
     if (state.variants.length < 1) return t("validation.variants_required")
     const seen = new Set<string>()
     for (const v of state.variants) {
@@ -373,8 +371,7 @@ export function ProductForm(props: Props) {
     compareAtAed:
       state.compareAtAed.trim() === "" ? null : Number(state.compareAtAed),
     costPriceAed: Number(state.costPriceAed),
-    weightGrams:
-      state.weightGrams.trim() === "" ? null : Number(state.weightGrams),
+    weightGrams: Number(state.weightGrams),
     isActive: state.isActive,
     isFinalSale: state.isFinalSale,
     sizeChart: buildSizeChart(),
@@ -687,6 +684,7 @@ export function ProductForm(props: Props) {
               value={state.weightGrams}
               onChange={(e) => set("weightGrams", e.target.value)}
               placeholder={t("form.weight_placeholder")}
+              required
             />
           </Field>
         </div>
@@ -715,7 +713,9 @@ export function ProductForm(props: Props) {
       </Section>
 
       {error ? (
-        <p className="text-destructive text-sm font-medium">{error}</p>
+        <p className="text-destructive text-sm font-medium whitespace-pre-line">
+          {error}
+        </p>
       ) : null}
 
       {mode === "edit" ? (

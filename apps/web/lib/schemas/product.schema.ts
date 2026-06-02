@@ -84,9 +84,10 @@ const productBase = z.object({
   costPriceFils: z.number().int().min(0),
   isActive: z.boolean().default(true),
   isFinalSale: z.boolean().default(false),
-  // Shipping weight in grams. Optional; `null` (the default) means the product
-  // adds nothing to the cart weight and never triggers a per-kg surcharge.
-  weightGrams: z.number().int().min(0).nullish(),
+  // Shipping weight in grams. Required so every product contributes a real
+  // weight to cart totals and per-kg shipping; `0` is allowed for genuinely
+  // weightless items but the admin must enter it explicitly.
+  weightGrams: z.number().int().min(0),
   // Per-product size chart override. `null` (the default) means the storefront
   // falls back to the global `size_chart.cm` setting.
   sizeChart: sizeChartSchema.nullish(),

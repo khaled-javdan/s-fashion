@@ -65,13 +65,20 @@ export function ShopByForm({
   // Build the preset target options once: the fixed filter shortcuts plus a
   // handful of colours/sizes derived from the live catalogue facets.
   const presets = useMemo<TargetPreset[]>(() => {
+    // Six common catalogue shortcuts, each deep-linking into `/products` with a
+    // supported filter/sort. Colours + sizes from the live facets are appended.
     const base: TargetPreset[] = [
-      { value: "/products?on_sale=1", label: t("shop_by.preset_on_sale") },
+      { value: "/products", label: t("shop_by.preset_all") },
       { value: "/products?sort=newest", label: t("shop_by.preset_new_in") },
-      { value: "/products?in_stock=1", label: t("shop_by.preset_in_stock") },
       {
         value: "/products?sort=best_selling",
         label: t("shop_by.preset_best_selling"),
+      },
+      { value: "/products?on_sale=1", label: t("shop_by.preset_on_sale") },
+      { value: "/products?in_stock=1", label: t("shop_by.preset_in_stock") },
+      {
+        value: "/products?sort=price_asc",
+        label: t("shop_by.preset_price_low"),
       },
     ]
     const colors: TargetPreset[] = productFacets.colors
