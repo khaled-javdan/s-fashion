@@ -5,6 +5,7 @@ import { z } from "zod"
 
 import { isAllowedModelId } from "@/components/admin/ai/types"
 import { auth } from "@/lib/auth"
+import { toActionError } from "@/lib/errors"
 import { currencyConfigSchema } from "@/lib/currency-config"
 import { gridConfigSchema } from "@/lib/grid-config"
 import { ABSOLUTE_MAX_QTY_PER_VARIANT } from "@/lib/order-limits"
@@ -36,10 +37,12 @@ const socialUrl = z
 
 const sizeChartRow = z.object({
   size: z.string().trim().min(1).max(20),
-  bust: z.number().int().min(0).nullable(),
-  waist: z.number().int().min(0).nullable(),
-  hips: z.number().int().min(0).nullable(),
-  length: z.number().int().min(0),
+  shoulder: z.number().min(0).nullable().default(null),
+  bust: z.number().min(0).nullable(),
+  waist: z.number().min(0).nullable(),
+  hips: z.number().min(0).nullable(),
+  sleeves: z.number().min(0).nullable().default(null),
+  length: z.number().min(0),
 })
 
 /**
@@ -68,8 +71,11 @@ const settingValidators: Record<SettingKey, z.ZodTypeAny> = {
     snapchat: socialUrl,
   }),
   "returns.window_days": z.number().int().min(0).max(90),
+  "company.legal_name": z.string().trim().max(200),
+  "company.trade_license": z.string().trim().max(100),
+  "company.vat_trn": z.string().trim().max(50),
   "size_chart.cm": z.object({
-    unit: z.literal("cm"),
+    unit: z.enum(["in", "cm"]),
     rows: z.array(sizeChartRow).min(1),
   }),
   "order.max_items": z.number().int().min(1).max(100),
@@ -140,14 +146,19 @@ export async function updateSettingsAction(input: {
       input.key === "contact.email" ||
       input.key === "contact.social" ||
       input.key === "contact.business_hours_ar" ||
-      input.key === "contact.business_hours_en"
+      input.key === "contact.business_hours_en" ||
+      input.key === "company.legal_name" ||
+      input.key === "company.trade_license" ||
+      input.key === "company.vat_trn"
     ) {
       revalidatePath("/[locale]", "layout")
     }
     return { ok: true, data: null }
   } catch (err) {
-    console.error("[settings.actions]", err)
-    return { ok: false, error: "Failed to save. Please try again." }
+    return {
+      ok: false,
+      error: toActionError("updateSettingsAction", err),
+    }
   }
 }
 
@@ -172,6 +183,9 @@ async function persist(
     case "contact.business_hours_ar":
     case "contact.business_hours_en":
     case "contact.email":
+    case "company.legal_name":
+    case "company.trade_license":
+    case "company.vat_trn":
     case "ai.model":
       await setSetting(key, value as string)
       return
@@ -252,7 +266,6 @@ export async function updateHeroAction(
     revalidatePath("/[locale]", "page")
     return { ok: true, data: null }
   } catch (err) {
-    console.error("[settings.actions] hero", err)
-    return { ok: false, error: "Failed to save. Please try again." }
+    return { ok: false, error: toActionError("updateHeroAction", err) }
   }
 }

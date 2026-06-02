@@ -4,10 +4,11 @@ import {
   type ProductUpdateInput,
 } from "@/lib/schemas/product.schema";
 
-// Client-safe type + helper live in a prisma-free module so that client
+// Client-safe types + helpers live in a prisma-free module so that client
 // components can import them without bundling the server-only Prisma client.
 // Re-exported here for backward compatibility with existing server imports.
 export {
+  parseProductSizeChart,
   parseProductSizeChartRows,
   type ProductWithRelations,
 } from "@/lib/repos/products.shared";
@@ -17,6 +18,15 @@ export type ListOpts = {
   take?: number;
   skip?: number;
 };
+
+/**
+ * Shared Prisma include for product variants that filters out archived rows.
+ * Archived variants stay in the DB to keep OrderItem FK references valid, but
+ * never surface in the storefront or admin product editor.
+ */
+const activeVariantsInclude = {
+  where: { isArchived: false },
+} as const;
 
 /** Public catalog: only active products. Newest first. */
 export async function listActiveProducts(
@@ -28,7 +38,7 @@ export async function listActiveProducts(
     take: opts.take,
     skip: opts.skip,
     include: {
-      variants: true,
+      variants: activeVariantsInclude,
       images: { orderBy: { position: "asc" } },
     },
   });
@@ -96,7 +106,9 @@ function catalogWhere(filter: ProductFilter): Prisma.ProductWhereInput {
 
   const colors = filter.colors?.filter(Boolean) ?? [];
   const sizes = filter.sizes ?? [];
-  const variantConds: Prisma.ProductVariantWhereInput = {};
+  // Always require non-archived when narrowing — archived variants must not
+  // influence colour/size/stock filtering on the storefront.
+  const variantConds: Prisma.ProductVariantWhereInput = { isArchived: false };
   if (colors.length > 0) {
     variantConds.colorHex = {
       in: colors,
@@ -109,9 +121,9 @@ function catalogWhere(filter: ProductFilter): Prisma.ProductWhereInput {
   if (filter.inStockOnly) {
     variantConds.stock = { gt: 0 };
   }
-  if (Object.keys(variantConds).length > 0) {
-    where.variants = { some: variantConds };
-  }
+  // Always set; "some non-archived variant matches X" is the right semantic
+  // even when X has no narrowing clauses (X = `{ isArchived: false }`).
+  where.variants = { some: variantConds };
 
   return where;
 }
@@ -154,7 +166,7 @@ export async function listProductsFiltered(
     const all = await prisma.product.findMany({
       where,
       orderBy: { createdAt: "desc" },
-      include: { variants: true, images: { orderBy: { position: "asc" } } },
+      include: { variants: activeVariantsInclude, images: { orderBy: { position: "asc" } } },
     });
     const matched = onSaleRefine(all);
 
@@ -209,7 +221,7 @@ export async function listProductsFiltered(
     const all = await prisma.product.findMany({
       where,
       orderBy,
-      include: { variants: true, images: { orderBy: { position: "asc" } } },
+      include: { variants: activeVariantsInclude, images: { orderBy: { position: "asc" } } },
     });
     const matched = onSaleRefine(all);
     const total = matched.length;
@@ -225,7 +237,7 @@ export async function listProductsFiltered(
       orderBy,
       take,
       skip,
-      include: { variants: true, images: { orderBy: { position: "asc" } } },
+      include: { variants: activeVariantsInclude, images: { orderBy: { position: "asc" } } },
     }),
     prisma.product.count({ where }),
   ]);
@@ -256,7 +268,7 @@ export type CatalogFacets = {
 export async function getCatalogFacets(): Promise<CatalogFacets> {
   const [variants, priceAgg] = await Promise.all([
     prisma.productVariant.findMany({
-      where: { product: { isActive: true } },
+      where: { product: { isActive: true }, isArchived: false },
       select: {
         colorHex: true,
         colorNameEn: true,
@@ -400,6 +412,7 @@ export async function countLowStockVariants(
     where: {
       stock: { lte: threshold },
       product: { isActive: true },
+      isArchived: false,
     },
   });
 }
@@ -420,8 +433,12 @@ export async function listSimilarProducts(opts: {
   const hi = Math.ceil(opts.priceFils * 1.4);
 
   // `variants: { some: stock > 0 }` keeps only products with something in
-  // stock, so fully sold-out products are never recommended.
-  const inStock = { variants: { some: { stock: { gt: 0 } } } };
+  // stock, so fully sold-out products are never recommended. Archived variants
+  // are always zero-stock, so they're filtered out implicitly — but we still
+  // include the flag for clarity.
+  const inStock = {
+    variants: { some: { stock: { gt: 0 }, isArchived: false } },
+  };
   const band = await prisma.product.findMany({
     where: {
       isActive: true,
@@ -431,7 +448,7 @@ export async function listSimilarProducts(opts: {
     },
     orderBy: { createdAt: "desc" },
     take: take * 3,
-    include: { variants: true, images: { orderBy: { position: "asc" } } },
+    include: { variants: activeVariantsInclude, images: { orderBy: { position: "asc" } } },
   });
   band.sort(
     (a, b) =>
@@ -448,7 +465,7 @@ export async function listSimilarProducts(opts: {
     where: { isActive: true, id: { notIn: excludeIds }, ...inStock },
     orderBy: { createdAt: "desc" },
     take: take - picked.length,
-    include: { variants: true, images: { orderBy: { position: "asc" } } },
+    include: { variants: activeVariantsInclude, images: { orderBy: { position: "asc" } } },
   });
   return [...picked, ...fill];
 }
@@ -460,7 +477,7 @@ export async function getProductBySlug(
   const product = await prisma.product.findUnique({
     where: { slug },
     include: {
-      variants: true,
+      variants: activeVariantsInclude,
       images: { orderBy: { position: "asc" } },
     },
   });
@@ -475,7 +492,7 @@ export async function getProductById(
   return prisma.product.findUnique({
     where: { id },
     include: {
-      variants: true,
+      variants: activeVariantsInclude,
       images: { orderBy: { position: "asc" } },
     },
   });
@@ -490,7 +507,7 @@ export async function listAllProductsForAdmin(
     take: opts.take,
     skip: opts.skip,
     include: {
-      variants: true,
+      variants: activeVariantsInclude,
       images: { orderBy: { position: "asc" } },
     },
   });
@@ -515,6 +532,7 @@ export async function createProduct(
         costPriceFils: input.costPriceFils,
         isActive: input.isActive,
         isFinalSale: input.isFinalSale,
+        weightGrams: input.weightGrams ?? null,
         sizeChart: input.sizeChart ?? Prisma.JsonNull,
         variants: {
           create: input.variants.map((v) => ({
@@ -537,7 +555,7 @@ export async function createProduct(
         },
       },
       include: {
-        variants: true,
+        variants: activeVariantsInclude,
         images: { orderBy: { position: "asc" } },
       },
     });
@@ -571,6 +589,7 @@ export async function updateProduct(
         costPriceFils: input.costPriceFils,
         isActive: input.isActive,
         isFinalSale: input.isFinalSale,
+        weightGrams: input.weightGrams ?? null,
         // `undefined` leaves the column untouched; an explicit `null` clears the
         // override back to the global default; a value writes the override.
         ...(input.sizeChart === undefined
@@ -580,25 +599,64 @@ export async function updateProduct(
     });
 
     if (input.variants) {
+      // Reconcile the variant set:
+      //   - Variants the admin removed (not in the incoming list): if they have
+      //     no OrderItem references, hard-delete them. If they do, soft-delete
+      //     (isArchived = true, stock = 0) so order history stays valid while
+      //     the variant disappears from the storefront + editor.
+      //   - New variants whose (colorHex, size) matches an archived row are
+      //     resurrected (un-archived) instead of created, because the unique
+      //     `@@unique([productId, colorHex, size])` covers archived rows too.
       const existing = await tx.productVariant.findMany({
         where: { productId: id },
-        select: { id: true },
+        select: {
+          id: true,
+          colorHex: true,
+          size: true,
+          isArchived: true,
+          _count: { select: { orderItems: true } },
+        },
       });
+      const existingById = new Map(existing.map((e) => [e.id, e]));
       const incomingIds = new Set(
         input.variants.map((v) => v.id).filter((x): x is string => Boolean(x)),
       );
-      const toDelete = existing
-        .map((e) => e.id)
-        .filter((eid) => !incomingIds.has(eid));
+      const removed = existing.filter((e) => !incomingIds.has(e.id));
 
-      if (toDelete.length > 0) {
+      const toHardDelete = removed
+        .filter((r) => r._count.orderItems === 0)
+        .map((r) => r.id);
+      const toSoftDelete = removed
+        .filter((r) => r._count.orderItems > 0 && !r.isArchived)
+        .map((r) => r.id);
+
+      if (toHardDelete.length > 0) {
         await tx.productVariant.deleteMany({
-          where: { id: { in: toDelete } },
+          where: { id: { in: toHardDelete } },
+        });
+      }
+      if (toSoftDelete.length > 0) {
+        await tx.productVariant.updateMany({
+          where: { id: { in: toSoftDelete } },
+          data: { isArchived: true, stock: 0 },
         });
       }
 
+      // Index of archived rows keyed by `(colorHex||"")::size`, for resurrecting
+      // when the admin re-adds a previously-removed color+size combination.
+      const archivedKey = (
+        colorHex: string | null,
+        size: string,
+      ): string => `${(colorHex ?? "").toLowerCase()}::${size}`;
+      const archivedIndex = new Map<string, string>();
+      for (const e of existing) {
+        if (e.isArchived) {
+          archivedIndex.set(archivedKey(e.colorHex, e.size), e.id);
+        }
+      }
+
       for (const v of input.variants) {
-        if (v.id) {
+        if (v.id && existingById.has(v.id)) {
           await tx.productVariant.update({
             where: { id: v.id },
             data: {
@@ -608,8 +666,34 @@ export async function updateProduct(
               size: v.size,
               stock: v.stock,
               sku: v.sku ?? null,
+              // If the admin edits an archived row directly (rare, but the
+              // form never surfaces them so it would only happen by id reuse),
+              // surface it again.
+              isArchived: false,
             },
           });
+          continue;
+        }
+
+        // New variant — resurrect an archived row when the same (colorHex,
+        // size) already exists, otherwise create.
+        const resurrectId = archivedIndex.get(
+          archivedKey(v.colorHex ?? null, v.size),
+        );
+        if (resurrectId) {
+          await tx.productVariant.update({
+            where: { id: resurrectId },
+            data: {
+              colorNameAr: v.colorNameAr ?? null,
+              colorNameEn: v.colorNameEn ?? null,
+              colorHex: v.colorHex ?? null,
+              size: v.size,
+              stock: v.stock,
+              sku: v.sku ?? null,
+              isArchived: false,
+            },
+          });
+          archivedIndex.delete(archivedKey(v.colorHex ?? null, v.size));
         } else {
           await tx.productVariant.create({
             data: {
@@ -645,7 +729,7 @@ export async function updateProduct(
     const updated = await tx.product.findUniqueOrThrow({
       where: { id },
       include: {
-        variants: true,
+        variants: activeVariantsInclude,
         images: { orderBy: { position: "asc" } },
       },
     });
@@ -765,7 +849,7 @@ export async function listBestSellerProducts(
     where: { isActive: true },
     orderBy: { createdAt: "desc" },
     include: {
-      variants: true,
+      variants: activeVariantsInclude,
       images: { orderBy: { position: "asc" } },
     },
   });

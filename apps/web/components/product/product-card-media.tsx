@@ -9,8 +9,17 @@ import { useRef, useState } from "react"
 import { cn } from "@workspace/ui/lib/utils"
 
 export type CardSlide = { url: string; alt: string }
-/** `index` is the slide to scroll to, or -1 for a decorative (no-image) color. */
-export type CardSwatch = { hex: string; label: string; index: number }
+/**
+ * `index` is the slide to scroll to, or -1 for a decorative (no-image) color.
+ * `thumbUrl` is the small product photo shown in the swatch row; falls back to
+ * a solid color dot when the color has no photo of its own.
+ */
+export type CardSwatch = {
+  hex: string
+  label: string
+  index: number
+  thumbUrl: string | null
+}
 
 /** Distinct color dots shown before collapsing the rest into a "+N" chip. */
 const MAX_SWATCHES = 4
@@ -170,22 +179,42 @@ export function ProductCardMedia({
                   aria-pressed={activeSwatch === i}
                   title={s.label || undefined}
                   className={cn(
-                    "block size-3.5 rounded-full border transition",
+                    "relative block size-7 overflow-hidden rounded-full border transition",
                     activeSwatch === i
                       ? "ring-foreground border-background ring-2"
                       : "border-border/70",
                   )}
-                  style={{ backgroundColor: s.hex }}
-                />
+                  style={s.thumbUrl ? undefined : { backgroundColor: s.hex }}
+                >
+                  {s.thumbUrl ? (
+                    <Image
+                      src={s.thumbUrl}
+                      alt=""
+                      fill
+                      sizes="28px"
+                      className="object-cover"
+                    />
+                  ) : null}
+                </button>
               </li>
             ) : (
               <li key={s.hex}>
                 <span
-                  className="border-border/70 block size-3.5 rounded-full border"
-                  style={{ backgroundColor: s.hex }}
+                  className="border-border/70 relative block size-7 overflow-hidden rounded-full border"
+                  style={s.thumbUrl ? undefined : { backgroundColor: s.hex }}
                   title={s.label || undefined}
                   aria-hidden
-                />
+                >
+                  {s.thumbUrl ? (
+                    <Image
+                      src={s.thumbUrl}
+                      alt=""
+                      fill
+                      sizes="28px"
+                      className="object-cover"
+                    />
+                  ) : null}
+                </span>
               </li>
             ),
           )}

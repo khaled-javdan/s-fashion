@@ -28,13 +28,29 @@ export type KnownSettings = {
   };
   /** Returns window in days, surfaced on the returns page. */
   "returns.window_days": number;
+  /** Registered legal entity name shown in the footer (may be empty). */
+  "company.legal_name": string;
+  /**
+   * UAE trade licence number shown in the footer for consumer-protection
+   * compliance (may be empty until issued).
+   */
+  "company.trade_license": string;
+  /** VAT Tax Registration Number shown in the footer when registered. */
+  "company.vat_trn": string;
+  /**
+   * Storefront fallback when a product has no per-product chart override. Key
+   * name is retained ("size_chart.cm") for backward compatibility — the `unit`
+   * field is the source of truth (defaults to "in" for new charts).
+   */
   "size_chart.cm": {
-    unit: "cm";
+    unit: "in" | "cm";
     rows: Array<{
       size: string;
+      shoulder: number | null;
       bust: number | null;
       waist: number | null;
       hips: number | null;
+      sleeves: number | null;
       length: number;
     }>;
   };

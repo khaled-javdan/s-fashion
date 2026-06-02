@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache"
 
 import { auth } from "@/lib/auth"
+import { toActionError } from "@/lib/errors"
 import { aedToFils } from "@/lib/money"
 import {
   createProduct,
@@ -54,6 +55,8 @@ export type ProductFormPayload = {
   costPriceAed: number
   isActive: boolean
   isFinalSale: boolean
+  /** Shipping weight in grams (0/null = no weight, no per-kg surcharge). */
+  weightGrams?: number | null
   /**
    * Per-product size chart override. `null` (or omitted) means "use the global
    * default"; a value is the per-product chart (measurements in centimetres).
@@ -172,6 +175,7 @@ function toCreateInput(payload: ProductFormPayload): ProductCreateInput {
     costPriceFils: aedToFils(payload.costPriceAed),
     isActive: payload.isActive,
     isFinalSale: payload.isFinalSale,
+    weightGrams: payload.weightGrams ?? null,
     sizeChart: payload.sizeChart ?? null,
     variants: payload.variants.map((v) => ({
       id: v.id,
@@ -210,6 +214,7 @@ function toUpdateInput(payload: ProductFormPayload): ProductUpdateInput {
     costPriceFils: aedToFils(payload.costPriceAed),
     isActive: payload.isActive,
     isFinalSale: payload.isFinalSale,
+    weightGrams: payload.weightGrams ?? null,
     sizeChart: payload.sizeChart ?? null,
     variants: payload.variants.map((v) => ({
       id: v.id,
@@ -249,7 +254,7 @@ export async function createProductAction(
   try {
     input = toCreateInput(payload)
   } catch (err) {
-    return { ok: false, error: zodMessage(err) }
+    return { ok: false, error: toActionError("createProductAction.validate", err) }
   }
 
   try {
@@ -257,7 +262,7 @@ export async function createProductAction(
     revalidatePath("/admin/products")
     return { ok: true, data: { id: product.id } }
   } catch (err) {
-    return { ok: false, error: dbMessage(err) }
+    return { ok: false, error: toActionError("createProductAction", err) }
   }
 }
 
@@ -284,7 +289,7 @@ export async function updateProductAction(
   try {
     input = toUpdateInput(payload)
   } catch (err) {
-    return { ok: false, error: zodMessage(err) }
+    return { ok: false, error: toActionError("updateProductAction.validate", err) }
   }
 
   try {
@@ -293,7 +298,7 @@ export async function updateProductAction(
     revalidatePath(`/admin/products/${id}`)
     return { ok: true, data: { id: product.id } }
   } catch (err) {
-    return { ok: false, error: dbMessage(err) }
+    return { ok: false, error: toActionError("updateProductAction", err) }
   }
 }
 
@@ -314,34 +319,6 @@ export async function toggleProductActiveAction(
     revalidatePath(`/admin/products/${id}`)
     return { ok: true, data: { isActive } }
   } catch (err) {
-    return { ok: false, error: dbMessage(err) }
+    return { ok: false, error: toActionError("toggleProductActiveAction", err) }
   }
-}
-
-function zodMessage(err: unknown): string {
-  if (
-    err &&
-    typeof err === "object" &&
-    "issues" in err &&
-    Array.isArray((err as { issues: unknown[] }).issues)
-  ) {
-    const issues = (err as { issues: Array<{ path: unknown[]; message: string }> })
-      .issues
-    const first = issues[0]
-    if (first) {
-      const path = first.path.join(".")
-      return path ? `${path}: ${first.message}` : first.message
-    }
-  }
-  return "Invalid product data."
-}
-
-function dbMessage(err: unknown): string {
-  // Surface unique-constraint conflicts (slug / sku) in a friendly way.
-  const message = err instanceof Error ? err.message : ""
-  if (message.includes("Unique constraint") || message.includes("P2002")) {
-    return "A product with that slug or SKU already exists."
-  }
-  console.error("[products.actions]", err)
-  return "Something went wrong. Please try again."
 }

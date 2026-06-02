@@ -1,7 +1,8 @@
 "use client"
 
-import { Copy, Plus, Trash2 } from "lucide-react"
+import { Copy, Plus, RefreshCw, Trash2 } from "lucide-react"
 import { useTranslations } from "next-intl"
+import { toast } from "sonner"
 
 import type { Size } from "@workspace/db"
 import { Button } from "@workspace/ui/components/button"
@@ -16,6 +17,7 @@ import {
 } from "@workspace/ui/components/select"
 
 import { AiTranslatePairButton } from "@/components/admin/ai/ai-translate-pair-button"
+import type { FormImage } from "@/components/admin/products/images-uploader"
 
 export type FormVariant = {
   id?: string
@@ -52,10 +54,12 @@ export function makeEmptyVariant(): FormVariant {
 
 type Props = {
   variants: FormVariant[]
+  /** Form images — used to seed variants from colour-tagged photos. */
+  images?: FormImage[]
   onChange: (variants: FormVariant[]) => void
 }
 
-export function VariantsEditor({ variants, onChange }: Props) {
+export function VariantsEditor({ variants, images, onChange }: Props) {
   const t = useTranslations("admin.products")
   const update = (index: number, patch: Partial<FormVariant>) => {
     onChange(variants.map((v, i) => (i === index ? { ...v, ...patch } : v)))
@@ -67,6 +71,67 @@ export function VariantsEditor({ variants, onChange }: Props) {
 
   const add = () => {
     onChange([...variants, makeEmptyVariant()])
+  }
+
+  /**
+   * Seed variants from colour-tagged images: for every unique `colorHex` on an
+   * image, ensure at least one variant carries it. If the form has a single
+   * untouched seed variant (no id, default hex, no name), the first new colour
+   * folds into it instead of being appended — matches the AI-apply behaviour
+   * in `applyDetectedColor`.
+   */
+  const syncFromImages = () => {
+    const imgs = images ?? []
+    const hexes: string[] = []
+    for (const img of imgs) {
+      const hex = img.colorHex?.trim()
+      if (!hex) continue
+      if (!hexes.some((h) => h.toLowerCase() === hex.toLowerCase())) {
+        hexes.push(hex)
+      }
+    }
+    if (hexes.length === 0) {
+      toast.info(t("variants.sync_no_colors"))
+      return
+    }
+
+    const isEmpty = (v?: string | null) => !v || v.trim() === ""
+    const existing = new Set(
+      variants.map((v) => (v.colorHex ?? "").toLowerCase()),
+    )
+    const missing = hexes.filter((h) => !existing.has(h.toLowerCase()))
+    if (missing.length === 0) {
+      toast.info(t("variants.sync_none_added"))
+      return
+    }
+
+    let next = [...variants]
+    const blankIdx = next.findIndex(
+      (v) =>
+        !v.id &&
+        (!v.colorHex || v.colorHex.toLowerCase() === "#c97b84") &&
+        isEmpty(v.colorNameEn) &&
+        isEmpty(v.colorNameAr),
+    )
+    let i = 0
+    if (blankIdx !== -1 && missing[0]) {
+      next = next.map((v, idx) =>
+        idx === blankIdx ? { ...v, colorHex: missing[0]! } : v,
+      )
+      i = 1
+    }
+    const baseSize = next[0]?.size ?? "M"
+    for (; i < missing.length; i++) {
+      next.push({ ...makeEmptyVariant(), size: baseSize, colorHex: missing[i]! })
+    }
+
+    onChange(next)
+    const added = missing.length
+    toast.success(
+      added === 1
+        ? t("variants.sync_added", { count: added })
+        : t("variants.sync_added_plural", { count: added }),
+    )
   }
 
   // Clone a variant, keeping color fields and picking the next size that isn't
@@ -278,10 +343,24 @@ export function VariantsEditor({ variants, onChange }: Props) {
         })}
       </div>
 
-      <Button type="button" variant="outline" size="sm" onClick={add}>
-        <Plus className="h-4 w-4" />
-        {t("variants.add")}
-      </Button>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button type="button" variant="outline" size="sm" onClick={add}>
+          <Plus className="h-4 w-4" />
+          {t("variants.add")}
+        </Button>
+        {images !== undefined ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={syncFromImages}
+            title={t("variants.sync_from_images")}
+          >
+            <RefreshCw className="h-4 w-4" />
+            {t("variants.sync_from_images")}
+          </Button>
+        ) : null}
+      </div>
     </div>
   )
 }

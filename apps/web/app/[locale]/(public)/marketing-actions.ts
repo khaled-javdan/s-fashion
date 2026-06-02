@@ -5,6 +5,7 @@ import { z } from "zod"
 
 import { CouponType } from "@workspace/db"
 
+import { reportError } from "@/lib/errors"
 import { createCoupon, generateUniqueCode } from "@/lib/repos/coupons.repo"
 import { subscribeMarketing } from "@/lib/repos/customers.repo"
 
@@ -70,7 +71,7 @@ export async function subscribeWhatsappAction(input: {
 
     return { ok: true, code }
   } catch (err) {
-    console.error("[marketing.subscribeWhatsappAction] failed", err)
+    reportError("subscribeWhatsappAction", err)
     return { ok: false, error: "something_went_wrong" }
   }
 }

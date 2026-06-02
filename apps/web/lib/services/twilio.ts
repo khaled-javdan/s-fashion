@@ -1,14 +1,25 @@
 /**
- * Twilio Verify wrapper.
+ * Twilio wrapper.
  *
- * Provides typed helpers for sending and checking SMS OTP codes via the
- * Twilio Verify v2 API. All boundary errors are caught and returned as
- * tagged results — these functions never throw across the boundary.
+ * Provides typed helpers for:
+ *  - SMS OTP send/check via Twilio Verify v2 (`sendOtp` / `checkOtp`)
+ *  - Generic transactional SMS via Twilio Messages API (`sendSms`) — used for
+ *    order confirmations and other non-OTP customer messaging.
+ *
+ * All boundary errors are caught and returned as tagged results — these
+ * functions never throw across the boundary.
  *
  * Env vars (server-only):
  * - TWILIO_ACCOUNT_SID
  * - TWILIO_AUTH_TOKEN
- * - TWILIO_VERIFY_SERVICE_SID
+ * - TWILIO_VERIFY_SERVICE_SID         (required for OTP)
+ *
+ * For `sendSms`, configure ONE of:
+ * - TWILIO_MESSAGING_SERVICE_SID      (preferred — Twilio picks the best sender)
+ * - TWILIO_SMS_FROM_NUMBER            (fallback — a Twilio phone number, E.164)
+ *
+ * When neither SMS env var is set, `sendSms` returns `{ ok: false }` with a
+ * "not configured" error and callers (the order dispatcher) skip gracefully.
  *
  * This module reads server-only env vars and must never be imported into a
  * client component. Keep imports limited to Server Actions, route handlers,
@@ -25,6 +36,10 @@ export type SendOtpResult =
 export type CheckOtpResult =
   | { ok: true; status: VerificationStatus }
   | { ok: false; status: VerificationStatus; error: string };
+
+export type SendSmsResult =
+  | { ok: true; sid: string }
+  | { ok: false; error: string };
 
 let cachedClient: Twilio | null = null;
 
@@ -97,5 +112,50 @@ export async function checkOtp(
       err instanceof Error ? err.message : "Failed to check OTP.";
     console.error("[twilio.checkOtp]", message);
     return { ok: false, status: "failed", error: message };
+  }
+}
+
+/**
+ * Send a one-off transactional SMS via Twilio's Messages API.
+ *
+ * Returns the message SID on success. Prefers a Messaging Service SID over a
+ * fixed from-number — Messaging Services let Twilio route via the best sender
+ * for the destination country (alphanumeric sender ID for GCC, long codes
+ * elsewhere) without the caller picking. Falls back to a from-number when no
+ * service SID is configured. When neither is set, returns a tagged error
+ * instead of throwing — the order dispatcher treats that as "SMS disabled" and
+ * the retry cron will keep trying once the env var lands.
+ *
+ * Never throws.
+ */
+export async function sendSms(
+  toE164: string,
+  body: string,
+): Promise<SendSmsResult> {
+  const messagingServiceSid = process.env.TWILIO_MESSAGING_SERVICE_SID;
+  const fromNumber = process.env.TWILIO_SMS_FROM_NUMBER;
+  if (!messagingServiceSid && !fromNumber) {
+    return {
+      ok: false,
+      error:
+        "Twilio SMS not configured: set TWILIO_MESSAGING_SERVICE_SID or TWILIO_SMS_FROM_NUMBER.",
+    };
+  }
+
+  try {
+    const client = getClient();
+    const message = await client.messages.create({
+      to: toE164,
+      body,
+      ...(messagingServiceSid
+        ? { messagingServiceSid }
+        : { from: fromNumber as string }),
+    });
+    return { ok: true, sid: message.sid };
+  } catch (err) {
+    const message =
+      err instanceof Error ? err.message : "Failed to send SMS.";
+    console.error("[twilio.sendSms]", message);
+    return { ok: false, error: message };
   }
 }

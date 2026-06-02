@@ -7,34 +7,35 @@ import { Button } from "@workspace/ui/components/button"
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@workspace/ui/components/dialog"
 
-export type SizeChartRow = {
-  size: string
-  bust: number | null
-  waist: number | null
-  hips: number | null
-  length: number
-}
+import type { Locale } from "@/lib/locale"
+
+import {
+  SizeChartView,
+  type SizeChartRow,
+  type SizeChartUnit,
+} from "./size-chart-view"
+
+export type { SizeChartRow, SizeChartUnit } from "./size-chart-view"
 
 type Props = {
+  unit: SizeChartUnit
   rows: SizeChartRow[]
+  locale: Locale
 }
 
 /**
- * Size chart trigger + dialog. Data (centimetre measurements) is read from the
- * `size_chart.cm` setting server-side and passed in.
+ * Size chart trigger + dialog. Server-passed `{ unit, rows }` is the source of
+ * truth for numbers; the storefront lets shoppers toggle the display unit.
  */
-export function SizeChartModal({ rows }: Props) {
+export function SizeChartModal({ unit, rows, locale }: Props) {
   const t = useTranslations("product")
 
   if (rows.length === 0) return null
-
-  const cell = (value: number | null) => (value == null ? "—" : value)
 
   return (
     <Dialog>
@@ -44,45 +45,13 @@ export function SizeChartModal({ rows }: Props) {
           {t("size_chart")}
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-h-[90dvh] w-[calc(100vw-2rem)] max-w-lg overflow-y-auto md:max-w-3xl lg:max-w-4xl">
         <DialogHeader>
-          <DialogTitle>{t("size_chart_heading")}</DialogTitle>
-          <DialogDescription>{t("size_chart_unit")}</DialogDescription>
+          <DialogTitle className="text-center">
+            {t("size_chart_heading")}
+          </DialogTitle>
         </DialogHeader>
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-sm">
-            <thead>
-              <tr className="border-border border-b text-start">
-                <th className="py-2 ps-0 pe-3 text-start font-medium">
-                  {t("size_chart_size")}
-                </th>
-                <th className="px-3 py-2 text-start font-medium">
-                  {t("size_chart_bust")}
-                </th>
-                <th className="px-3 py-2 text-start font-medium">
-                  {t("size_chart_waist")}
-                </th>
-                <th className="px-3 py-2 text-start font-medium">
-                  {t("size_chart_hips")}
-                </th>
-                <th className="px-3 py-2 text-start font-medium">
-                  {t("size_chart_length")}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr key={row.size} className="border-border/60 border-b">
-                  <td className="py-2 ps-0 pe-3 font-medium">{row.size}</td>
-                  <td className="px-3 py-2 tabular-nums">{cell(row.bust)}</td>
-                  <td className="px-3 py-2 tabular-nums">{cell(row.waist)}</td>
-                  <td className="px-3 py-2 tabular-nums">{cell(row.hips)}</td>
-                  <td className="px-3 py-2 tabular-nums">{cell(row.length)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <SizeChartView unit={unit} rows={rows} locale={locale} />
       </DialogContent>
     </Dialog>
   )

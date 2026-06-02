@@ -14,20 +14,26 @@ import { getSetting } from "@/lib/repos/settings.repo"
  *    `contact.social` setting; a link is hidden when its URL is empty.
  *  - Business hours line — read from `contact.business_hours_{ar,en}`,
  *    falling back to the localized copy when unset.
- *  - Bottom strip: copyright + "Made with care in the UAE".
+ *  - Bottom strip: copyright, "Made with care in the UAE", and the UAE
+ *    compliance details (registered name, trade licence, VAT TRN) when set —
+ *    consumer-protection law requires the trade licence to be visible.
  *
- * Async Server Component — reads contact settings; no interactivity.
+ * Async Server Component — reads contact/company settings; no interactivity.
  */
 export async function Footer() {
   const t = await getTranslations("footer")
   const locale = (await getLocale()) as Locale
   const year = new Date().getUTCFullYear()
 
-  const [social, hoursAr, hoursEn] = await Promise.all([
-    getSetting("contact.social"),
-    getSetting("contact.business_hours_ar"),
-    getSetting("contact.business_hours_en"),
-  ])
+  const [social, hoursAr, hoursEn, legalName, tradeLicense, vatTrn] =
+    await Promise.all([
+      getSetting("contact.social"),
+      getSetting("contact.business_hours_ar"),
+      getSetting("contact.business_hours_en"),
+      getSetting("company.legal_name"),
+      getSetting("company.trade_license"),
+      getSetting("company.vat_trn"),
+    ])
 
   const settingHours = locale === "ar" ? hoursAr : hoursEn
   const businessHours = settingHours ?? t("business_hours")
@@ -52,6 +58,13 @@ export async function Footer() {
       Icon: SnapchatIcon,
     },
   ].filter((link) => link.href.trim() !== "")
+
+  // UAE compliance details — each rendered only when configured.
+  const registeredName = legalName?.trim() ?? ""
+  const complianceItems = [
+    { key: "trade_license", label: t("trade_license"), value: tradeLicense },
+    { key: "vat_trn", label: t("vat_trn"), value: vatTrn },
+  ].filter((item) => (item.value ?? "").trim() !== "")
 
   return (
     <footer className="border-t border-border bg-card text-card-foreground">
@@ -129,6 +142,22 @@ export async function Footer() {
                 {t("about")}
               </Link>
             </li>
+            <li>
+              <Link
+                href={`/${locale}/privacy`}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                {t("privacy")}
+              </Link>
+            </li>
+            <li>
+              <Link
+                href={`/${locale}/terms`}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                {t("terms")}
+              </Link>
+            </li>
           </ul>
         </div>
 
@@ -168,11 +197,30 @@ export async function Footer() {
       </div>
 
       <div className="border-t border-border">
-        <div className="mx-auto flex w-full max-w-7xl flex-col gap-2 px-6 py-6 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-          <p>
-            &copy; {year} S Fashion. {t("rights")}.
-          </p>
-          <p>{t("made_with_care")}</p>
+        <div className="mx-auto w-full max-w-7xl space-y-3 px-6 py-6 text-xs text-muted-foreground">
+          {registeredName !== "" || complianceItems.length > 0 ? (
+            <div className="flex flex-col gap-1 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-4">
+              {registeredName !== "" ? (
+                <span className="font-medium text-foreground">
+                  {registeredName}
+                </span>
+              ) : null}
+              {complianceItems.map((item) => (
+                <span key={item.key}>
+                  {item.label}:{" "}
+                  <span dir="ltr" className="font-mono">
+                    {item.value}
+                  </span>
+                </span>
+              ))}
+            </div>
+          ) : null}
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <p>
+              &copy; {year} S Fashion. {t("rights")}.
+            </p>
+            <p>{t("made_with_care")}</p>
+          </div>
         </div>
       </div>
     </footer>

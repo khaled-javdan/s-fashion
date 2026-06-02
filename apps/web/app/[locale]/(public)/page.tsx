@@ -115,7 +115,7 @@ export default async function HomePage({
           </p>
         ) : (
           <>
-            <ProductGrid config={grid}>
+            <ProductGrid config={grid} storageScope="home">
               {products.map((product, index) => (
                 <li key={product.id}>
                   <ProductCard

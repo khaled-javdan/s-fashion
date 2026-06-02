@@ -24,6 +24,11 @@ model Product {
   // OrderItem at checkout, so changing it here never rewrites the profit of
   // past orders.
   costPriceFils     Int
+  // Shipping weight in grams. Optional; null/0 means the product adds nothing to
+  // the cart's weight, so it never triggers a per-kg shipping surcharge. Used by
+  // `resolveShipping` together with each country's per-kg rate + free-weight
+  // threshold to price heavier parcels.
+  weightGrams       Int?
   // Optional per-product size chart override. When null the storefront falls
   // back to the global `size_chart.cm` setting. Shape mirrors that setting:
   // { unit: "cm", rows: [{ size, bust, waist, hips, length }] }.
@@ -49,10 +54,19 @@ model ProductVariant {
   size        Size
   stock       Int         @default(0)
   sku         String?     @unique
+  /**
+   * Soft-delete flag. A variant becomes archived when an admin removes it from
+   * the editor BUT it has existing OrderItem references — Postgres blocks the
+   * hard delete on the OrderItem FK, so we keep the row to preserve order
+   * history and hide it from the storefront + admin form. Re-adding the same
+   * (colorHex, size) unarchives the row instead of creating a duplicate.
+   */
+  isArchived  Boolean     @default(false)
   orderItems  OrderItem[]
 
   @@unique([productId, colorHex, size])
   @@index([productId])
+  @@index([productId, isArchived])
 }
 
 model ProductImage {
@@ -152,6 +166,7 @@ model Order {
   // silently loses an order.
   adminNotifiedAt   DateTime? // Telegram owner alert sent at
   customerEmailedAt DateTime? // Resend confirmation email sent at
+  customerSmsedAt   DateTime? // Twilio SMS order confirmation sent at
   items         OrderItem[]
   events        OrderEvent[]
   redemption    CouponRedemption?

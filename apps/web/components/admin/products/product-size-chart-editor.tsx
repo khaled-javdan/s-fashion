@@ -5,6 +5,13 @@ import { useTranslations } from "next-intl"
 
 import { Button } from "@workspace/ui/components/button"
 import { Input } from "@workspace/ui/components/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@workspace/ui/components/select"
 import { Switch } from "@workspace/ui/components/switch"
 import {
   Table,
@@ -18,51 +25,74 @@ import {
 /** A size-chart row as edited in the form (all string-backed inputs). */
 export type SizeChartFormRow = {
   size: string
+  shoulder: string
   bust: string
   waist: string
   hips: string
+  sleeves: string
   length: string
 }
 
+export type SizeChartFormUnit = "in" | "cm"
+
+/** The complete per-product chart override (unit + rows), or `null` to defer. */
+export type SizeChartFormState = {
+  unit: SizeChartFormUnit
+  rows: SizeChartFormRow[]
+} | null
+
 export const EMPTY_SIZE_CHART_ROW: SizeChartFormRow = {
   size: "",
+  shoulder: "",
   bust: "",
   waist: "",
   hips: "",
+  sleeves: "",
   length: "",
 }
 
 type Props = {
   /**
-   * `null` means "use the global default" (the override is off). A row array
-   * means the per-product override is on. The parent owns this state so the
-   * save bar can diff it like the rest of the form.
+   * `null` means "use the global default" (the override is off). An object
+   * `{ unit, rows }` means the per-product override is on. The parent owns
+   * this state so the save bar can diff it like the rest of the form.
    */
-  rows: SizeChartFormRow[] | null
-  onChange: (rows: SizeChartFormRow[] | null) => void
+  chart: SizeChartFormState
+  onChange: (chart: SizeChartFormState) => void
 }
 
 /**
- * Per-product size chart editor. Mirrors the global `SizeChartEditor` but is a
- * controlled component: a "Use global default" switch toggles the override on
- * (seeding one empty row) / off (clearing to `null`). When on, the admin edits
- * size/bust/waist/hips/length rows in centimetres.
+ * Per-product size chart editor. A "Use global default" switch toggles the
+ * override on (seeding one empty row in inches) / off (clearing to `null`).
+ * When on, the admin picks a unit (inches or centimetres) and edits
+ * size/shoulder/bust/waist/hips/sleeves/length rows.
  */
-export function ProductSizeChartEditor({ rows, onChange }: Props) {
+export function ProductSizeChartEditor({ chart, onChange }: Props) {
   const t = useTranslations("admin.products.size_chart")
-  const enabled = rows !== null
+  const enabled = chart !== null
 
   const toggle = (on: boolean) =>
-    onChange(on ? [{ ...EMPTY_SIZE_CHART_ROW }] : null)
+    onChange(on ? { unit: "in", rows: [{ ...EMPTY_SIZE_CHART_ROW }] } : null)
+
+  const setUnit = (unit: SizeChartFormUnit) => {
+    if (!chart) return
+    onChange({ ...chart, unit })
+  }
 
   const update = (index: number, patch: Partial<SizeChartFormRow>) => {
-    if (!rows) return
-    onChange(rows.map((r, i) => (i === index ? { ...r, ...patch } : r)))
+    if (!chart) return
+    onChange({
+      ...chart,
+      rows: chart.rows.map((r, i) => (i === index ? { ...r, ...patch } : r)),
+    })
   }
-  const add = () => onChange([...(rows ?? []), { ...EMPTY_SIZE_CHART_ROW }])
+  const add = () => {
+    if (!chart) return
+    onChange({ ...chart, rows: [...chart.rows, { ...EMPTY_SIZE_CHART_ROW }] })
+  }
   const remove = (index: number) => {
-    if (!rows) return
-    onChange(rows.filter((_, i) => i !== index))
+    if (!chart) return
+    onChange({ ...chart, rows: chart.rows.filter((_, i) => i !== index) })
   }
 
   return (
@@ -77,22 +107,39 @@ export function ProductSizeChartEditor({ rows, onChange }: Props) {
         </div>
       </div>
 
-      {enabled && rows ? (
+      {enabled && chart ? (
         <>
-          <div className="overflow-hidden rounded-md border">
+          <div className="flex items-center gap-3">
+            <label className="text-sm font-medium" htmlFor="size-chart-unit">
+              {t("unit_label")}
+            </label>
+            <Select value={chart.unit} onValueChange={(v) => setUnit(v as SizeChartFormUnit)}>
+              <SelectTrigger id="size-chart-unit" className="w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="in">{t("unit_in")}</SelectItem>
+                <SelectItem value="cm">{t("unit_cm")}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="overflow-x-auto rounded-md border">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>{t("col_size")}</TableHead>
+                  <TableHead>{t("col_shoulder")}</TableHead>
                   <TableHead>{t("col_bust")}</TableHead>
                   <TableHead>{t("col_waist")}</TableHead>
                   <TableHead>{t("col_hips")}</TableHead>
+                  <TableHead>{t("col_sleeves")}</TableHead>
                   <TableHead>{t("col_length")}</TableHead>
                   <TableHead className="w-12" />
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {rows.map((r, idx) => (
+                {chart.rows.map((r, idx) => (
                   <TableRow key={idx}>
                     <TableCell>
                       <Input
@@ -100,6 +147,13 @@ export function ProductSizeChartEditor({ rows, onChange }: Props) {
                         onChange={(e) => update(idx, { size: e.target.value })}
                         placeholder="S"
                         aria-label={t("size_label_aria")}
+                        className="w-20"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <MeasureInput
+                        value={r.shoulder}
+                        onChange={(v) => update(idx, { shoulder: v })}
                       />
                     </TableCell>
                     <TableCell>
@@ -122,6 +176,12 @@ export function ProductSizeChartEditor({ rows, onChange }: Props) {
                     </TableCell>
                     <TableCell>
                       <MeasureInput
+                        value={r.sleeves}
+                        onChange={(v) => update(idx, { sleeves: v })}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <MeasureInput
                         value={r.length}
                         onChange={(v) => update(idx, { length: v })}
                       />
@@ -132,7 +192,7 @@ export function ProductSizeChartEditor({ rows, onChange }: Props) {
                         variant="ghost"
                         size="icon"
                         onClick={() => remove(idx)}
-                        disabled={rows.length <= 1}
+                        disabled={chart.rows.length <= 1}
                         aria-label={t("remove_row_aria")}
                       >
                         <Trash2 className="h-4 w-4" />
@@ -169,9 +229,11 @@ function MeasureInput({
     <Input
       type="number"
       min={0}
+      step="any"
+      inputMode="decimal"
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="w-24 tabular-nums"
+      className="w-20 tabular-nums"
     />
   )
 }

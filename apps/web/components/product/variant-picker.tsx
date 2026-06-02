@@ -37,6 +37,8 @@ export type PickerProduct = {
   priceFils: number
   /** Compare-at ("was") price in fils, or `null` when not on sale. */
   compareAtFils: number | null
+  /** Shipping weight in grams (0 when unset); snapshotted onto the cart line. */
+  weightGrams: number
   /** All product images, in display order. The first is the default fallback. */
   images: PickerProductImage[]
 }
@@ -202,6 +204,7 @@ export function VariantPicker({
       imageUrl: variantImage?.url ?? null,
       unitPriceFils: product.priceFils,
       compareAtFils: product.compareAtFils,
+      weightGrams: product.weightGrams,
       quantity: Math.min(quantity, maxQty),
     }
   }, [selectedVariant, product, quantity, maxQty])

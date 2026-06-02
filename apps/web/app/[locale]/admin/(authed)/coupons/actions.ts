@@ -2,9 +2,8 @@
 
 import { revalidatePath } from "next/cache"
 
-import { Prisma } from "@workspace/db"
-
 import { auth } from "@/lib/auth"
+import { toActionError } from "@/lib/errors"
 import {
   createCoupon,
   deactivateCoupon,
@@ -30,42 +29,6 @@ async function requireAdmin(): Promise<
   return { ok: true }
 }
 
-function zodMessage(err: unknown): string {
-  if (
-    err &&
-    typeof err === "object" &&
-    "issues" in err &&
-    Array.isArray((err as { issues: unknown[] }).issues)
-  ) {
-    const issues = (
-      err as { issues: Array<{ path: unknown[]; message: string }> }
-    ).issues
-    const first = issues[0]
-    if (first) {
-      const path = first.path.join(".")
-      return path ? `${path}: ${first.message}` : first.message
-    }
-  }
-  return "Invalid coupon data."
-}
-
-function dbMessage(err: unknown): string {
-  if (
-    err instanceof Prisma.PrismaClientKnownRequestError &&
-    err.code === "P2002"
-  ) {
-    return "A coupon with that code already exists."
-  }
-  if (
-    err instanceof Prisma.PrismaClientKnownRequestError &&
-    err.code === "P2025"
-  ) {
-    return "Coupon not found."
-  }
-  console.error("[coupons.actions]", err)
-  return "Something went wrong. Please try again."
-}
-
 /** Create a coupon. Returns the new id so the client can navigate / refresh. */
 export async function createCouponAction(
   payload: CouponWriteSchemaInput,
@@ -75,7 +38,7 @@ export async function createCouponAction(
 
   const parsed = couponWriteSchema.safeParse(payload)
   if (!parsed.success) {
-    return { ok: false, error: zodMessage(parsed.error) }
+    return { ok: false, error: toActionError("createCouponAction.validate", parsed.error) }
   }
 
   try {
@@ -83,7 +46,7 @@ export async function createCouponAction(
     revalidatePath("/[locale]/admin/(authed)/coupons", "page")
     return { ok: true, data: { id: coupon.id } }
   } catch (err) {
-    return { ok: false, error: dbMessage(err) }
+    return { ok: false, error: toActionError("createCouponAction", err) }
   }
 }
 
@@ -101,7 +64,7 @@ export async function updateCouponAction(
 
   const parsed = couponWriteSchema.safeParse(payload)
   if (!parsed.success) {
-    return { ok: false, error: zodMessage(parsed.error) }
+    return { ok: false, error: toActionError("updateCouponAction.validate", parsed.error) }
   }
 
   try {
@@ -109,7 +72,7 @@ export async function updateCouponAction(
     revalidatePath("/[locale]/admin/(authed)/coupons", "page")
     return { ok: true, data: { id: coupon.id } }
   } catch (err) {
-    return { ok: false, error: dbMessage(err) }
+    return { ok: false, error: toActionError("updateCouponAction", err) }
   }
 }
 
@@ -129,6 +92,6 @@ export async function deactivateCouponAction(
     revalidatePath("/[locale]/admin/(authed)/coupons", "page")
     return { ok: true, data: { id: coupon.id } }
   } catch (err) {
-    return { ok: false, error: dbMessage(err) }
+    return { ok: false, error: toActionError("deactivateCouponAction", err) }
   }
 }

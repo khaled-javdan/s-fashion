@@ -91,10 +91,15 @@ export async function ProductCard({
   for (const hex of colorOrder) {
     const imgs = product.images.filter((i) => i.colorHex === hex)
     if (imgs.length > 0) {
-      swatches.push({ hex, label: labelFor(hex), index: slides.length })
+      swatches.push({
+        hex,
+        label: labelFor(hex),
+        index: slides.length,
+        thumbUrl: imgs[0]!.url,
+      })
       for (const img of imgs) slides.push({ url: img.url, alt: altOf(img) })
     } else {
-      swatches.push({ hex, label: labelFor(hex), index: -1 })
+      swatches.push({ hex, label: labelFor(hex), index: -1, thumbUrl: null })
     }
   }
   // Safety net: if nothing landed in slides but the product has images, show them.

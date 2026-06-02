@@ -1,6 +1,6 @@
 import { getTranslations } from "next-intl/server"
 
-import { StarRating } from "@/components/reviews/star-rating"
+import { TestimonialsCarousel } from "@/components/home/testimonials-carousel"
 import type { Locale } from "@/lib/locale"
 import { listFeaturedReviews } from "@/lib/repos/reviews.repo"
 
@@ -36,29 +36,16 @@ export async function Testimonials({ locale }: { locale: Locale }) {
           </p>
         </div>
 
-        <ul className="flex snap-x snap-proximity gap-4 overflow-x-auto pb-4 sm:gap-6 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
-          {reviews.map((review) => (
-            <li
-              key={review.id}
-              className="border-border bg-background flex w-72 shrink-0 snap-start flex-col gap-3 rounded-md border p-5 sm:w-80"
-            >
-              <StarRating value={review.rating} size="sm" />
-              {review.body ? (
-                <p className="text-foreground/90 whitespace-pre-line text-sm leading-relaxed">
-                  {review.body}
-                </p>
-              ) : null}
-              <div className="mt-auto flex flex-col items-start">
-                <span className="font-medium">{review.authorName}</span>
-                {review.authorHandle ? (
-                  <span className="text-muted-foreground text-xs" dir="ltr">
-                    {review.authorHandle}
-                  </span>
-                ) : null}
-              </div>
-            </li>
-          ))}
-        </ul>
+        <TestimonialsCarousel
+          isRtl={locale === "ar"}
+          reviews={reviews.map((review) => ({
+            id: review.id,
+            rating: review.rating,
+            body: review.body ?? "",
+            authorName: review.authorName,
+            authorHandle: review.authorHandle,
+          }))}
+        />
       </div>
     </section>
   )

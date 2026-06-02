@@ -19,6 +19,10 @@ type Row = {
   enabled: boolean
   flat: string
   threshold: string
+  /** Per-kilogram surcharge, in AED. */
+  perKg: string
+  /** Free-weight allowance, in kilograms. */
+  weightThreshold: string
   minDays: string
   maxDays: string
 }
@@ -29,6 +33,8 @@ function toRows(config: ShippingConfig): Row[] {
     enabled: c.enabled,
     flat: String(filsToAed(c.flatFils)),
     threshold: String(filsToAed(c.freeThresholdFils)),
+    perKg: String(filsToAed(c.perKgFils)),
+    weightThreshold: String(c.weightThresholdGrams / 1000),
     minDays: String(c.minDays),
     maxDays: String(c.maxDays),
   }))
@@ -57,6 +63,8 @@ export function MarketsForm({ initial }: { initial: ShippingConfig }) {
     for (const r of rows) {
       const flat = Number(r.flat)
       const threshold = Number(r.threshold)
+      const perKg = Number(r.perKg)
+      const weightThreshold = Number(r.weightThreshold)
       const minDays = Number(r.minDays)
       const maxDays = Number(r.maxDays)
       if (
@@ -64,6 +72,10 @@ export function MarketsForm({ initial }: { initial: ShippingConfig }) {
         flat < 0 ||
         !Number.isFinite(threshold) ||
         threshold < 0 ||
+        !Number.isFinite(perKg) ||
+        perKg < 0 ||
+        !Number.isFinite(weightThreshold) ||
+        weightThreshold < 0 ||
         !Number.isInteger(minDays) ||
         minDays < 0 ||
         !Number.isInteger(maxDays) ||
@@ -81,6 +93,8 @@ export function MarketsForm({ initial }: { initial: ShippingConfig }) {
         enabled: r.enabled,
         flatFils: aedToFils(Number(r.flat)),
         freeThresholdFils: aedToFils(Number(r.threshold)),
+        perKgFils: aedToFils(Number(r.perKg)),
+        weightThresholdGrams: Math.round(Number(r.weightThreshold) * 1000),
         minDays: Math.floor(Number(r.minDays)),
         maxDays: Math.floor(Number(r.maxDays)),
       })),
@@ -148,6 +162,28 @@ export function MarketsForm({ initial }: { initial: ShippingConfig }) {
                 value={r.threshold}
                 disabled={!r.enabled}
                 onChange={(e) => update(i, { threshold: e.target.value })}
+              />
+            </div>
+            <div className="grid gap-1">
+              <Label>{t("markets.per_kg_label")}</Label>
+              <Input
+                type="number"
+                min={0}
+                step="0.01"
+                value={r.perKg}
+                disabled={!r.enabled}
+                onChange={(e) => update(i, { perKg: e.target.value })}
+              />
+            </div>
+            <div className="grid gap-1">
+              <Label>{t("markets.weight_threshold_label")}</Label>
+              <Input
+                type="number"
+                min={0}
+                step="0.1"
+                value={r.weightThreshold}
+                disabled={!r.enabled}
+                onChange={(e) => update(i, { weightThreshold: e.target.value })}
               />
             </div>
             <div className="grid gap-1">

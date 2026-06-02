@@ -365,23 +365,73 @@ const settings: { key: string; value: unknown }[] = [
     value: "السبت – الخميس، 10ص – 10م",
   },
   { key: "contact.business_hours_en", value: "Sat–Thu, 10am – 10pm" },
+  // Company & compliance — surfaced in the storefront footer. Empty until the
+  // store's real trade licence / VAT TRN are entered in admin settings.
+  { key: "company.legal_name", value: "" },
+  { key: "company.trade_license", value: "" },
+  { key: "company.vat_trn", value: "" },
   {
+    // Setting key is retained ("size_chart.cm") for backward compatibility —
+    // the `unit` field on the value is the source of truth.
     key: "size_chart.cm",
     value: {
-      unit: "cm",
+      unit: "in",
       rows: [
-        { size: "XS", bust: 80, waist: 62, hips: 86, length: 140 },
-        { size: "S", bust: 84, waist: 66, hips: 90, length: 142 },
-        { size: "M", bust: 88, waist: 70, hips: 94, length: 144 },
-        { size: "L", bust: 94, waist: 76, hips: 100, length: 146 },
-        { size: "XL", bust: 100, waist: 82, hips: 106, length: 148 },
-        { size: "XXL", bust: 106, waist: 88, hips: 112, length: 150 },
+        // Body-fit measurements in inches — match the storefront's default
+        // INCHES display and the body-diagram callouts.
+        {
+          size: "XS",
+          shoulder: 14,
+          bust: 35,
+          waist: 25.5,
+          hips: 38,
+          sleeves: 21.5,
+          length: 53,
+        },
+        {
+          size: "S",
+          shoulder: 15,
+          bust: 38,
+          waist: 27,
+          hips: 40,
+          sleeves: 22,
+          length: 53,
+        },
+        {
+          size: "M",
+          shoulder: 15,
+          bust: 41,
+          waist: 29.5,
+          hips: 44,
+          sleeves: 23,
+          length: 54,
+        },
+        {
+          size: "L",
+          shoulder: 16.5,
+          bust: 44,
+          waist: 32,
+          hips: 50,
+          sleeves: 23.5,
+          length: 55,
+        },
+        {
+          size: "XL",
+          shoulder: 16.5,
+          bust: 50,
+          waist: 34,
+          hips: 56,
+          sleeves: 24,
+          length: 60,
+        },
         {
           size: "FREE",
+          shoulder: null,
           bust: null,
           waist: null,
           hips: null,
-          length: 146,
+          sleeves: null,
+          length: 58,
         },
       ],
     },

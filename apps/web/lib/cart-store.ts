@@ -53,6 +53,13 @@ export type CartItem = {
    * they're saving; display-only, never trusted at checkout.
    */
   compareAtFils: number | null
+  /**
+   * Snapshot of the product's shipping weight in grams (0 when unset). Used to
+   * estimate weight-based shipping in the order summary; the server recomputes
+   * from the DB at checkout, so this is display-only. Optional for carts
+   * persisted before weight existed — selectors coalesce a missing value to 0.
+   */
+  weightGrams?: number
   /** 1..maxQtyPerVariant */
   quantity: number
 }
@@ -185,6 +192,10 @@ export const selectItemCount = (state: CartState): number =>
 
 export const selectSubtotalFils = (state: CartState): number =>
   state.items.reduce((sum, i) => sum + i.unitPriceFils * i.quantity, 0)
+
+/** Total parcel weight across the cart, in grams (missing weights count as 0). */
+export const selectTotalWeightGrams = (state: CartState): number =>
+  state.items.reduce((sum, i) => sum + (i.weightGrams ?? 0) * i.quantity, 0)
 
 /**
  * Total amount saved across the cart from on-sale items, in fils — the sum of

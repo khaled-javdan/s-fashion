@@ -1,12 +1,14 @@
 /**
  * Order-notification dispatcher.
  *
- * Single source of truth for the two side-effects fired after an order is
- * created: the Telegram alert to the shop owner and the Resend confirmation
- * email to the customer. Both are best-effort, but no longer silently lost —
- * each successful send stamps a column on the Order (`adminNotifiedAt` /
- * `customerEmailedAt`), and a retry cron (`/api/cron/retry-notifications`)
- * re-runs this for any order still missing a stamp.
+ * Single source of truth for the side-effects fired after an order is created:
+ *   1. Telegram alert to the shop owner          → `adminNotifiedAt`
+ *   2. Resend confirmation email to the customer → `customerEmailedAt`
+ *   3. Twilio SMS confirmation to the customer   → `customerSmsedAt`
+ *
+ * All are best-effort, but no longer silently lost — each successful send
+ * stamps a column on the Order, and a retry cron (`/api/cron/retry-
+ * notifications`) re-runs this for any order still missing a stamp.
  *
  * Payloads are rebuilt from the persisted order + item snapshots, so this is
  * safe to call both inline (right after createOrder) and from the cron without
@@ -18,15 +20,24 @@ import { prisma } from "@workspace/db";
 import type { Locale } from "@/lib/locale";
 import { getSetting } from "@/lib/repos/settings.repo";
 import { sendOrderConfirmationEmail } from "@/lib/services/resend";
+import { sendOrderConfirmationSms } from "@/lib/services/order-sms";
 import { sendOrderNotification } from "@/lib/services/telegram";
 import { parseShippingConfig, resolveShipping } from "@/lib/shipping-config";
 
-function absoluteAdminOrderUrl(orderId: string): string {
-  const base =
+function appBaseUrl(): string {
+  return (
     process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ??
     process.env.NEXTAUTH_URL?.replace(/\/$/, "") ??
-    "http://localhost:3000";
-  return `${base}/admin/orders/${orderId}`;
+    "http://localhost:3000"
+  );
+}
+
+function absoluteAdminOrderUrl(orderId: string): string {
+  return `${appBaseUrl()}/admin/orders/${orderId}`;
+}
+
+function absoluteCustomerOrderUrl(locale: Locale, orderNumber: string): string {
+  return `${appBaseUrl()}/${locale}/orders/${orderNumber}`;
 }
 
 /**
@@ -107,6 +118,32 @@ export async function dispatchOrderNotifications(
       await prisma.order.update({
         where: { id: order.id },
         data: { customerEmailedAt: new Date() },
+      });
+    }
+  }
+
+  // ── Twilio (customer SMS confirmation) ──────────────────────────────────
+  // Phone is always set + OTP-verified for verified orders, so we always
+  // attempt SMS. If Twilio's messaging service isn't configured the call
+  // returns a tagged error and the stamp stays null — the retry cron will
+  // pick it up once the env var lands.
+  if (!order.customerSmsedAt) {
+    const result = await sendOrderConfirmationSms({
+      to: order.phone,
+      locale,
+      trackUrl: absoluteCustomerOrderUrl(locale, order.orderNumber),
+      order: {
+        orderNumber: order.orderNumber,
+        customerName: order.customerName,
+        totalFils: order.totalFils,
+        currency: order.displayCurrency,
+        fxRate: order.fxRate,
+      },
+    });
+    if (result.ok) {
+      await prisma.order.update({
+        where: { id: order.id },
+        data: { customerSmsedAt: new Date() },
       });
     }
   }

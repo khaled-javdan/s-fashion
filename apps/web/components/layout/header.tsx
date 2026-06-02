@@ -3,6 +3,7 @@ import { useLocale, useTranslations } from "next-intl"
 
 import { LocaleSwitcher } from "@/components/layout/locale-switcher"
 import { CartButton } from "@/components/layout/cart-button"
+import { MobileMenu } from "@/components/layout/mobile-menu"
 import { ShipToSwitcher } from "@/components/layout/ship-to-switcher"
 import type { Locale } from "@/lib/locale"
 
@@ -10,7 +11,7 @@ import type { Locale } from "@/lib/locale"
  * Public header.
  *
  * Layout:
- *  - Mobile (<768px): locale switcher (start) · centered brand · cart (end).
+ *  - Mobile (<768px): menu drawer (start) · centered brand · cart (end).
  *  - Desktop (>=768px): brand (start) · nav (center) · cart + locale (end).
  *
  * Server Component — the only interactive piece (cart count badge) is a
@@ -24,9 +25,9 @@ export function Header() {
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80">
       <div className="mx-auto flex h-14 w-full max-w-7xl items-center px-4 sm:h-16 sm:px-6 lg:px-0">
-        {/* Mobile-only: locale switcher pinned to the start. */}
+        {/* Mobile-only: menu drawer pinned to the start. */}
         <div className="flex flex-1 justify-start md:hidden">
-          <LocaleSwitcher />
+          <MobileMenu />
         </div>
 
         {/* Desktop-only: brand pinned to the start. */}

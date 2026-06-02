@@ -13,8 +13,11 @@ import {
   type GridConfig,
 } from "@/lib/grid-config"
 
-const MOBILE_STORAGE_KEY = "shop-grid-density"
-const DESKTOP_STORAGE_KEY = "shop-grid-desktop-density"
+// Density preferences are namespaced per `storageScope` so that, e.g., changing
+// the columns on the products listing page does NOT bleed into the home page
+// grid (they're separate surfaces with their own remembered choice).
+const MOBILE_STORAGE_PREFIX = "shop-grid-density"
+const DESKTOP_STORAGE_PREFIX = "shop-grid-desktop-density"
 
 /**
  * Glyph that draws `count` vertical bars in a 24×24 box, so the icon itself
@@ -57,20 +60,29 @@ export function ProductGrid({
   config,
   children,
   desktopToggle = false,
+  storageScope = "shop",
 }: {
   config: GridConfig
   children: React.ReactNode
   /** Show the desktop column toggle (2–5). Off by default (e.g. home page). */
   desktopToggle?: boolean
+  /**
+   * Namespace for the remembered density choice. Surfaces with different scopes
+   * keep independent preferences (e.g. "home" vs "products") so a toggle on one
+   * page doesn't change the grid on another.
+   */
+  storageScope?: string
 }) {
   const t = useTranslations("home")
+  const mobileKey = `${MOBILE_STORAGE_PREFIX}:${storageScope}`
+  const desktopKey = `${DESKTOP_STORAGE_PREFIX}:${storageScope}`
   // null → follow the admin default; otherwise the shopper's choice.
   const [mobile, setMobile] = useState<number | null>(null)
   const [desktop, setDesktop] = useState<number | null>(null)
 
   useEffect(() => {
-    const savedMobile = window.localStorage.getItem(MOBILE_STORAGE_KEY)
-    const savedDesktop = window.localStorage.getItem(DESKTOP_STORAGE_KEY)
+    const savedMobile = window.localStorage.getItem(mobileKey)
+    const savedDesktop = window.localStorage.getItem(desktopKey)
     // Hydrate the shopper's saved choices from localStorage on mount (external store).
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (savedMobile === "1" || savedMobile === "2") setMobile(Number(savedMobile))
@@ -81,16 +93,16 @@ export function ProductGrid({
     ) {
       setDesktop(desktopNum)
     }
-  }, [])
+  }, [mobileKey, desktopKey])
 
   const chooseMobile = (n: number) => {
     setMobile(n)
-    window.localStorage.setItem(MOBILE_STORAGE_KEY, String(n))
+    window.localStorage.setItem(mobileKey, String(n))
   }
 
   const chooseDesktop = (n: number) => {
     setDesktop(n)
-    window.localStorage.setItem(DESKTOP_STORAGE_KEY, String(n))
+    window.localStorage.setItem(desktopKey, String(n))
   }
 
   const mobileCols = mobile ?? config.mobile

@@ -472,6 +472,8 @@ export async function listOrderIdsAwaitingNotification(
       OR: [
         { adminNotifiedAt: null },
         { AND: [{ email: { not: null } }, { customerEmailedAt: null }] },
+        // Phone is always set on verified orders, so no `email`-style gate.
+        { customerSmsedAt: null },
       ],
     },
     orderBy: { createdAt: "desc" },

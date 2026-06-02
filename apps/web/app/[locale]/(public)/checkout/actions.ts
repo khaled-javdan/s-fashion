@@ -6,6 +6,7 @@ import { z } from "zod"
 
 import { Emirate, Size, prisma } from "@workspace/db"
 
+import { reportError } from "@/lib/errors"
 import { parseCurrencyConfig, effectiveRate } from "@/lib/currency-config"
 import { COUNTRY_CODES, currencyForCountry } from "@/lib/geo"
 import type { Locale } from "@/lib/locale"
@@ -116,6 +117,8 @@ type ResolvedItem = {
   size: Size
   unitPriceFils: number
   unitCostFils: number
+  /** Product shipping weight in grams (0 when unset) — drives weight pricing. */
+  weightGrams: number
 }
 
 /**
@@ -145,7 +148,12 @@ async function resolveAndValidateItems(
       where: { id: line.variantId },
       include: { product: true },
     })
-    if (!variant || !variant.product.isActive || variant.stock < line.quantity) {
+    if (
+      !variant ||
+      variant.isArchived ||
+      !variant.product.isActive ||
+      variant.stock < line.quantity
+    ) {
       return { ok: false, error: "out_of_stock" }
     }
     resolved.push({
@@ -158,6 +166,7 @@ async function resolveAndValidateItems(
       size: variant.size,
       unitPriceFils: variant.product.priceFils,
       unitCostFils: variant.product.costPriceFils ?? 0,
+      weightGrams: variant.product.weightGrams ?? 0,
     })
   }
   return { ok: true, items: resolved }
@@ -255,7 +264,7 @@ export async function sendOtpAction(input: {
       return { ok: false, error: "Too many attempts" }
     }
   } catch (err) {
-    console.error("[checkout.sendOtpAction] rate-limit check failed", err)
+    reportError("checkout.sendOtpAction.rateLimit", err)
     return { ok: false, error: "Something went wrong" }
   }
 
@@ -274,7 +283,7 @@ export async function sendOtpAction(input: {
     try {
       await recordAttempt(phone, ip, false)
     } catch (err) {
-      console.error("[checkout.sendOtpAction] recordAttempt(failure) failed", err)
+      reportError("checkout.sendOtpAction.recordAttemptFailure", err)
     }
     return { ok: false, error: "Could not send code. Please try again." }
   }
@@ -282,7 +291,7 @@ export async function sendOtpAction(input: {
   try {
     await recordAttempt(phone, ip, true)
   } catch (err) {
-    console.error("[checkout.sendOtpAction] recordAttempt(success) failed", err)
+    reportError("checkout.sendOtpAction.recordAttemptSuccess", err)
   }
 
   return { ok: true }
@@ -395,12 +404,19 @@ export async function verifyOtpAndCreateOrderAction(input: {
     return { ok: false, error: "Invalid request", field: "country" }
   }
 
-  // Free-shipping threshold is intentionally evaluated against the PRE-discount
-  // subtotal — a coupon shouldn't push an order below the free-ship line.
+  // Total parcel weight drives the per-kg surcharge. Computed from the DB
+  // snapshots, never the client. Free-shipping threshold is intentionally
+  // evaluated against the PRE-discount subtotal — a coupon shouldn't push an
+  // order below the free-ship line.
+  const totalWeightGrams = resolvedItems.reduce(
+    (sum, item) => sum + item.weightGrams * item.quantity,
+    0,
+  )
   const { shippingFils } = resolveShipping(
     shippingConfig,
     data.country,
     subtotalFils,
+    totalWeightGrams,
   )
 
   // Re-validate the coupon authoritatively against the server subtotal + the
@@ -469,7 +485,9 @@ export async function verifyOtpAndCreateOrderAction(input: {
     if (err instanceof CouponExhaustedError) {
       return { ok: false, error: "coupon_unavailable" }
     }
-    console.error("[checkout.verifyOtpAndCreateOrderAction] createOrder failed", err)
+    reportError("checkout.verifyOtpAndCreateOrderAction.createOrder", err, {
+      country: data.country,
+    })
     return { ok: false, error: "Something went wrong" }
   }
 
@@ -478,7 +496,9 @@ export async function verifyOtpAndCreateOrderAction(input: {
   //    retry cron re-runs it for any order still missing a stamp, so a transient
   //    Telegram/email failure here is recovered rather than silently lost.
   void dispatchOrderNotifications(created.id).catch((err) =>
-    console.error("[checkout] order notifications failed", err),
+    reportError("checkout.dispatchOrderNotifications", err, {
+      orderId: created.id,
+    }),
   )
 
   // 8. Done.

@@ -31,7 +31,7 @@ import { DEFAULT_MAX_QTY_PER_VARIANT } from "@/lib/order-limits"
 import {
   getProductBySlug,
   listSimilarProducts,
-  parseProductSizeChartRows,
+  parseProductSizeChart,
 } from "@/lib/repos/products.repo"
 import { getProductRatingSummary } from "@/lib/repos/reviews.repo"
 import { getSetting } from "@/lib/repos/settings.repo"
@@ -141,9 +141,14 @@ export default async function ProductPage({
   )
 
   // Prefer the product's own size chart override; fall back to the global
-  // `size_chart.cm` setting when the product has none.
-  const sizeChartRows =
-    parseProductSizeChartRows(product.sizeChart) ?? sizeChart?.rows ?? []
+  // setting when the product has none. The unit travels with the chart so the
+  // storefront's INCHES|CM toggle knows what the stored numbers represent.
+  const productChart = parseProductSizeChart(product.sizeChart)
+  const resolvedChart =
+    productChart ??
+    (sizeChart && sizeChart.rows.length > 0
+      ? { unit: sizeChart.unit, rows: sizeChart.rows }
+      : null)
 
   // Prefilled WhatsApp enquiry referencing the product name + canonical URL.
   const waText = t("share_whatsapp_text", { name, url })
@@ -202,6 +207,7 @@ export default async function ProductPage({
               nameEn: product.nameEn,
               priceFils: product.priceFils,
               compareAtFils: product.compareAtFils,
+              weightGrams: product.weightGrams ?? 0,
               images: product.images.map((img) => ({
                 url: img.url,
                 colorHex: img.colorHex,
@@ -226,7 +232,13 @@ export default async function ProductPage({
           ) : null}
 
           <div className="flex flex-wrap items-center gap-4">
-            <SizeChartModal rows={sizeChartRows} />
+            {resolvedChart ? (
+              <SizeChartModal
+                unit={resolvedChart.unit}
+                rows={resolvedChart.rows}
+                locale={typedLocale}
+              />
+            ) : null}
             {waHref ? (
               <a
                 href={waHref}
@@ -248,7 +260,7 @@ export default async function ProductPage({
             description={description ?? null}
             additionalInfo={additionalInfo ?? null}
             shippingReturn={shippingReturnText}
-            sizeChartRows={sizeChartRows}
+            sizeChart={resolvedChart}
             reviews={
               <ProductReviews productId={product.id} locale={typedLocale} />
             }

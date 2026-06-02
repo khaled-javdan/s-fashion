@@ -6,6 +6,7 @@ import { z } from "zod"
 import { OrderStatus } from "@workspace/db"
 
 import { auth } from "@/lib/auth"
+import { reportError } from "@/lib/errors"
 import {
   getOrderById,
   updateOrderStatus,
@@ -87,6 +88,7 @@ async function transition(
     if (err instanceof InsufficientStockError) {
       return { ok: false, error: "insufficient_stock" }
     }
+    reportError("orders.transition", err, { orderId, to })
     return { ok: false, error: "Failed to update order status" }
   }
 

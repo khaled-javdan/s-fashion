@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { headers } from "next/headers"
 
+import { reportError } from "@/lib/errors"
 import {
   createCustomerReview,
   isActiveProduct,
@@ -80,7 +81,7 @@ export async function submitProductReviewAction(
 
     return { ok: true }
   } catch (err) {
-    console.error("[reviews] submit", err)
+    reportError("submitProductReviewAction", err)
     return { ok: false, code: "generic" }
   }
 }

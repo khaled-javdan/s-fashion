@@ -22,25 +22,31 @@ export const productVariantSchema = z.object({
 export type ProductVariantInput = z.infer<typeof productVariantSchema>;
 
 /**
- * A single size-chart row. Mirrors the global `size_chart.cm` setting shape so
- * the same `SizeChartRow` / table renderer is reused on the storefront. `bust`,
- * `waist`, `hips` are optional measurements; `length` is required.
+ * A single size-chart row. `shoulder`, `bust`, `waist`, `hips`, `sleeves` are
+ * optional measurements; `length` is required. Stored as numbers in the unit
+ * declared on the chart (decimals allowed — inches commonly land on `.5`).
  */
 export const sizeChartRowSchema = z.object({
   size: z.string().trim().min(1).max(20),
-  bust: z.number().int().min(0).nullable(),
-  waist: z.number().int().min(0).nullable(),
-  hips: z.number().int().min(0).nullable(),
-  length: z.number().int().min(0),
+  // `.default(null)` so legacy rows missing the new fields parse cleanly with
+  // an explicit `null`, avoiding a `field-or-undefined` consumer surface.
+  shoulder: z.number().min(0).nullable().default(null),
+  bust: z.number().min(0).nullable(),
+  waist: z.number().min(0).nullable(),
+  hips: z.number().min(0).nullable(),
+  sleeves: z.number().min(0).nullable().default(null),
+  length: z.number().min(0),
 });
 export type SizeChartRowInput = z.infer<typeof sizeChartRowSchema>;
 
 /**
  * Per-product size chart override. `null` means "use the global default". When
- * present it carries at least one row in centimetres.
+ * present, `unit` is the unit the row numbers are stored in — defaults to
+ * inches for new charts; `"cm"` is preserved for legacy data and admins who
+ * prefer it.
  */
 export const sizeChartSchema = z.object({
-  unit: z.literal("cm").default("cm"),
+  unit: z.enum(["in", "cm"]).default("in"),
   rows: z.array(sizeChartRowSchema).min(1),
 });
 export type SizeChartInput = z.infer<typeof sizeChartSchema>;
@@ -78,6 +84,9 @@ const productBase = z.object({
   costPriceFils: z.number().int().min(0),
   isActive: z.boolean().default(true),
   isFinalSale: z.boolean().default(false),
+  // Shipping weight in grams. Optional; `null` (the default) means the product
+  // adds nothing to the cart weight and never triggers a per-kg surcharge.
+  weightGrams: z.number().int().min(0).nullish(),
   // Per-product size chart override. `null` (the default) means the storefront
   // falls back to the global `size_chart.cm` setting.
   sizeChart: sizeChartSchema.nullish(),

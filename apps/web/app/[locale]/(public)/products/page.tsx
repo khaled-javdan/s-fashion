@@ -181,7 +181,7 @@ export default async function ProductsPage({
               {t("empty")}
             </p>
           ) : (
-            <ProductGrid config={grid} desktopToggle>
+            <ProductGrid config={grid} desktopToggle storageScope="products">
               {products.map((product, index) => (
                 <li key={product.id}>
                   <ProductCard

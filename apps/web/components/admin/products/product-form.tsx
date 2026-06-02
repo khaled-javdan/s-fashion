@@ -37,12 +37,12 @@ import {
 } from "@/components/admin/products/variants-editor"
 import {
   ProductSizeChartEditor,
-  type SizeChartFormRow,
+  type SizeChartFormState,
 } from "@/components/admin/products/product-size-chart-editor"
 import { filsToAed } from "@/lib/money"
 import type { Locale } from "@/lib/locale"
 import {
-  parseProductSizeChartRows,
+  parseProductSizeChart,
   type ProductWithRelations,
 } from "@/lib/repos/products.shared"
 import type { SizeChartFormChart } from "@/app/[locale]/admin/(authed)/products/actions"
@@ -62,28 +62,35 @@ type FormState = {
   priceAed: string
   compareAtAed: string
   costPriceAed: string
+  /** Shipping weight in grams (empty string = unset). */
+  weightGrams: string
   isFinalSale: boolean
   isActive: boolean
   variants: FormVariant[]
   images: FormImage[]
-  /** `null` = use the global default; rows = per-product override. */
-  sizeChart: SizeChartFormRow[] | null
+  /** `null` = use the global default; `{ unit, rows }` = per-product override. */
+  sizeChart: SizeChartFormState
 }
 
-/** Map stored size-chart rows into string-backed form rows (or null). */
-function toSizeChartFormRows(
+/** Map a stored size chart into string-backed form state (or null). */
+function toSizeChartFormState(
   product?: ProductWithRelations,
-): SizeChartFormRow[] | null {
+): SizeChartFormState {
   if (!product) return null
-  const rows = parseProductSizeChartRows(product.sizeChart)
-  if (!rows) return null
-  return rows.map((r) => ({
-    size: r.size,
-    bust: r.bust == null ? "" : String(r.bust),
-    waist: r.waist == null ? "" : String(r.waist),
-    hips: r.hips == null ? "" : String(r.hips),
-    length: String(r.length),
-  }))
+  const chart = parseProductSizeChart(product.sizeChart)
+  if (!chart) return null
+  return {
+    unit: chart.unit,
+    rows: chart.rows.map((r) => ({
+      size: r.size,
+      shoulder: r.shoulder == null ? "" : String(r.shoulder),
+      bust: r.bust == null ? "" : String(r.bust),
+      waist: r.waist == null ? "" : String(r.waist),
+      hips: r.hips == null ? "" : String(r.hips),
+      sleeves: r.sleeves == null ? "" : String(r.sleeves),
+      length: String(r.length),
+    })),
+  }
 }
 
 
@@ -100,6 +107,7 @@ function initialState(product?: ProductWithRelations): FormState {
       priceAed: "",
       compareAtAed: "",
       costPriceAed: "",
+      weightGrams: "",
       isFinalSale: false,
       isActive: true,
       variants: [makeEmptyVariant()],
@@ -120,6 +128,7 @@ function initialState(product?: ProductWithRelations): FormState {
       product.compareAtFils != null ? String(filsToAed(product.compareAtFils)) : "",
     costPriceAed:
       product.costPriceFils != null ? String(filsToAed(product.costPriceFils)) : "",
+    weightGrams: product.weightGrams == null ? "" : String(product.weightGrams),
     isFinalSale: product.isFinalSale,
     isActive: product.isActive,
     variants: product.variants.map((v) => ({
@@ -139,7 +148,7 @@ function initialState(product?: ProductWithRelations): FormState {
       colorHex: i.colorHex,
       position: i.position,
     })),
-    sizeChart: toSizeChartFormRows(product),
+    sizeChart: toSizeChartFormState(product),
   }
 }
 
@@ -302,6 +311,11 @@ export function ProductForm(props: Props) {
       if (!Number.isFinite(cmp) || cmp < 0)
         return t("validation.compare_at_invalid")
     }
+    if (state.weightGrams.trim() !== "") {
+      const weight = Number(state.weightGrams)
+      if (!Number.isInteger(weight) || weight < 0)
+        return t("validation.weight_invalid")
+    }
     if (state.variants.length < 1) return t("validation.variants_required")
     const seen = new Set<string>()
     for (const v of state.variants) {
@@ -310,9 +324,9 @@ export function ProductForm(props: Props) {
       seen.add(key)
     }
     if (state.sizeChart !== null) {
-      if (state.sizeChart.length < 1)
+      if (state.sizeChart.rows.length < 1)
         return t("validation.size_chart_empty")
-      for (const r of state.sizeChart) {
+      for (const r of state.sizeChart.rows) {
         if (r.size.trim() === "") return t("validation.size_chart_size_required")
         const length = Number(r.length)
         if (r.length.trim() === "" || !Number.isFinite(length) || length < 0)
@@ -322,22 +336,27 @@ export function ProductForm(props: Props) {
     return null
   }
 
-  /** Convert the form's size-chart rows into the action payload (or null). */
+  /** Convert the form's size-chart state into the action payload (or null). */
   const buildSizeChart = (): SizeChartFormChart | null => {
-    if (state.sizeChart === null || state.sizeChart.length === 0) return null
+    if (state.sizeChart === null || state.sizeChart.rows.length === 0)
+      return null
+    // Decimals are allowed (e.g. inches at .5 increments). Empty cells stay
+    // null so the chart shows a blank in the storefront table.
     const measure = (value: string): number | null => {
       if (value.trim() === "") return null
-      const n = Math.floor(Number(value))
+      const n = Number(value)
       return Number.isFinite(n) && n >= 0 ? n : null
     }
     return {
-      unit: "cm",
-      rows: state.sizeChart.map((r) => ({
+      unit: state.sizeChart.unit,
+      rows: state.sizeChart.rows.map((r) => ({
         size: r.size.trim(),
+        shoulder: measure(r.shoulder),
         bust: measure(r.bust),
         waist: measure(r.waist),
         hips: measure(r.hips),
-        length: Math.floor(Number(r.length)),
+        sleeves: measure(r.sleeves),
+        length: Number(r.length),
       })),
     }
   }
@@ -354,6 +373,8 @@ export function ProductForm(props: Props) {
     compareAtAed:
       state.compareAtAed.trim() === "" ? null : Number(state.compareAtAed),
     costPriceAed: Number(state.costPriceAed),
+    weightGrams:
+      state.weightGrams.trim() === "" ? null : Number(state.weightGrams),
     isActive: state.isActive,
     isFinalSale: state.isFinalSale,
     sizeChart: buildSizeChart(),
@@ -472,6 +493,18 @@ export function ProductForm(props: Props) {
         <AiProductAnalyzePanel
           imageUrls={state.images.map((i) => i.url)}
           onApply={applyAiSuggestions}
+        />
+      </Section>
+
+      {/* Variants live directly under Images so the colour picker is close to
+          the source photos — the admin often manually picks a colour when AI
+          detection misses. A "sync from images" button below seeds variants
+          from any colour-tagged image. */}
+      <Section title={t("sections.variants")}>
+        <VariantsEditor
+          variants={state.variants}
+          images={state.images}
+          onChange={(variants) => set("variants", variants)}
         />
       </Section>
 
@@ -646,6 +679,16 @@ export function ProductForm(props: Props) {
               required
             />
           </Field>
+          <Field label={t("form.weight")}>
+            <Input
+              type="number"
+              min={0}
+              step="1"
+              value={state.weightGrams}
+              onChange={(e) => set("weightGrams", e.target.value)}
+              placeholder={t("form.weight_placeholder")}
+            />
+          </Field>
         </div>
 
         <div className="flex flex-wrap gap-6">
@@ -664,17 +707,10 @@ export function ProductForm(props: Props) {
         </div>
       </Section>
 
-      <Section title={t("sections.variants")}>
-        <VariantsEditor
-          variants={state.variants}
-          onChange={(variants) => set("variants", variants)}
-        />
-      </Section>
-
       <Section title={t("sections.size_chart")}>
         <ProductSizeChartEditor
-          rows={state.sizeChart}
-          onChange={(rows) => set("sizeChart", rows)}
+          chart={state.sizeChart}
+          onChange={(chart) => set("sizeChart", chart)}
         />
       </Section>
 

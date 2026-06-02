@@ -11,14 +11,18 @@ import {
 import type { Locale } from "@/lib/locale"
 
 import { RichText } from "./rich-text"
-import type { SizeChartRow } from "./size-chart-modal"
+import {
+  SizeChartView,
+  type SizeChartRow,
+  type SizeChartUnit,
+} from "./size-chart-view"
 
 type Props = {
   locale: Locale
   description: string | null
   additionalInfo: string | null
   shippingReturn: string | null
-  sizeChartRows: SizeChartRow[]
+  sizeChart: { unit: SizeChartUnit; rows: SizeChartRow[] } | null
   /** Rendered "Reviews" panel — always shown last so customers can review. */
   reviews?: ReactNode
 }
@@ -34,7 +38,7 @@ export async function ProductTabs({
   description,
   additionalInfo,
   shippingReturn,
-  sizeChartRows,
+  sizeChart,
   reviews,
 }: Props) {
   const t = await getTranslations("product")
@@ -62,11 +66,19 @@ export async function ProductTabs({
           content: <RichText html={shippingReturn} dir={dir} />,
         }
       : null,
-    sizeChartRows.length > 0
+    sizeChart && sizeChart.rows.length > 0
       ? {
           value: "size-chart",
           label: t("tabs.size_chart"),
-          content: <SizeChartTable locale={locale} rows={sizeChartRows} />,
+          content: (
+            <div dir={dir}>
+              <SizeChartView
+                unit={sizeChart.unit}
+                rows={sizeChart.rows}
+                locale={locale}
+              />
+            </div>
+          ),
         }
       : null,
     reviews
@@ -107,54 +119,3 @@ export async function ProductTabs({
   )
 }
 
-async function SizeChartTable({
-  locale,
-  rows,
-}: {
-  locale: Locale
-  rows: SizeChartRow[]
-}) {
-  const t = await getTranslations("product")
-  const cell = (value: number | null) => (value == null ? "—" : value)
-  const dir = locale === "ar" ? "rtl" : "ltr"
-
-  return (
-    <div className="space-y-3" dir={dir}>
-      <p className="text-muted-foreground text-xs">{t("size_chart_unit")}</p>
-      <div className="overflow-x-auto">
-        <table className="w-full border-collapse text-sm">
-          <thead>
-            <tr className="border-border border-b text-start">
-              <th className="py-2 ps-0 pe-3 text-start font-medium">
-                {t("size_chart_size")}
-              </th>
-              <th className="px-3 py-2 text-start font-medium">
-                {t("size_chart_bust")}
-              </th>
-              <th className="px-3 py-2 text-start font-medium">
-                {t("size_chart_waist")}
-              </th>
-              <th className="px-3 py-2 text-start font-medium">
-                {t("size_chart_hips")}
-              </th>
-              <th className="px-3 py-2 text-start font-medium">
-                {t("size_chart_length")}
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <tr key={row.size} className="border-border/60 border-b">
-                <td className="py-2 ps-0 pe-3 font-medium">{row.size}</td>
-                <td className="px-3 py-2 tabular-nums">{cell(row.bust)}</td>
-                <td className="px-3 py-2 tabular-nums">{cell(row.waist)}</td>
-                <td className="px-3 py-2 tabular-nums">{cell(row.hips)}</td>
-                <td className="px-3 py-2 tabular-nums">{cell(row.length)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  )
-}

@@ -1,11 +1,10 @@
 "use server"
 
-import { createHash } from "node:crypto"
-
 import { z } from "zod"
 
 import { REWRITE_TONES, type RewriteTone } from "@/components/admin/ai/types"
 import { auth } from "@/lib/auth"
+import { reportError } from "@/lib/errors"
 import {
   analyzeImage,
   getActiveAiModelId,
@@ -51,10 +50,6 @@ function checkRateLimit(
   return allowed ? { ok: true } : { ok: false, error: "Rate limit exceeded. Try again shortly." }
 }
 
-/** Short, non-reversible image-URL fingerprint for log lines. */
-function hashUrl(url: string): string {
-  return createHash("sha256").update(url).digest("hex").slice(0, 12)
-}
 
 // ---------------------------------------------------------------------------
 // analyzeImageAction
@@ -108,10 +103,12 @@ export async function analyzeImageAction(input: {
     })
     return { ok: true, suggestions }
   } catch (err) {
-    console.error(
-      `[ai.analyze] model=${await getActiveAiModelId()} schema=${schemaKey} context=${parsed.data.context} imgs=${parsed.data.imageUrls.length}:${hashUrl(parsed.data.imageUrls[0] ?? "")}`,
-      err,
-    )
+    reportError("ai.analyze", err, {
+      model: await getActiveAiModelId(),
+      schema: schemaKey,
+      context: parsed.data.context,
+      imgs: parsed.data.imageUrls.length,
+    })
     return { ok: false, error: "Could not analyze the image." }
   }
 }
@@ -152,10 +149,12 @@ export async function translateAction(input: {
     const translated = await translateText(parsed.data)
     return { ok: true, translated }
   } catch (err) {
-    console.error(
-      `[ai.translate] model=${await getActiveAiModelId()} from=${parsed.data.from} to=${parsed.data.to} context=${parsed.data.context}`,
-      err,
-    )
+    reportError("ai.translate", err, {
+      model: await getActiveAiModelId(),
+      from: parsed.data.from,
+      to: parsed.data.to,
+      context: parsed.data.context,
+    })
     return { ok: false, error: "Could not translate." }
   }
 }
@@ -193,10 +192,12 @@ export async function rewriteAction(input: {
     const rewritten = await rewriteText(parsed.data)
     return { ok: true, rewritten }
   } catch (err) {
-    console.error(
-      `[ai.rewrite] model=${await getActiveAiModelId()} locale=${parsed.data.locale} tone=${parsed.data.tone} context=${parsed.data.context}`,
-      err,
-    )
+    reportError("ai.rewrite", err, {
+      model: await getActiveAiModelId(),
+      locale: parsed.data.locale,
+      tone: parsed.data.tone,
+      context: parsed.data.context,
+    })
     return { ok: false, error: "Could not rewrite the text." }
   }
 }

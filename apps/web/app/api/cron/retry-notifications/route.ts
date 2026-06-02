@@ -19,6 +19,7 @@
  */
 import { NextResponse } from "next/server";
 
+import { reportError } from "@/lib/errors";
 import { dispatchOrderNotifications } from "@/lib/services/order-notifications";
 import { listOrderIdsAwaitingNotification } from "@/lib/repos/orders.repo";
 
@@ -38,7 +39,7 @@ export async function GET(request: Request): Promise<Response> {
   try {
     ids = await listOrderIdsAwaitingNotification();
   } catch (err) {
-    console.error("[cron.retry-notifications] query failed", err);
+    reportError("cron.retry-notifications.query", err);
     return NextResponse.json({ error: "query_failed" }, { status: 500 });
   }
 
@@ -50,7 +51,7 @@ export async function GET(request: Request): Promise<Response> {
     } catch (err) {
       // dispatchOrderNotifications never throws, but guard anyway so one bad
       // order can't abort the whole batch.
-      console.error("[cron.retry-notifications] dispatch failed", id, err);
+      reportError("cron.retry-notifications.dispatch", err, { id });
     }
   }
 

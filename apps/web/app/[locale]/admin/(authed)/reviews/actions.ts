@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache"
 
 import { auth } from "@/lib/auth"
+import { reportError } from "@/lib/errors"
 import {
   createReview,
   deleteReview,
@@ -58,7 +59,7 @@ export async function createReviewAction(
     revalidateReviewSurfaces()
     return { ok: true, data: { id: review.id } }
   } catch (err) {
-    console.error("[reviews.actions] create", err)
+    reportError("reviews.create", err)
     return { ok: false, error: "Failed to create review." }
   }
 }
@@ -85,7 +86,7 @@ export async function updateReviewAction(
     revalidateReviewSurfaces()
     return { ok: true, data: { id: review.id } }
   } catch (err) {
-    console.error("[reviews.actions] update", err)
+    reportError("reviews.update", err)
     return { ok: false, error: "Failed to update review." }
   }
 }
@@ -102,7 +103,7 @@ export async function deleteReviewAction(
     revalidateReviewSurfaces()
     return { ok: true, data: { id } }
   } catch (err) {
-    console.error("[reviews.actions] delete", err)
+    reportError("reviews.delete", err)
     return { ok: false, error: "Failed to delete review." }
   }
 }
@@ -122,7 +123,7 @@ export async function toggleReviewVisibilityAction(
     revalidateReviewSurfaces()
     return { ok: true, data: { isVisible: next } }
   } catch (err) {
-    console.error("[reviews.actions] toggle visibility", err)
+    reportError("reviews.publish", err)
     return { ok: false, error: "Failed to update review." }
   }
 }
@@ -142,7 +143,7 @@ export async function toggleReviewFeaturedAction(
     revalidateReviewSurfaces()
     return { ok: true, data: { featured: next } }
   } catch (err) {
-    console.error("[reviews.actions] toggle featured", err)
+    reportError("reviews.feature", err)
     return { ok: false, error: "Failed to update review." }
   }
 }

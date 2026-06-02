@@ -10,6 +10,7 @@ import {
 import { DEFAULT_AI_MODEL_ID } from "@/components/admin/ai/types"
 import { AiModelForm } from "@/components/admin/settings/ai-model-form"
 import { AntiAbuseForm } from "@/components/admin/settings/anti-abuse-form"
+import { CompanyForm } from "@/components/admin/settings/company-form"
 import { ContactForm } from "@/components/admin/settings/contact-form"
 import { GridForm } from "@/components/admin/settings/grid-form"
 import { HeroForm } from "@/components/admin/settings/hero-form"
@@ -70,7 +71,13 @@ export default async function AdminSettingsPage() {
     snapchat: "",
   })
   const returnsWindowDays = read(all, "returns.window_days", 14)
-  const sizeChart = read(all, "size_chart.cm", { unit: "cm", rows: [] })
+  const companyLegalName = read(all, "company.legal_name", "")
+  const companyTradeLicense = read(all, "company.trade_license", "")
+  const companyVatTrn = read(all, "company.vat_trn", "")
+  const sizeChart = read(all, "size_chart.cm", {
+    unit: "in" as const,
+    rows: [],
+  })
   const shippingReturn = read(all, "product.shipping_return", {
     contentAr: "",
     contentEn: "",
@@ -105,6 +112,7 @@ export default async function AdminSettingsPage() {
           <TabsTrigger value="markets">{t("tabs.markets")}</TabsTrigger>
           <TabsTrigger value="currency">{t("tabs.currency")}</TabsTrigger>
           <TabsTrigger value="contact">{t("tabs.contact")}</TabsTrigger>
+          <TabsTrigger value="company">{t("tabs.company")}</TabsTrigger>
           <TabsTrigger value="grid">{t("tabs.grid")}</TabsTrigger>
           <TabsTrigger value="shop-by">{t("tabs.shop_by")}</TabsTrigger>
           <TabsTrigger value="size-chart">{t("tabs.size_chart")}</TabsTrigger>
@@ -154,6 +162,19 @@ export default async function AdminSettingsPage() {
               businessHoursEn={businessHoursEn}
               email={contactEmail}
               social={contactSocial}
+            />
+          </SettingsCard>
+        </TabsContent>
+
+        <TabsContent value="company" className="pt-4">
+          <SettingsCard
+            title={t("company.card_title")}
+            description={t("company.card_description")}
+          >
+            <CompanyForm
+              legalName={companyLegalName}
+              tradeLicense={companyTradeLicense}
+              vatTrn={companyVatTrn}
             />
           </SettingsCard>
         </TabsContent>

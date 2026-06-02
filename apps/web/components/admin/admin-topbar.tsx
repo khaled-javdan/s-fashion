@@ -39,13 +39,13 @@ export function AdminTopbar({ email }: Props) {
         <AdminSaveBar />
       ) : (
         <>
-          <SidebarTrigger />
+          <SidebarTrigger className="shrink-0" />
 
-          <div className="text-muted-foreground text-xs font-medium uppercase tracking-widest">
+          <div className="text-muted-foreground hidden min-w-0 truncate text-xs font-medium uppercase tracking-widest sm:block">
             {email}
           </div>
 
-          <div className="ms-auto flex items-center gap-2">
+          <div className="ms-auto flex shrink-0 items-center gap-2">
             <Button
               type="button"
               variant="ghost"

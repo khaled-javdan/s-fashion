@@ -6,6 +6,20 @@
     "cancel": "Cancel",
     "back": "Back"
   },
+  "errors": {
+    "title": "Something went wrong",
+    "description": "An unexpected error occurred while loading this page. You can try again — our team has been notified.",
+    "retry": "Try again",
+    "home": "Go to homepage",
+    "back_to_shop": "Back to shop",
+    "reference": "Reference: {id}",
+    "checkout_title": "Checkout hit a snag",
+    "checkout_description": "Your cart is safe and nothing has been charged. Please try again — if it keeps happening, contact us and we'll help complete your order.",
+    "admin_title": "Something went wrong",
+    "admin_description": "An unexpected error occurred. Try again; the team has been notified with the reference below.",
+    "not_found_title": "Page not found",
+    "not_found_description": "The page you're looking for doesn't exist or has moved."
+  },
   "header": {
     "brand": "S FASHION",
     "shop_all": "All Products",
@@ -13,7 +27,12 @@
     "language": "العربية",
     "open_menu": "Open menu",
     "close_menu": "Close menu",
-    "track": "Track order"
+    "menu_description": "Browse the store",
+    "track": "Track order",
+    "shipping": "Shipping & Delivery",
+    "returns": "Returns & Exchanges",
+    "contact": "Contact",
+    "about": "About"
   },
   "footer": {
     "tagline": "Elegance, made for you.",
@@ -25,6 +44,8 @@
     "track_order": "Track your order",
     "contact": "Contact",
     "about": "About",
+    "privacy": "Privacy Policy",
+    "terms": "Terms & Conditions",
     "follow_us": "Follow Us",
     "instagram": "Instagram",
     "tiktok": "TikTok",
@@ -32,7 +53,10 @@
     "business_hours_heading": "Business Hours",
     "business_hours": "Sat–Thu, 10am – 10pm",
     "rights": "All rights reserved",
-    "made_with_care": "Made with care in the UAE"
+    "made_with_care": "Made with care in the UAE",
+    "legal_heading": "Legal",
+    "trade_license": "Trade License",
+    "vat_trn": "VAT TRN"
   },
   "home": {
     "title": "S Fashion — Luxury mukhawar, delivered.",
@@ -108,13 +132,27 @@
       "size_chart": "Size Chart",
       "reviews": "Reviews"
     },
-    "size_chart_heading": "Size chart",
-    "size_chart_unit": "All measurements in centimetres",
+    "size_chart_heading": "Size charts",
+    "size_chart_intro": "The following measurements are body fitted (actual body size in {unit}).",
+    "size_chart_unit_inches": "INCHES",
+    "size_chart_unit_cm": "CM",
+    "size_chart_unit_toggle_aria": "Switch measurement unit",
     "size_chart_size": "Size",
+    "size_chart_shoulder": "Shoulder",
     "size_chart_bust": "Bust",
     "size_chart_waist": "Waist",
-    "size_chart_hips": "Hips",
+    "size_chart_hips": "Hip",
+    "size_chart_sleeves": "Sleeves",
     "size_chart_length": "Length",
+    "size_chart_diagram_alt": "Body measurement diagram",
+    "size_chart_guide_length": "Length: This is the length from the top of the shoulder down to the hem.",
+    "size_chart_guide_chest": "Chest: Place the tape close under the armhole and measure from side seam to side seam.",
+    "size_chart_guide_hip": "Hip: Place the tape approximately 7–9 inches below the natural waistline and measure from side to side at the hip line.",
+    "size_chart_guide_waist": "Waist: This is the narrowest part of the waist. Place the tape from side to side directly at the waistline.",
+    "size_chart_guide_armhole": "Arm Hole: the girth of your arm.",
+    "size_chart_guide_wrist": "Wrist: measure your wrist while keeping the tape somewhat loose so you can be sure your hand will go through the sleeve to reach.",
+    "size_chart_guide_sleeve": "Sleeve: Top of the shoulder down your arm up or until the length you would like to reach as sleeve.",
+    "size_chart_guide_bottom": "Bottom: This is the length of the flare of your dress. Flare is the bottom wide length of your dress.",
     "thumbnail_label": "View image {number}",
     "open_image": "Open image",
     "close": "Close",
@@ -373,6 +411,114 @@
       }
     ]
   },
+  "privacy": {
+    "title": "Privacy Policy",
+    "intro": "This Privacy Policy explains how S Fashion collects, uses and protects your personal information when you shop with us. We are committed to handling your data responsibly and in line with applicable UAE law.",
+    "sections": [
+      {
+        "heading": "Information we collect",
+        "body": [
+          "We collect the information you give us so we can process your orders and serve you better, including:"
+        ],
+        "items": [
+          "Your name, delivery address, phone number and email.",
+          "Order details and purchase history.",
+          "Messages you send us on WhatsApp, email or our contact form.",
+          "Basic technical data such as your device type and pages viewed, collected automatically as you browse."
+        ]
+      },
+      {
+        "heading": "How we use your information",
+        "body": [
+          "We use your information to:"
+        ],
+        "items": [
+          "Process, deliver and confirm your orders.",
+          "Respond to your questions and provide customer support.",
+          "Send order updates and, where you have agreed, occasional offers.",
+          "Improve our products, website and overall service."
+        ]
+      },
+      {
+        "heading": "Sharing your information",
+        "body": [
+          "We never sell your personal data. We share it only with the trusted partners that help us run the store — such as delivery companies and payment providers — and only to the extent needed to fulfil your order or as required by law."
+        ]
+      },
+      {
+        "heading": "Data security",
+        "body": [
+          "We apply reasonable technical and organisational measures to keep your information safe. Access to personal data is limited to staff and partners who need it to do their work."
+        ]
+      },
+      {
+        "heading": "Your choices",
+        "body": [
+          "You can ask us to access, correct or delete the personal information we hold about you, and you can opt out of marketing messages at any time. Just contact us and we'll take care of it."
+        ]
+      },
+      {
+        "heading": "Contact us",
+        "body": [
+          "If you have any questions about this policy or how we handle your data, please reach out through our contact page or on WhatsApp."
+        ]
+      }
+    ]
+  },
+  "terms": {
+    "title": "Terms & Conditions",
+    "intro": "These Terms & Conditions govern your use of the S Fashion website and your purchases from us. By placing an order, you agree to these terms.",
+    "sections": [
+      {
+        "heading": "About us",
+        "body": [
+          "S Fashion is an online clothing store operating in the United Arab Emirates. Our trade licence and VAT registration details, where applicable, are shown in the footer of this website."
+        ]
+      },
+      {
+        "heading": "Orders",
+        "body": [
+          "When you place an order, you are making an offer to buy the items in your cart. We confirm your order once it is accepted and ready to be prepared. We may decline or cancel an order if an item is unavailable, if there is a pricing error, or if we suspect fraud or abuse."
+        ]
+      },
+      {
+        "heading": "Prices and payment",
+        "body": [
+          "All prices are shown in the currency selected for your market and include applicable VAT unless stated otherwise. We accept the payment methods shown at checkout, including cash on delivery where available. Prices and offers may change at any time, but changes do not affect orders we have already confirmed."
+        ]
+      },
+      {
+        "heading": "Shipping and delivery",
+        "body": [
+          "Delivery times and fees are described on our Shipping & Delivery page. Estimated delivery times are a guide, not a guarantee, and may vary due to factors outside our control."
+        ]
+      },
+      {
+        "heading": "Returns and exchanges",
+        "body": [
+          "You may return or exchange eligible items in line with our Returns & Exchanges policy, which forms part of these terms. Please review it before purchasing."
+        ]
+      },
+      {
+        "heading": "Product information",
+        "body": [
+          "We do our best to describe and picture our products accurately. Colours may appear slightly different depending on your screen, and minor variations between items can occur."
+        ]
+      },
+      {
+        "heading": "Liability",
+        "body": [
+          "Nothing in these terms limits your statutory rights as a consumer under UAE law. To the extent permitted by law, our liability is limited to the value of the products you purchased."
+        ]
+      },
+      {
+        "heading": "Governing law",
+        "body": [
+          "These terms are governed by the laws of the United Arab Emirates, and any disputes are subject to the jurisdiction of the UAE courts."
+        ]
+      }
+    ]
+  },
   "contact": {
     "title": "Contact Us",
     "intro": "Have a question about an order, a product, or anything else? We're always happy to help.",
@@ -610,6 +756,8 @@
         "price": "Price (AED)",
         "compare_at": "Compare-at price (AED, optional)",
         "cost_price": "Cost price (AED)",
+        "weight": "Weight (grams, optional)",
+        "weight_placeholder": "e.g. 400",
         "final_sale": "Final sale",
         "final_sale_desc": "No returns or exchanges",
         "active": "Active",
@@ -628,12 +776,17 @@
         "remove": "Remove variant",
         "add": "Add variant",
         "duplicate_action": "Duplicate with next size",
-        "duplicate": "Duplicate colour + size. Each combination must be unique."
+        "duplicate": "Duplicate colour + size. Each combination must be unique.",
+        "sync_from_images": "Sync from image colours",
+        "sync_no_colors": "No colour-tagged images to sync from yet.",
+        "sync_none_added": "All image colours are already covered by variants.",
+        "sync_added": "Added {count} variant from image colours.",
+        "sync_added_plural": "Added {count} variants from image colours."
       },
       "images": {
         "dropzone": "Drag & drop images, or click to browse",
         "uploading": "Uploading {count}…",
-        "hint": "JPEG, PNG, or WebP · up to 8 MB each",
+        "hint": "JPEG, PNG, or WebP · large images are optimized automatically",
         "error_type": "{name}: unsupported type. Use JPEG, PNG, or WebP.",
         "error_size": "{name}: larger than 8 MB.",
         "error_upload": "\"{name}\" couldn’t be uploaded. Please try again.",
@@ -652,11 +805,16 @@
       "size_chart": {
         "use_global": "Use global default",
         "use_global_desc": "Off to set a size chart just for this product.",
+        "unit_label": "Unit",
+        "unit_in": "Inches",
+        "unit_cm": "Centimetres",
         "col_size": "Size",
-        "col_bust": "Bust (cm)",
-        "col_waist": "Waist (cm)",
-        "col_hips": "Hips (cm)",
-        "col_length": "Length (cm)",
+        "col_shoulder": "Shoulder",
+        "col_bust": "Bust",
+        "col_waist": "Waist",
+        "col_hips": "Hip",
+        "col_sleeves": "Sleeves",
+        "col_length": "Length",
         "size_label_aria": "Size label",
         "remove_row_aria": "Remove row",
         "add_row": "Add row",
@@ -669,6 +827,7 @@
         "price_invalid": "Price must be a valid amount.",
         "cost_price_invalid": "Cost price is required and must be 0 or more.",
         "compare_at_invalid": "Compare-at price must be a valid amount.",
+        "weight_invalid": "Weight must be a whole number of grams (0 or more).",
         "variants_required": "Add at least one variant.",
         "variant_unique": "Each colour + size combination must be unique.",
         "size_chart_empty": "Add at least one size-chart row, or use the global default.",
@@ -693,6 +852,7 @@
         "hero": "Home hero",
         "shipping": "Shipping",
         "contact": "Contact",
+        "company": "Company",
         "grid": "Grid layout",
         "size_chart": "Size chart",
         "shipping_return": "Shipping & Return",
@@ -767,6 +927,17 @@
         "snapchat_label": "Snapchat URL",
         "saved_toast": "Contact settings saved."
       },
+      "company": {
+        "card_title": "Company & compliance",
+        "card_description": "Legal details shown in the storefront footer for UAE compliance. Leave a field blank to hide it.",
+        "legal_name_label": "Registered company name",
+        "legal_name_help": "The legal entity name as it appears on your trade licence.",
+        "trade_license_label": "Trade licence number",
+        "trade_license_help": "Issued by your UAE licensing authority (e.g. DED). Shown in the footer.",
+        "vat_trn_label": "VAT TRN",
+        "vat_trn_help": "15-digit Tax Registration Number from the FTA. Leave blank if you are not VAT-registered.",
+        "saved_toast": "Company settings saved."
+      },
       "grid": {
         "card_title": "Product grid",
         "card_description": "How many product columns the storefront shows at each screen size. Shoppers can still toggle mobile density themselves.",
@@ -778,12 +949,17 @@
       },
       "size_chart": {
         "card_title": "Size chart",
-        "card_description": "Shown in the product size-chart modal. Measurements in centimetres.",
+        "card_description": "Shown in the product size-chart modal. Shoppers can switch between inches and centimetres on the storefront.",
+        "unit_label": "Unit",
+        "unit_in": "Inches",
+        "unit_cm": "Centimetres",
         "col_size": "Size",
-        "col_bust": "Bust (cm)",
-        "col_waist": "Waist (cm)",
-        "col_hips": "Hips (cm)",
-        "col_length": "Length (cm)",
+        "col_shoulder": "Shoulder",
+        "col_bust": "Bust",
+        "col_waist": "Waist",
+        "col_hips": "Hip",
+        "col_sleeves": "Sleeves",
+        "col_length": "Length",
         "size_label_aria": "Size label",
         "remove_row_aria": "Remove row",
         "add_row": "Add size",
@@ -822,12 +998,14 @@
       },
       "markets": {
         "card_title": "Shipping by country",
-        "card_description": "Set a flat fee, free-shipping threshold, and delivery window per country. Amounts are in AED.",
+        "card_description": "Set a flat fee, free-shipping threshold, weight pricing, and delivery window per country. Amounts are in AED.",
         "flat_label": "Flat fee (AED)",
         "threshold_label": "Free shipping over (AED)",
+        "per_kg_label": "Price per kg (AED)",
+        "weight_threshold_label": "Free weight up to (kg)",
         "min_days_label": "Delivery — min days",
         "max_days_label": "Delivery — max days",
-        "help": "Fees are stored in AED and shown to customers in their own currency. Delivery days are business days.",
+        "help": "Fees are stored in AED and shown to customers in their own currency. Price per kg applies to parcel weight above the free-weight allowance; set it to 0 to disable weight pricing. Delivery days are business days.",
         "invalid": "Please enter valid amounts and a delivery window where max is not below min.",
         "saved_toast": "Shipping settings saved."
       },
@@ -1060,6 +1238,7 @@
         "delete": "Delete",
         "deleted": "Review deleted",
         "confirm_delete": "Delete this review?",
+        "confirm_delete_body": "This permanently removes the review. This can't be undone.",
         "pending": "Pending"
       },
       "form": {
@@ -1201,6 +1380,10 @@
     "pdp_heading": "Customer reviews",
     "testimonials_heading": "What our customers say",
     "testimonials_subheading": "Real words from real shoppers",
+    "testimonials_label": "Customer reviews",
+    "testimonials_prev": "Previous reviews",
+    "testimonials_next": "More reviews",
+    "testimonials_goto": "Go to reviews page {number}",
     "ugc_heading": "As seen on Instagram",
     "ugc_subheading": "Tag us with #SFashion to be featured",
     "empty": "No reviews yet — be the first to share your thoughts.",

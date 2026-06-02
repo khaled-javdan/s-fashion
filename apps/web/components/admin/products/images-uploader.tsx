@@ -9,6 +9,10 @@ import {
   deleteProductImageAction,
   uploadProductImageAction,
 } from "@/app/[locale]/admin/(authed)/products/actions"
+import {
+  IMAGE_TARGET_BYTES,
+  compressImageToTarget,
+} from "@/lib/image-compress"
 
 import { ProductImageThumb } from "./product-image-thumb"
 
@@ -42,7 +46,6 @@ type Props = {
 }
 
 const ALLOWED = ["image/jpeg", "image/png", "image/webp"]
-const MAX_BYTES = 8 * 1024 * 1024
 
 export function ImagesUploader({
   images,
@@ -68,15 +71,16 @@ export function ImagesUploader({
         toast.error(t("images.error_type", { name: file.name }))
         continue
       }
-      if (file.size > MAX_BYTES) {
-        toast.error(t("images.error_size", { name: file.name }))
-        continue
-      }
 
       setUploading((n) => n + 1)
       try {
+        // Images over the target are re-encoded in the browser to fit, rather
+        // than rejected, so any reasonable photo uploads. Falls back to the
+        // original if it can't be compressed.
+        const upload = await compressImageToTarget(file, IMAGE_TARGET_BYTES)
+
         const formData = new FormData()
-        formData.append("file", file)
+        formData.append("file", upload)
         const result = await uploadProductImageAction(formData)
         if (result.ok) {
           // Functional append (position is fixed by the parent) so a batch of

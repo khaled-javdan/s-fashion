@@ -5,6 +5,7 @@ import { headers } from "next/headers"
 import { z } from "zod"
 
 import type { TrackStatus, TrackResult } from "@/components/order/order-tracking-types"
+import { reportError } from "@/lib/errors"
 import { getOrderByNumber } from "@/lib/repos/orders.repo"
 import { tryAcquire } from "@/lib/services/rate-limit"
 
@@ -84,7 +85,7 @@ export async function trackOrderAction(input: {
       },
     }
   } catch (err) {
-    console.error("[track.order]", err)
+    reportError("trackOrderAction", err)
     return { ok: false, error: "not_found" }
   }
 }

@@ -14,6 +14,7 @@ import {
   selectItems,
   selectSavingsFils,
   selectSubtotalFils,
+  selectTotalWeightGrams,
   useCartStore,
 } from "@/lib/cart-store"
 import type { CountryCode } from "@/lib/geo"
@@ -62,11 +63,13 @@ export function OrderSummary({
   const items = useCartStore(selectItems)
   const subtotalFils = useCartStore(selectSubtotalFils)
   const savingsFils = useCartStore(selectSavingsFils)
+  const totalWeightGrams = useCartStore(selectTotalWeightGrams)
 
   const { shippingFils, freeThresholdFils, minDays, maxDays } = resolveShipping(
     shippingConfig,
     country,
     subtotalFils,
+    totalWeightGrams,
   )
   // Coupon discount is display-only here; the server recomputes + clamps it at
   // order time. Clamp locally too so the preview never shows a negative total.

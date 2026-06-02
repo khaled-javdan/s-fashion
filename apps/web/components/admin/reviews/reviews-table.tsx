@@ -9,6 +9,14 @@ import { toast } from "sonner"
 
 import { Badge } from "@workspace/ui/components/badge"
 import { Button } from "@workspace/ui/components/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@workspace/ui/components/dialog"
 import { Switch } from "@workspace/ui/components/switch"
 import {
   Table,
@@ -106,9 +114,11 @@ function Row({
   locale: Locale
 }) {
   const t = useTranslations("admin.reviews")
+  const tCommon = useTranslations("common")
   const [featured, setFeatured] = useState(review.featured)
   const [isVisible, setIsVisible] = useState(review.isVisible)
   const [editing, setEditing] = useState(false)
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [pending, startTransition] = useTransition()
 
   const onToggleFeatured = () => {
@@ -127,12 +137,15 @@ function Row({
     })
   }
 
-  const onDelete = () => {
-    if (!confirm(t("table.confirm_delete"))) return
+  const onConfirmDelete = () => {
     startTransition(async () => {
       const res = await deleteReviewAction(review.id)
-      if (res.ok) toast.success(t("table.deleted"))
-      else toast.error(res.error)
+      if (res.ok) {
+        setConfirmingDelete(false)
+        toast.success(t("table.deleted"))
+      } else {
+        toast.error(res.error)
+      }
     })
   }
 
@@ -223,7 +236,7 @@ function Row({
               type="button"
               variant="ghost"
               size="icon"
-              onClick={onDelete}
+              onClick={() => setConfirmingDelete(true)}
               disabled={pending}
               aria-label={t("table.delete")}
               className="text-destructive hover:text-destructive"
@@ -258,6 +271,39 @@ function Row({
           </TableCell>
         </TableRow>
       ) : null}
+
+      <Dialog
+        open={confirmingDelete}
+        onOpenChange={(open) => {
+          if (pending) return
+          setConfirmingDelete(open)
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("table.confirm_delete")}</DialogTitle>
+            <DialogDescription>
+              {t("table.confirm_delete_body")}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setConfirmingDelete(false)}
+              disabled={pending}
+            >
+              {tCommon("cancel")}
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={onConfirmDelete}
+              disabled={pending}
+            >
+              {t("table.delete")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }

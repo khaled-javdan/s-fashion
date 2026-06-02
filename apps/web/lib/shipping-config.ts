@@ -20,6 +20,17 @@ export type CountryShipping = {
   flatFils: number
   /** Subtotal (base AED fils) at/above which shipping is free. */
   freeThresholdFils: number
+  /**
+   * Per-kilogram surcharge in base AED fils, applied to parcel weight ABOVE
+   * `weightThresholdGrams`. `0` (the default) disables weight-based pricing.
+   */
+  perKgFils: number
+  /**
+   * Free weight allowance in grams. Parcel weight up to this is covered by the
+   * flat fee; only the excess is billed at `perKgFils`. `0` means every gram is
+   * charged once `perKgFils` is set.
+   */
+  weightThresholdGrams: number
   /** Lower bound of the estimated delivery window, in business days. */
   minDays: number
   /** Upper bound of the estimated delivery window, in business days. */
@@ -39,6 +50,13 @@ export const countryShippingSchema = z.object({
   enabled: z.boolean().default(true),
   flatFils: z.number().int().min(0),
   freeThresholdFils: z.number().int().min(0),
+  /**
+   * Weight-based surcharge. Optional in the stored shape so rows written before
+   * weight pricing existed still parse; they default to `0` (feature off) and
+   * `parseShippingConfig` leaves them as-is.
+   */
+  perKgFils: z.number().int().min(0).default(0),
+  weightThresholdGrams: z.number().int().min(0).default(0),
   /**
    * Estimated delivery window, in business days. Optional in the stored shape
    * so rows written before delivery windows were modelled still parse;
@@ -60,6 +78,8 @@ export const DEFAULT_SHIPPING_CONFIG: ShippingConfig = {
       enabled: true,
       flatFils: 2500,
       freeThresholdFils: 60000,
+      perKgFils: 0,
+      weightThresholdGrams: 0,
       minDays: 1,
       maxDays: 3,
     },
@@ -68,6 +88,8 @@ export const DEFAULT_SHIPPING_CONFIG: ShippingConfig = {
       enabled: true,
       flatFils: 5000,
       freeThresholdFils: 75000,
+      perKgFils: 0,
+      weightThresholdGrams: 0,
       minDays: 3,
       maxDays: 7,
     },
@@ -76,6 +98,8 @@ export const DEFAULT_SHIPPING_CONFIG: ShippingConfig = {
       enabled: true,
       flatFils: 6000,
       freeThresholdFils: 75000,
+      perKgFils: 0,
+      weightThresholdGrams: 0,
       minDays: 3,
       maxDays: 7,
     },
@@ -84,6 +108,8 @@ export const DEFAULT_SHIPPING_CONFIG: ShippingConfig = {
       enabled: true,
       flatFils: 6000,
       freeThresholdFils: 75000,
+      perKgFils: 0,
+      weightThresholdGrams: 0,
       minDays: 3,
       maxDays: 7,
     },
@@ -92,6 +118,8 @@ export const DEFAULT_SHIPPING_CONFIG: ShippingConfig = {
       enabled: true,
       flatFils: 6000,
       freeThresholdFils: 75000,
+      perKgFils: 0,
+      weightThresholdGrams: 0,
       minDays: 3,
       maxDays: 7,
     },
@@ -100,6 +128,8 @@ export const DEFAULT_SHIPPING_CONFIG: ShippingConfig = {
       enabled: true,
       flatFils: 6000,
       freeThresholdFils: 75000,
+      perKgFils: 0,
+      weightThresholdGrams: 0,
       minDays: 3,
       maxDays: 7,
     },
@@ -137,21 +167,39 @@ export function enabledCountries(config: ShippingConfig): CountryCode[] {
 
 export type ResolvedShipping = {
   shippingFils: number
+  /**
+   * The weight portion of `shippingFils` (base AED fils) — what the parcel's
+   * excess weight added on top of the flat fee. `0` when under the free-weight
+   * threshold or when the order ships free. Exposed for an optional breakdown
+   * line; `shippingFils` is the authoritative amount charged.
+   */
+  weightSurchargeFils: number
   freeThresholdFils: number
   /** Estimated delivery window for the resolved country, in business days. */
   minDays: number
   maxDays: number
 }
 
+/** Per-kg surcharge for weight above the country's free allowance, in fils. */
+function weightSurcharge(row: CountryShipping, totalWeightGrams: number): number {
+  if (row.perKgFils <= 0) return 0
+  const overweightGrams = Math.max(0, totalWeightGrams - row.weightThresholdGrams)
+  if (overweightGrams <= 0) return 0
+  return Math.round((overweightGrams / 1000) * row.perKgFils)
+}
+
 /**
- * Resolve shipping for a country + subtotal. Mirrors the original rule
- * (`subtotal >= threshold ? 0 : flat`). Falls back to the default country's row
- * when the requested country is missing/disabled.
+ * Resolve shipping for a country + subtotal + total parcel weight. The fee is
+ * the flat rate plus a per-kg surcharge on weight above the country's free
+ * allowance; the whole fee is waived once `subtotal >= freeThreshold` (the
+ * free-shipping promo covers heavy parcels too). Falls back to the default
+ * country's row when the requested country is missing/disabled.
  */
 export function resolveShipping(
   config: ShippingConfig,
   country: string,
   subtotalFils: number,
+  totalWeightGrams = 0,
 ): ResolvedShipping {
   const fallback = DEFAULT_SHIPPING_CONFIG.countries[0]!
   const row =
@@ -159,9 +207,11 @@ export function resolveShipping(
     config.countries.find((c) => c.country === DEFAULT_COUNTRY) ??
     fallback
   const { flatFils, freeThresholdFils } = row
-  const shippingFils = subtotalFils >= freeThresholdFils ? 0 : flatFils
+  const free = subtotalFils >= freeThresholdFils
+  const surchargeFils = weightSurcharge(row, totalWeightGrams)
   return {
-    shippingFils,
+    shippingFils: free ? 0 : flatFils + surchargeFils,
+    weightSurchargeFils: free ? 0 : surchargeFils,
     freeThresholdFils,
     minDays: row.minDays ?? fallback.minDays,
     maxDays: row.maxDays ?? fallback.maxDays,
