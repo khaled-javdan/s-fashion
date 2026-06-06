@@ -1,3 +1,5 @@
+import { GoogleTagManager } from "@next/third-parties/google"
+
 import { AnalyticsProvider } from "@/components/analytics/analytics-provider"
 import { CartConfigMount } from "@/components/cart/cart-config-mount"
 import { CartToasterMount } from "@/components/cart/cart-toaster-mount"
@@ -8,6 +10,8 @@ import { CurrencyProvider } from "@/components/providers/currency-provider"
 import { getCurrencyContext } from "@/lib/currency-context.server"
 import { DEFAULT_MAX_QTY_PER_VARIANT } from "@/lib/order-limits"
 import { getSetting } from "@/lib/repos/settings.repo"
+
+const GTM_ID = "GTM-NKVLPDKM"
 
 /**
  * Customer-facing shell. Wraps the home + PDP + content pages with header,
@@ -40,6 +44,7 @@ export default async function PublicLayout({
       rate={rate}
       enabledCountries={enabledCountries}
     >
+      <GoogleTagManager gtmId={GTM_ID} />
       <div className="flex min-h-svh flex-col">
         <Header />
         <main className="flex-1">{children}</main>

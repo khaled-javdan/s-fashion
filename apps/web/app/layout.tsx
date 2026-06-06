@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next"
-import { GoogleTagManager } from "@next/third-parties/google"
 import { Analytics } from "@vercel/analytics/next"
 import { getLocale } from "next-intl/server"
 import {
@@ -74,8 +73,6 @@ export const viewport: Viewport = {
   themeColor: "#f3ece0",
 }
 
-const GTM_ID = "GTM-NKVLPDKM"
-
 export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
@@ -111,7 +108,6 @@ export default async function RootLayout({
       )}
       style={fontFamilyStyle}
     >
-      <GoogleTagManager gtmId={GTM_ID} />
       <body className="min-h-svh bg-background font-sans text-foreground">
         <ThemeProvider>{children}</ThemeProvider>
         <Analytics />
