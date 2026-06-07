@@ -75,18 +75,6 @@ export const AI_MODEL_OPTIONS: readonly AiModelOption[] = [
     note: "Recommended — reliably fills every field (bilingual copy + colours)",
   },
   {
-    id: "openai/gpt-5-pro",
-    label: "GPT-5 Pro",
-    tier: "paid",
-    note: "Most capable GPT — top-tier multimodal vision",
-  },
-  {
-    id: "openai/gpt-4-turbo",
-    label: "GPT-4 Turbo",
-    tier: "paid",
-    note: "Battle-tested, reliable vision with strong OCR & reasoning",
-  },
-  {
     id: "anthropic/claude-3-haiku",
     label: "Claude 3 Haiku",
     tier: "paid",
