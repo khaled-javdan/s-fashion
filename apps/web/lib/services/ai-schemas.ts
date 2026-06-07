@@ -45,9 +45,13 @@ export const productSuggestionsSchemaV2 = z.object({
       z.object({
         colorNameEn: z.string().optional(),
         colorNameAr: z.string().optional(),
+        // Hinted, not hard-constrained: a strict regex here makes the whole
+        // response fail validation when a model returns e.g. "#F00" or "red",
+        // losing the name/description too. We accept any string and validate /
+        // drop bad hexes downstream (see `validHex` in the analyze panel).
         colorHex: z
           .string()
-          .regex(/^#[0-9a-fA-F]{6}$/)
+          .describe("Dominant colour as a 6-digit hex like #RRGGBB")
           .optional(),
       }),
     )
@@ -73,9 +77,13 @@ export const productSuggestionsSchemaV3 = z.object({
       z.object({
         colorNameEn: z.string().optional(),
         colorNameAr: z.string().optional(),
+        // Hinted, not hard-constrained: a strict regex here makes the whole
+        // response fail validation when a model returns e.g. "#F00" or "red",
+        // losing the name/description too. We accept any string and validate /
+        // drop bad hexes downstream (see `validHex` in the analyze panel).
         colorHex: z
           .string()
-          .regex(/^#[0-9a-fA-F]{6}$/)
+          .describe("Dominant colour as a 6-digit hex like #RRGGBB")
           .optional(),
       }),
     )
@@ -105,7 +113,7 @@ export const SCHEMA_REGISTRY = {
 export type SchemaKey = keyof typeof SCHEMA_REGISTRY
 
 /** Stable version tag mixed into the cache key so schema changes bust the cache. */
-export const SCHEMA_VERSION = "v1"
+export const SCHEMA_VERSION = "v2"
 
 export function isSchemaKey(value: unknown): value is SchemaKey {
   return typeof value === "string" && value in SCHEMA_REGISTRY

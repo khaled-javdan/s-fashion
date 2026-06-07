@@ -21,6 +21,15 @@ export type ListOpts = {
 };
 
 /**
+ * Interactive-transaction options for product create/update. The default
+ * timeout is 5s, but a product with many variants reconciles each one in its
+ * own `update` round-trip inside the transaction (e.g. 35 variants > 5s), which
+ * trips Prisma's P2028 "expired transaction". Give the transaction room, and a
+ * longer `maxWait` to acquire a connection under load.
+ */
+const TX_OPTS = { timeout: 30_000, maxWait: 10_000 } as const;
+
+/**
  * Shared Prisma include for product variants that filters out archived rows.
  * Archived variants stay in the DB to keep OrderItem FK references valid, but
  * never surface in the storefront or admin product editor.
@@ -758,7 +767,7 @@ export async function createProduct(
       },
     });
     return product;
-  });
+  }, TX_OPTS);
 }
 
 /**
@@ -932,7 +941,7 @@ export async function updateProduct(
       },
     });
     return updated;
-  });
+  }, TX_OPTS);
 }
 
 /** Flip `isActive`. Returns the new boolean. */

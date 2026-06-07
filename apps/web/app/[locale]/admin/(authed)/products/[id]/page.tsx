@@ -7,6 +7,7 @@ import { Badge } from "@workspace/ui/components/badge"
 import { ProductForm } from "@/components/admin/products/product-form"
 import { DEFAULT_LOCALE, isLocale } from "@/lib/locale"
 import { getProductById } from "@/lib/repos/products.repo"
+import { getActiveAiModelId } from "@/lib/services/ai"
 
 export default async function EditProductPage({
   params,
@@ -22,8 +23,10 @@ export default async function EditProductPage({
     notFound()
   }
 
+  const initialAiModel = await getActiveAiModelId()
+
   return (
-    <div className="mx-auto w-full max-w-4xl space-y-6">
+    <div className="w-full space-y-6">
       <div>
         <Link
           href={`/${locale}/admin/products`}
@@ -39,7 +42,12 @@ export default async function EditProductPage({
         </div>
       </div>
 
-      <ProductForm mode="edit" locale={locale} product={product} />
+      <ProductForm
+        mode="edit"
+        locale={locale}
+        product={product}
+        initialAiModel={initialAiModel}
+      />
     </div>
   )
 }

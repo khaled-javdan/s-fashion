@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react"
 import { useTranslations } from "next-intl"
 import Image from "next/image"
 import Link from "next/link"
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 
 import { cn } from "@workspace/ui/lib/utils"
 
@@ -20,9 +20,6 @@ export type CardSwatch = {
   index: number
   thumbUrl: string | null
 }
-
-/** Distinct color dots shown before collapsing the rest into a "+N" chip. */
-const MAX_SWATCHES = 4
 
 type Props = {
   href: string
@@ -51,6 +48,7 @@ export function ProductCardMedia({
 }: Props) {
   const t = useTranslations("product")
   const scroller = useRef<HTMLDivElement>(null)
+  const swatchScroller = useRef<HTMLUListElement>(null)
   const [active, setActive] = useState(0)
   const multi = slides.length > 1
 
@@ -83,12 +81,17 @@ export function ProductCardMedia({
     if (s.index >= 0 && s.index <= active) activeSwatch = i
   })
 
+  // Keep the active swatch visible in the scrollable swatch row.
+  useEffect(() => {
+    if (activeSwatch < 0) return
+    const ul = swatchScroller.current
+    const li = ul?.children[activeSwatch] as HTMLElement | undefined
+    li?.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" })
+  }, [activeSwatch])
+
   if (slides.length === 0) {
     return <div className="bg-muted aspect-[3/4] w-full rounded-md" />
   }
-
-  const visibleSwatches = swatches.slice(0, MAX_SWATCHES)
-  const extra = swatches.length - MAX_SWATCHES
 
   return (
     <div className="flex flex-col gap-2">
@@ -168,10 +171,13 @@ export function ProductCardMedia({
       </div>
 
       {swatches.length > 0 ? (
-        <ul className="flex items-center gap-1.5">
-          {visibleSwatches.map((s, i) =>
+        <ul
+          ref={swatchScroller}
+          className="flex items-center gap-1.5 overflow-x-auto p-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        >
+          {swatches.map((s, i) =>
             s.index >= 0 ? (
-              <li key={s.hex}>
+              <li key={s.hex} className="shrink-0">
                 <button
                   type="button"
                   onClick={() => goTo(s.index)}
@@ -198,7 +204,7 @@ export function ProductCardMedia({
                 </button>
               </li>
             ) : (
-              <li key={s.hex}>
+              <li key={s.hex} className="shrink-0">
                 <span
                   className="border-border/70 relative block size-7 overflow-hidden rounded-full border"
                   style={s.thumbUrl ? undefined : { backgroundColor: s.hex }}
@@ -218,11 +224,6 @@ export function ProductCardMedia({
               </li>
             ),
           )}
-          {extra > 0 ? (
-            <li className="text-muted-foreground text-[11px] leading-none">
-              {t("more_colors", { count: extra })}
-            </li>
-          ) : null}
         </ul>
       ) : null}
     </div>

@@ -1,12 +1,22 @@
 "use client"
 
 import { ChevronDown, ChevronUp, X } from "lucide-react"
-import { useTranslations } from "next-intl"
+import { useLocale, useTranslations } from "next-intl"
 import Image from "next/image"
 
 import { Button } from "@workspace/ui/components/button"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@workspace/ui/components/select"
 
 import type { ImageColorOption } from "./images-uploader"
+
+/** Sentinel for the "no color" choice — Radix Select forbids empty item values. */
+const NO_COLOR = "__none__"
 
 type Props = {
   url: string
@@ -34,9 +44,13 @@ export function ProductImageThumb({
   onMoveDown,
 }: Props) {
   const t = useTranslations("admin.products")
+  const locale = useLocale()
   // The hex saved on an image may no longer match a current variant color
   // (e.g. the variant was recolored); fall back to the raw value so it shows.
   const current = colors.find((c) => c.hex === colorHex)
+  // Show the colour name in the active language (Arabic when on /ar).
+  const labelOf = (c: ImageColorOption) =>
+    locale === "ar" ? c.labelAr : c.labelEn
 
   return (
     <div className="space-y-1.5">
@@ -84,31 +98,48 @@ export function ProductImageThumb({
       {/* Color tag — links this photo to a variant color so the storefront can
           group it into that color's gallery. */}
       {colors.length > 0 ? (
-        <label className="flex items-center gap-1.5">
-          <span
-            className="border-border/70 inline-block size-3.5 shrink-0 rounded-full border"
-            style={{
-              backgroundColor: current?.hex ?? colorHex ?? "transparent",
-            }}
-            aria-hidden
-          />
-          <select
-            value={colorHex ?? ""}
-            onChange={(e) => onColorChange(e.target.value || null)}
+        <Select
+          value={colorHex ?? NO_COLOR}
+          onValueChange={(v) => onColorChange(v === NO_COLOR ? null : v)}
+        >
+          <SelectTrigger
+            size="sm"
+            className="h-7 w-full text-xs"
             aria-label={t("images.color_for", { index: index + 1 })}
-            className="border-input bg-background h-7 w-full min-w-0 rounded-md border px-1.5 text-xs"
           >
-            <option value="">{t("images.no_color")}</option>
+            <SelectValue placeholder={t("images.no_color")} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={NO_COLOR} className="text-xs">
+              {t("images.no_color")}
+            </SelectItem>
             {colors.map((c) => (
-              <option key={c.hex} value={c.hex}>
-                {c.label}
-              </option>
+              <SelectItem key={c.hex} value={c.hex} className="text-xs">
+                <span className="flex items-center gap-1.5">
+                  <span
+                    className="border-border/70 inline-block size-3 shrink-0 rounded-full border"
+                    style={{ backgroundColor: c.hex }}
+                    aria-hidden
+                  />
+                  {labelOf(c)}
+                </span>
+              </SelectItem>
             ))}
+            {/* A saved hex that no longer matches any current variant colour. */}
             {colorHex && !current ? (
-              <option value={colorHex}>{colorHex}</option>
+              <SelectItem value={colorHex} className="text-xs">
+                <span className="flex items-center gap-1.5">
+                  <span
+                    className="border-border/70 inline-block size-3 shrink-0 rounded-full border"
+                    style={{ backgroundColor: colorHex }}
+                    aria-hidden
+                  />
+                  {colorHex}
+                </span>
+              </SelectItem>
             ) : null}
-          </select>
-        </label>
+          </SelectContent>
+        </Select>
       ) : null}
     </div>
   )

@@ -47,10 +47,11 @@ export type Lang = "ar" | "en"
 // ---------------------------------------------------------------------------
 
 /**
- * Production default — Claude Sonnet 4.5 (AI-ADMIN.md §1). Used when no model
- * is configured in settings and `AI_GATEWAY_MODEL` is unset.
+ * Production default — Mistral Medium 3.5. In testing it reliably fills every
+ * field (bilingual name, HTML description, details list, colour variants). Used
+ * when no model is set in settings and `AI_GATEWAY_MODEL` is unset.
  */
-export const DEFAULT_AI_MODEL_ID = "anthropic/claude-sonnet-4-5"
+export const DEFAULT_AI_MODEL_ID = "mistral/mistral-medium-3.5"
 
 export type AiModelOption = {
   id: string
@@ -62,32 +63,35 @@ export type AiModelOption = {
 
 /**
  * Curated, allow-listed Gateway models the admin can choose between. Mirrors
- * the schema-registry allow-list pattern: the picker never accepts an
- * arbitrary model string. Tiers reflect what a free Gateway account can call
- * (verified live) vs what needs paid credits. All entries are vision-capable
- * so the image-analyze panel works with any of them.
+ * the schema-registry allow-list pattern: the picker never accepts an arbitrary
+ * model string. All entries are vision-capable so the image-analyze panel works
+ * with any of them, and all run on paid Gateway credits. Ordered best-first.
  */
 export const AI_MODEL_OPTIONS: readonly AiModelOption[] = [
   {
-    id: "anthropic/claude-sonnet-4-5",
-    label: "Claude Sonnet 4.5",
+    id: "mistral/mistral-medium-3.5",
+    label: "Mistral Medium 3.5",
     tier: "paid",
-    note: "Best Arabic register & vision — recommended for production",
+    note: "Recommended — reliably fills every field (bilingual copy + colours)",
   },
   {
-    id: "google/gemini-2.5-flash",
-    label: "Gemini 2.5 Flash",
-    tier: "free",
-    note: "Strong free pick — good Arabic + vision",
+    id: "openai/gpt-5-pro",
+    label: "GPT-5 Pro",
+    tier: "paid",
+    note: "Most capable GPT — top-tier multimodal vision",
   },
-  { id: "google/gemini-2.0-flash", label: "Gemini 2.0 Flash", tier: "free" },
   {
-    id: "google/gemini-2.5-flash-lite",
-    label: "Gemini 2.5 Flash Lite",
-    tier: "free",
-    note: "Cheapest free option",
+    id: "openai/gpt-4-turbo",
+    label: "GPT-4 Turbo",
+    tier: "paid",
+    note: "Battle-tested, reliable vision with strong OCR & reasoning",
   },
-  { id: "openai/gpt-5-nano", label: "GPT-5 nano", tier: "free" },
+  {
+    id: "anthropic/claude-3-haiku",
+    label: "Claude 3 Haiku",
+    tier: "paid",
+    note: "Lightest, fastest — good for basic-to-moderate image analysis",
+  },
 ]
 
 export function isAllowedModelId(value: unknown): value is string {

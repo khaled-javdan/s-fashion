@@ -70,7 +70,19 @@ export function normalizeError(err: unknown): NormalizedError {
   }
 
   if (err instanceof Prisma.PrismaClientKnownRequestError) {
-    return normalizePrismaKnown(err)
+    return normalizePrismaByCode(err.code, err.meta)
+  }
+
+  // Prisma 7's error classes don't always satisfy `instanceof` across module
+  // boundaries (the generated client vs. the re-exported namespace), so a real
+  // known-request error can slip past the check above. Duck-type the `Pxxxx`
+  // code as a fallback so DB faults are classified as DB faults — not, say,
+  // mistaken for an AI timeout because the message happens to contain "timeout".
+  if (err instanceof Error) {
+    const maybe = err as unknown as { code?: unknown; meta?: unknown }
+    if (typeof maybe.code === "string" && /^P\d{4}$/.test(maybe.code)) {
+      return normalizePrismaByCode(maybe.code, maybe.meta)
+    }
   }
 
   // Connection / init / panic / validation: genuine faults, not user-facing.
@@ -91,17 +103,28 @@ export function normalizeError(err: unknown): NormalizedError {
     if (err.name === "CouponExhaustedError") {
       return { code: "coupon_unavailable", message: "That coupon is no longer available.", expected: true }
     }
+
+    // AI SDK / Gateway errors (duck-typed by name + status to avoid importing
+    // the `ai` package here). These are transient capacity problems — the chosen
+    // model is busy or the request was aborted on timeout — not bugs. We mark
+    // them `expected` so they're logged at `warn` and don't fire an admin alert;
+    // the admin instead gets a clear, retryable message + the inline model
+    // switcher on the product page.
+    const aiError = normalizeAiError(err)
+    if (aiError) return aiError
   }
 
   return { code: "unknown", message: GENERIC_MESSAGE, expected: false }
 }
 
-function normalizePrismaKnown(
-  err: Prisma.PrismaClientKnownRequestError,
+function normalizePrismaByCode(
+  code: string,
+  meta: unknown,
 ): NormalizedError {
-  switch (err.code) {
+  const metaTarget = (meta as { target?: unknown } | undefined)?.target
+  switch (code) {
     case "P2002": {
-      const target = fieldList(err.meta?.target)
+      const target = fieldList(metaTarget)
       return {
         code: "unique_violation",
         message: target
@@ -120,9 +143,17 @@ function normalizePrismaKnown(
       }
     case "P2000":
       return { code: "value_too_long", message: "A value is too long.", expected: true }
+    case "P2028":
+      // Interactive transaction timed out — usually a large save (many
+      // variants). A genuine fault worth alerting, with an actionable message.
+      return {
+        code: "transaction_timeout",
+        message: "That save took too long to finish. Please try again.",
+        expected: false,
+      }
     default:
       // Unrecognised DB error — treat as a fault worth alerting on.
-      return { code: `prisma_${err.code}`, message: GENERIC_MESSAGE, expected: false }
+      return { code: `prisma_${code}`, message: GENERIC_MESSAGE, expected: false }
   }
 }
 
@@ -141,6 +172,88 @@ function isZodLike(
     "issues" in err &&
     Array.isArray((err as { issues: unknown }).issues)
   )
+}
+
+/** HTTP statuses that mean "the upstream model/provider is busy" — retryable. */
+const TRANSIENT_AI_STATUS = new Set([429, 500, 502, 503, 504, 529])
+
+/**
+ * Recognise transient AI SDK / Gateway failures (model overloaded, timed out,
+ * aborted) and map them to friendly, retryable, `expected` errors. Returns
+ * `null` for anything that isn't clearly an AI capacity/timeout problem so the
+ * caller falls through to the generic `unknown` (alerted) path.
+ *
+ * Duck-typed: the AI SDK's `RetryError` exposes `name === "AI_RetryError"` and a
+ * `lastError`; `APICallError` exposes a numeric `statusCode`. We read both
+ * without importing the `ai` package (keeps this module dependency-light and
+ * mirrors the Zod duck-typing above).
+ */
+function normalizeAiError(err: Error): NormalizedError | null {
+  const status = readStatusCode(err)
+  const name = err.name
+  const message = err.message ?? ""
+
+  // Abort / timeout — the analyze ceiling fired (AbortSignal.timeout throws a
+  // `TimeoutError`) or a retry delay was cut (`AbortError`). Matched by error
+  // NAME only — never by message text, so unrelated errors that merely mention
+  // "timeout" (e.g. a Prisma transaction timeout) don't get mislabeled here.
+  if (
+    name === "AbortError" ||
+    name === "TimeoutError" ||
+    name === "AI_AbortError"
+  ) {
+    return {
+      code: "ai_timeout",
+      message:
+        "The AI request timed out — the model may be busy. Try again, or switch models.",
+      expected: true,
+    }
+  }
+
+  // The model replied but its output didn't parse into the schema (even after
+  // repair) — usually a one-off formatting slip. Retrying or switching models
+  // typically fixes it, so surface it as retryable rather than a hard fault.
+  if (
+    name === "AI_NoObjectGeneratedError" ||
+    name === "NoObjectGeneratedError" ||
+    name === "AI_TypeValidationError" ||
+    name === "AI_JSONParseError"
+  ) {
+    return {
+      code: "ai_unparsable",
+      message:
+        "The AI returned an unexpected format. Try again, or switch models.",
+      expected: true,
+    }
+  }
+
+  // Retry exhaustion or an explicit busy/overloaded status from the provider.
+  const isRetryError = name === "AI_RetryError" || name === "RetryError"
+  if (
+    (status !== null && TRANSIENT_AI_STATUS.has(status)) ||
+    (isRetryError &&
+      /temporarily unavailable|overloaded|rate.?limit|capacity|busy/i.test(
+        message,
+      ))
+  ) {
+    return {
+      code: "ai_unavailable",
+      message:
+        "The AI model is busy right now. Try again shortly, or switch models.",
+      expected: true,
+    }
+  }
+
+  return null
+}
+
+/** Read a numeric HTTP status off an AI SDK error or its wrapped `lastError`. */
+function readStatusCode(err: unknown): number | null {
+  if (!err || typeof err !== "object") return null
+  const e = err as { statusCode?: unknown; lastError?: unknown }
+  if (typeof e.statusCode === "number") return e.statusCode
+  if (e.lastError) return readStatusCode(e.lastError)
+  return null
 }
 
 // ─── Reporting ──────────────────────────────────────────────────────────────

@@ -22,6 +22,7 @@ import {
   type AiApplyPayload,
   type DetectedColor,
 } from "@/components/admin/ai/ai-product-analyze-panel"
+import { AiModelSwitcher } from "@/components/admin/ai/ai-model-switcher"
 import { AiSuggestionBadge } from "@/components/admin/ai/ai-suggestion-badge"
 import { AiTranslatePairButton } from "@/components/admin/ai/ai-translate-pair-button"
 import { RichTextEditor } from "@/components/admin/rich-text-editor"
@@ -47,9 +48,10 @@ import {
 } from "@/lib/repos/products.shared"
 import type { SizeChartFormChart } from "@/app/[locale]/admin/(authed)/products/actions"
 
-type Props =
+type Props = { initialAiModel: string } & (
   | { mode: "create"; locale: Locale; product?: undefined }
   | { mode: "edit"; locale: Locale; product: ProductWithRelations }
+)
 
 type FormState = {
   slug: string
@@ -208,9 +210,12 @@ function applyDetectedColor(state: FormState, c: DetectedColor): FormState {
 }
 
 export function ProductForm(props: Props) {
-  const { mode, locale } = props
+  const { mode, locale, initialAiModel } = props
   const t = useTranslations("admin.products")
   const router = useRouter()
+  // The active AI model, kept in sync with the inline switcher so the analyze
+  // panel can name it when a request fails because the model was busy.
+  const [aiModel, setAiModel] = useState(initialAiModel)
   const initial = useMemo(() => initialState(props.product), [props.product])
   // Local baseline the form diffs against. Seeded from props, then advanced on
   // each successful save — a server action's revalidatePath/refresh re-derives
@@ -246,18 +251,21 @@ export function ProductForm(props: Props) {
     if (!slugEdited) clearAi("slug")
   }
 
-  // Distinct variant colors an image can be tagged with (label prefers the
-  // English color name, then Arabic, then the hex itself).
+  // Distinct variant colors an image can be tagged with. Carry both language
+  // names; the thumb picker shows the one matching the active locale.
   const imageColors = useMemo(() => {
     const seen = new Set<string>()
-    const out: { hex: string; label: string }[] = []
+    const out: { hex: string; labelEn: string; labelAr: string }[] = []
     for (const v of state.variants) {
       const hex = v.colorHex
       if (!hex || seen.has(hex)) continue
       seen.add(hex)
+      const en = v.colorNameEn?.trim() ?? ""
+      const ar = v.colorNameAr?.trim() ?? ""
       out.push({
         hex,
-        label: v.colorNameEn?.trim() || v.colorNameAr?.trim() || hex,
+        labelEn: en || ar || hex,
+        labelAr: ar || en || hex,
       })
     }
     return out
@@ -490,6 +498,15 @@ export function ProductForm(props: Props) {
         <AiProductAnalyzePanel
           imageUrls={state.images.map((i) => i.url)}
           onApply={applyAiSuggestions}
+          activeModelId={aiModel}
+        />
+        {/* Inline model switcher — lets the admin swap the AI model on the spot
+            (e.g. to a paid model) when the free one is busy, without leaving the
+            page for Settings → AI. */}
+        <AiModelSwitcher
+          initial={initialAiModel}
+          onModelChange={setAiModel}
+          className="mt-3 border-t pt-3"
         />
       </Section>
 

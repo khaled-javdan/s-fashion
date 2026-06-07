@@ -91,6 +91,17 @@ async function requireAdmin(): Promise<
   return { ok: true }
 }
 
+/**
+ * Normalise a colour hex to lowercase before persisting. The storefront links a
+ * photo to its colour by exact, case-sensitive hex (`img.colorHex === v.colorHex`),
+ * so a variant and its image must store the hex identically — otherwise the
+ * colour's photo can't be found on the product page or cart.
+ */
+function normHex(hex: string | null | undefined): string | null {
+  const h = hex?.trim().toLowerCase()
+  return h ? h : null
+}
+
 /** Reject duplicate (colorHex, size) pairs within the submitted variant set. */
 function hasDuplicateVariant(
   variants: ProductFormPayload["variants"],
@@ -181,7 +192,7 @@ function toCreateInput(payload: ProductFormPayload): ProductCreateInput {
       id: v.id,
       colorNameAr: v.colorNameAr ?? null,
       colorNameEn: v.colorNameEn ?? null,
-      colorHex: v.colorHex ?? null,
+      colorHex: normHex(v.colorHex),
       size: v.size,
       stock: v.stock,
       sku: v.sku ? v.sku : null,
@@ -191,7 +202,7 @@ function toCreateInput(payload: ProductFormPayload): ProductCreateInput {
       url: i.url,
       altAr: i.altAr ?? null,
       altEn: i.altEn ?? null,
-      colorHex: i.colorHex ?? null,
+      colorHex: normHex(i.colorHex),
       position: i.position ?? idx,
     })),
   })
@@ -220,7 +231,7 @@ function toUpdateInput(payload: ProductFormPayload): ProductUpdateInput {
       id: v.id,
       colorNameAr: v.colorNameAr ?? null,
       colorNameEn: v.colorNameEn ?? null,
-      colorHex: v.colorHex ?? null,
+      colorHex: normHex(v.colorHex),
       size: v.size,
       stock: v.stock,
       sku: v.sku ? v.sku : null,
@@ -230,7 +241,7 @@ function toUpdateInput(payload: ProductFormPayload): ProductUpdateInput {
       url: i.url,
       altAr: i.altAr ?? null,
       altEn: i.altEn ?? null,
-      colorHex: i.colorHex ?? null,
+      colorHex: normHex(i.colorHex),
       position: i.position ?? idx,
     })),
   })

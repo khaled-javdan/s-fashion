@@ -1229,6 +1229,9 @@
         "trigger": "Analyze with AI",
         "progress": "Analyzed {done} of {total}…",
         "errors": "{count, plural, one {# image couldn't be analyzed} other {# images couldn't be analyzed}}",
+        "model_busy": "{model} was busy. Retry the image(s) below, or switch the AI model.",
+        "image_failed": "Image {index} couldn't be analyzed",
+        "retry": "Retry",
         "generating": "✨ Analyzing {count, plural, one {image} other {images}}…",
         "regenerate": "Generate new AI suggestions",
         "dismiss": "Dismiss",
@@ -1252,6 +1255,9 @@
           "ctaLabelEn": "Button label (EN)",
           "ctaLabelAr": "Button label (AR)"
         }
+      },
+      "model": {
+        "label": "AI model"
       }
     },
     "common": {

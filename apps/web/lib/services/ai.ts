@@ -48,14 +48,69 @@ function model(modelId: string): LanguageModel {
 
 type Suggestions = Record<string, unknown>
 
+/** Cap on fetching an image's bytes before we hand them to the model. */
+const IMAGE_FETCH_TIMEOUT_MS = 15_000
+
+/**
+ * Download an image to bytes so we send the pixels to the model directly rather
+ * than asking the Gateway to fetch the URL itself. The URL path intermittently
+ * fails with `GatewayInternalServerError: Failed to download one or more
+ * images`; fetching here removes that dependency (and works for any model).
+ */
+async function fetchImageBytes(
+  url: string,
+): Promise<{ data: Uint8Array; mediaType: string }> {
+  const res = await fetch(url, {
+    signal: AbortSignal.timeout(IMAGE_FETCH_TIMEOUT_MS),
+  })
+  if (!res.ok) {
+    throw new Error(`Failed to fetch image (${res.status}) ${url}`)
+  }
+  const mediaType = res.headers.get("content-type")?.split(";")[0]?.trim()
+  const data = new Uint8Array(await res.arrayBuffer())
+  return { data, mediaType: mediaType || "image/jpeg" }
+}
+
+/**
+ * Recover a model's structured output when the strict JSON parser would reject
+ * it: strip a markdown code fence, slice out the outermost `{…}` object if the
+ * model wrapped it in prose, and drop trailing commas. Returns the cleaned text
+ * for `generateObject` to re-parse, or `null` when there's nothing salvageable.
+ * Wired in via `experimental_repairText` — see {@link analyzeImage}.
+ */
+function repairJsonText(text: string): string | null {
+  if (!text) return null
+  let t = text.trim()
+  const fence = t.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i)
+  if (fence?.[1]) t = fence[1].trim()
+  const first = t.indexOf("{")
+  const last = t.lastIndexOf("}")
+  if (first !== -1 && last !== -1 && last > first) {
+    t = t.slice(first, last + 1)
+  }
+  t = t.replace(/,(\s*[}\]])/g, "$1").trim()
+  return t && t !== text.trim() ? t : null
+}
+
 /**
  * Hard ceiling for a single analysis request. Without it a stalled Gateway /
  * model call would hang forever — the server action would never return, the
  * panel's progress bar would freeze, and (worse) the in-flight cache entry
  * would never clear, poisoning that image until a cold start. On timeout the
  * abort signal rejects `generateObject`, which surfaces as `{ ok: false }`.
+ *
+ * Kept deliberately short: when the free-tier model is overloaded we want the
+ * admin to learn quickly (and switch models via the inline picker) rather than
+ * stare at a spinner for a minute and a half.
  */
-const ANALYZE_TIMEOUT_MS = 90_000
+const ANALYZE_TIMEOUT_MS = 60_000
+
+/**
+ * One retry (2 attempts total) instead of the SDK default of 2. Retrying a
+ * busy free-tier model rarely helps — it just delays the failure — so we fail
+ * fast and let the admin switch models. The abort signal still caps total time.
+ */
+const ANALYZE_MAX_RETRIES = 1
 
 /**
  * Analyse one or more images and return structured suggestions for the given
@@ -90,19 +145,28 @@ export async function analyzeImage(input: {
           ? `Analyse these ${imageUrls.length} images (each a colour variant of the same product) and suggest values for the fields. Return one variant entry per image, in order.`
           : "Analyse this image and suggest values for the fields. Leave fields empty when you cannot infer them."
 
+      // Fetch the pixels ourselves rather than passing URLs for the Gateway to
+      // download — see `fetchImageBytes`.
+      const images = await Promise.all(imageUrls.map(fetchImageBytes))
+
       const { object } = await generateObject({
         model: model(modelId),
         schema,
         system,
+        maxRetries: ANALYZE_MAX_RETRIES,
         abortSignal: AbortSignal.timeout(ANALYZE_TIMEOUT_MS),
+        // Salvage fenced / prose-wrapped JSON before the strict parser rejects
+        // it (some vision models don't emit bare JSON reliably).
+        experimental_repairText: async ({ text }) => repairJsonText(text),
         messages: [
           {
             role: "user",
             content: [
               { type: "text", text: intro },
-              ...imageUrls.map((url) => ({
+              ...images.map((img) => ({
                 type: "image" as const,
-                image: new URL(url),
+                image: img.data,
+                mediaType: img.mediaType,
               })),
             ],
           },

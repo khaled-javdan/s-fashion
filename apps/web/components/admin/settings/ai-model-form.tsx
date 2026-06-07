@@ -5,18 +5,11 @@ import { useTranslations } from "next-intl"
 import { useState, useTransition } from "react"
 import { toast } from "sonner"
 
-import { Badge } from "@workspace/ui/components/badge"
 import { Button } from "@workspace/ui/components/button"
 import { Label } from "@workspace/ui/components/label"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@workspace/ui/components/select"
 
 import { updateSettingsAction } from "@/app/[locale]/admin/(authed)/settings/actions"
+import { ModelSelect } from "@/components/admin/ai/model-select"
 import { AI_MODEL_OPTIONS, DEFAULT_AI_MODEL_ID } from "@/components/admin/ai/types"
 
 type Props = {
@@ -56,31 +49,7 @@ export function AiModelForm({ current }: Props) {
     <form onSubmit={onSubmit} className="space-y-4">
       <div className="grid gap-2">
         <Label>{t("ai_model.label")}</Label>
-        <Select value={model} onValueChange={setModel}>
-          <SelectTrigger className="w-full sm:max-w-md">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {AI_MODEL_OPTIONS.map((o) => (
-              <SelectItem key={o.id} value={o.id}>
-                <span className="flex items-center gap-2">
-                  <span>{o.label}</span>
-                  <Badge
-                    variant={o.tier === "free" ? "secondary" : "outline"}
-                    className="normal-case tracking-normal"
-                  >
-                    {o.tier === "free"
-                      ? t("ai_model.tier_free")
-                      : t("ai_model.tier_paid")}
-                  </Badge>
-                </span>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {selected?.note ? (
-          <p className="text-muted-foreground text-xs">{selected.note}</p>
-        ) : null}
+        <ModelSelect value={model} onChange={setModel} />
       </div>
 
       {selected?.tier === "paid" ? (

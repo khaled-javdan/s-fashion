@@ -4,7 +4,7 @@ import { z } from "zod"
 
 import { REWRITE_TONES, type RewriteTone } from "@/components/admin/ai/types"
 import { auth } from "@/lib/auth"
-import { reportError } from "@/lib/errors"
+import { normalizeError, reportError } from "@/lib/errors"
 import {
   analyzeImage,
   getActiveAiModelId,
@@ -85,7 +85,7 @@ export async function analyzeImageAction(input: {
   force?: boolean
 }): Promise<
   | { ok: true; suggestions: Record<string, unknown> }
-  | { ok: false; error: string }
+  | { ok: false; error: string; modelId?: string; retryable?: boolean }
 > {
   const authed = await requireAdminId()
   if (!authed.ok) return authed
@@ -115,13 +115,27 @@ export async function analyzeImageAction(input: {
     }
     return { ok: true, suggestions }
   } catch (err) {
+    const norm = normalizeError(err)
+    const modelId = await getActiveAiModelId()
     reportError("ai.analyze", err, {
-      model: await getActiveAiModelId(),
+      model: modelId,
       schema: schemaKey,
       context: parsed.data.context,
       imgs: parsed.data.imageUrls.length,
     })
-    return { ok: false, error: "Could not analyze the image." }
+    // A retryable failure means the model was busy / timed out / returned an
+    // unparsable response — surface the model id so the panel can name it and
+    // nudge the admin to retry or switch models.
+    const retryable =
+      norm.code === "ai_unavailable" ||
+      norm.code === "ai_timeout" ||
+      norm.code === "ai_unparsable"
+    return {
+      ok: false,
+      error: retryable ? norm.message : "Could not analyze the image.",
+      modelId,
+      retryable,
+    }
   }
 }
 

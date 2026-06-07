@@ -25,8 +25,11 @@ export type FormImage = {
   position: number
 }
 
-/** A color option an image can be tagged with (sourced from the variants). */
-export type ImageColorOption = { hex: string; label: string }
+/**
+ * A color option an image can be tagged with (sourced from the variants).
+ * Carries both language names so the picker can show the right one per locale.
+ */
+export type ImageColorOption = { hex: string; labelEn: string; labelAr: string }
 
 type Props = {
   images: FormImage[]
