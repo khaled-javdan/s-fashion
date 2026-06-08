@@ -18,7 +18,7 @@ export const MOBILE_COLS = [1, 2] as const
 export const TABLET_COLS = [2, 3, 4] as const
 export const DESKTOP_COLS = [3, 4, 5] as const
 
-export const DEFAULT_GRID: GridConfig = { mobile: 1, tablet: 3, desktop: 5 }
+export const DEFAULT_GRID: GridConfig = { mobile: 2, tablet: 3, desktop: 5 }
 
 export const gridConfigSchema = z.object({
   mobile: z.number().int().min(1).max(2),

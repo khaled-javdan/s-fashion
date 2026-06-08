@@ -89,16 +89,18 @@ export function BottomNav() {
             aria-label={`${t("cart")} (${hasHydrated ? itemCount : 0})`}
             className={tabClass}
           >
-            <span className={cn(pillClass(false), "relative")}>
-              <ShoppingBag className="size-5" />
-              {showBadge && (
-                <span
-                  aria-hidden="true"
-                  className="absolute -top-1 -end-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold leading-none text-primary-foreground"
-                >
-                  {itemCount}
-                </span>
-              )}
+            <span className={pillClass(false)}>
+              <span className="relative">
+                <ShoppingBag className="size-5" />
+                {showBadge && (
+                  <span
+                    aria-hidden="true"
+                    className="absolute -top-1.5 -end-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold leading-none text-primary-foreground"
+                  >
+                    {itemCount}
+                  </span>
+                )}
+              </span>
             </span>
             <span className={labelClass(false)}>{t("cart")}</span>
           </button>

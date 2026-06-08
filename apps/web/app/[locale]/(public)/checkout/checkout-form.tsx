@@ -651,7 +651,7 @@ export function CheckoutForm({
                       const next = value as Emirate
                       setValue("emirate", next, { shouldValidate: true })
                       const cities = CITIES_BY_EMIRATE[next]
-                      setValue("city", cities.length === 1 ? cities[0].en : "", { shouldValidate: false })
+                      setValue("city", cities.length === 1 ? (cities[0]?.en ?? "") : "", { shouldValidate: false })
                     }}
                   >
                     <SelectTrigger
