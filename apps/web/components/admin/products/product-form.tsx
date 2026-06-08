@@ -110,7 +110,7 @@ function initialState(product?: ProductWithRelations): FormState {
       compareAtAed: "",
       costPriceAed: "",
       weightGrams: "",
-      isFinalSale: false,
+      isFinalSale: true,
       isActive: true,
       variants: [makeEmptyVariant()],
       images: [],

@@ -60,6 +60,7 @@ export type CartItem = {
    * persisted before weight existed — selectors coalesce a missing value to 0.
    */
   weightGrams?: number
+  isFinalSale?: boolean
   /** 1..maxQtyPerVariant */
   quantity: number
 }

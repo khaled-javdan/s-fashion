@@ -215,6 +215,7 @@ export function OrderSummary({
               {variantLabel ? (
                 <p className="text-xs text-muted-foreground">{variantLabel}</p>
               ) : null}
+              <p className="text-xs text-muted-foreground">{t("exchangeable_no_returns")}</p>
             </div>
             <span className="text-sm tabular-nums">
               <Price fils={item.unitPriceFils * item.quantity} />

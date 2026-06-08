@@ -3,6 +3,7 @@ import { GoogleTagManager } from "@next/third-parties/google"
 import { AnalyticsProvider } from "@/components/analytics/analytics-provider"
 import { CartConfigMount } from "@/components/cart/cart-config-mount"
 import { CartToasterMount } from "@/components/cart/cart-toaster-mount"
+import { BottomNav } from "@/components/layout/bottom-nav"
 import { Footer } from "@/components/layout/footer"
 import { Header } from "@/components/layout/header"
 import { WhatsappFloat } from "@/components/layout/whatsapp-float"
@@ -47,9 +48,10 @@ export default async function PublicLayout({
       <GoogleTagManager gtmId={GTM_ID} />
       <div className="flex min-h-svh flex-col">
         <Header />
-        <main className="flex-1">{children}</main>
+        <main className="flex-1 pb-16 md:pb-0">{children}</main>
         <Footer />
         <WhatsappFloat phoneNumber={whatsappNumber ?? undefined} />
+        <BottomNav />
         <AnalyticsProvider />
         <CartToasterMount />
         <CartConfigMount maxQtyPerVariant={maxQtyPerVariant} />

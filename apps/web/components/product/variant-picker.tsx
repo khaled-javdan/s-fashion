@@ -39,6 +39,7 @@ export type PickerProduct = {
   compareAtFils: number | null
   /** Shipping weight in grams (0 when unset); snapshotted onto the cart line. */
   weightGrams: number
+  isFinalSale: boolean
   /** All product images, in display order. The first is the default fallback. */
   images: PickerProductImage[]
 }
@@ -128,6 +129,16 @@ export function VariantPicker({
     )
   }, [selectColor, selectedColor])
 
+  // Gallery → picker: when the gallery swipes to an image with a different
+  // colorHex, the context updates and we sync the local swatch selection here.
+  useEffect(() => {
+    const ctxHex = colorCtx?.selectedColorHex
+    if (!ctxHex) return
+    const match = colors.find((c) => c.colorHex === ctxHex)
+    if (match) setSelectedColor(match.key)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [colorCtx?.selectedColorHex])
+
   // Sizes for the current color (or, with no color chosen, sizes in stock for
   // any color). Sizes are always shown in a stable order across colors, with
   // out-of-stock-for-this-color sizes marked unavailable rather than removed.
@@ -208,6 +219,7 @@ export function VariantPicker({
       unitPriceFils: product.priceFils,
       compareAtFils: product.compareAtFils,
       weightGrams: product.weightGrams,
+      isFinalSale: product.isFinalSale,
       quantity: Math.min(quantity, maxQty),
     }
   }, [selectedVariant, product, quantity, maxQty])
@@ -225,7 +237,17 @@ export function VariantPicker({
         ) : null
       ) : (
         <div className="flex flex-col gap-2">
-          <span className="text-sm font-medium">{t("select_color")}</span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-sm font-medium">{t("select_color")}</span>
+            {selectedColor && selectedColor !== NO_COLOR && (
+              <>
+                <span className="text-muted-foreground/50 text-sm">·</span>
+                <span className="text-muted-foreground text-sm">
+                  {colors.find((c) => c.key === selectedColor)?.label}
+                </span>
+              </>
+            )}
+          </div>
           <div className="flex flex-wrap gap-3">
             {colors.map((color) => (
               <ColorSwatch

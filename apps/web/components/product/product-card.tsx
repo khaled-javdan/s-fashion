@@ -122,11 +122,6 @@ export async function ProductCard({
               : t("sale_badge")}
           </Badge>
         ) : null}
-        {product.isFinalSale ? (
-          <Badge className="bg-foreground text-background rounded-sm px-2 py-0.5 text-[11px]">
-            {t("final_sale")}
-          </Badge>
-        ) : null}
       </div>
 
       {outOfStock ? (

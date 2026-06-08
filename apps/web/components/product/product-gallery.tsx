@@ -90,7 +90,16 @@ export function ProductGallery({ images, priority = false }: Props) {
 
   // When the shopper picks a color, jump to that color's first photo (desktop
   // active image + mobile strip). No-op for untagged products or unknown colors.
-  const selectedColorHex = useProductColor()?.selectedColorHex ?? null
+  const colorCtx = useProductColor()
+  const selectedColorHex = colorCtx?.selectedColorHex ?? null
+  const selectColor = colorCtx?.selectColor
+
+  // Gallery → color: when the active image changes (swipe / thumbnail click),
+  // publish its colorHex back to the context so the variant picker stays in sync.
+  useEffect(() => {
+    const colorHex = images[active]?.colorHex
+    if (colorHex) selectColor?.(colorHex)
+  }, [active, images, selectColor])
   // The default color is published on mount; we set the active image for it but
   // must NOT scroll on that first run, or the page/strip jumps on PDP load.
   // Subsequent (user-initiated) color changes do scroll into view.

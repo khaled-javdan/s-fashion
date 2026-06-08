@@ -20,7 +20,7 @@ type Props = {
  */
 export function StickyPdpCta({ item, priceFils, locale }: Props) {
   return (
-    <div className="bg-background border-border fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 border-t px-4 py-3 md:hidden">
+    <div className="bg-background border-border fixed inset-x-0 bottom-16 z-50 flex items-center gap-3 border-t px-4 py-3 md:hidden">
       <span className="font-heading text-lg tracking-wide">
         <Price fils={priceFils} />
       </span>

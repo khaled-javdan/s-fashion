@@ -22,6 +22,10 @@
   },
   "header": {
     "brand": "S FASHION",
+    "nav_home": "الرئيسية",
+    "nav_shop": "المتجر",
+    "nav_search": "بحث",
+    "nav_more": "المزيد",
     "shop_all": "كل المنتجات",
     "cart": "السلة",
     "language": "English",
@@ -262,7 +266,8 @@
         "coupon_unavailable": "هذا الكوبون لم يعد متاحًا.",
         "invalid_request": "تعذّر تطبيق هذا الكوبون."
       }
-    }
+    },
+    "exchangeable_no_returns": "قابل للاستبدال · لا يُرجع"
   },
   "order": {
     "success_heading": "تم استلام طلبك",
@@ -772,7 +777,7 @@
         "weight": "الوزن (غرام)",
         "weight_placeholder": "مثال: 400",
         "final_sale": "بيع نهائي",
-        "final_sale_desc": "لا يمكن الإرجاع أو الاستبدال",
+        "final_sale_desc": "لا يمكن الإرجاع",
         "active": "نشط",
         "active_desc": "ظاهر للعملاء",
         "hide": "إخفاء المنتج",

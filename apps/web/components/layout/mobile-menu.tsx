@@ -16,7 +16,6 @@ import {
   SheetTrigger,
 } from "@workspace/ui/components/sheet"
 
-import { LocaleSwitcher } from "@/components/layout/locale-switcher"
 import { ShipToSwitcher } from "@/components/layout/ship-to-switcher"
 import type { Locale } from "@/lib/locale"
 
@@ -83,11 +82,10 @@ export function MobileMenu() {
           ))}
         </nav>
 
-        {/* Pinned to the bottom: country/currency + language, which the header
-            only exposes on desktop. */}
-        <div className="mt-auto flex items-center justify-between gap-2 border-t border-border p-3">
+        {/* Pinned to the bottom: country/currency switcher. Language is now
+            always visible in the mobile header. */}
+        <div className="mt-auto border-t border-border p-3">
           <ShipToSwitcher />
-          <LocaleSwitcher />
         </div>
       </SheetContent>
     </Sheet>

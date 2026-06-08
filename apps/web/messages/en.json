@@ -22,6 +22,10 @@
   },
   "header": {
     "brand": "S FASHION",
+    "nav_home": "Home",
+    "nav_shop": "Shop",
+    "nav_search": "Search",
+    "nav_more": "More",
     "shop_all": "All Products",
     "cart": "Cart",
     "language": "العربية",
@@ -262,7 +266,8 @@
         "coupon_unavailable": "This coupon is no longer available.",
         "invalid_request": "Could not apply this coupon."
       }
-    }
+    },
+    "exchangeable_no_returns": "Exchangeable · No returns"
   },
   "order": {
     "success_heading": "We've received your order",
@@ -772,7 +777,7 @@
         "weight": "Weight (grams)",
         "weight_placeholder": "e.g. 400",
         "final_sale": "Final sale",
-        "final_sale_desc": "No returns or exchanges",
+        "final_sale_desc": "No returns",
         "active": "Active",
         "active_desc": "Visible to customers",
         "hide": "Hide product",

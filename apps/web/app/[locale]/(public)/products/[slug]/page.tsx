@@ -157,7 +157,7 @@ export default async function ProductPage({
     : null
 
   return (
-    <article className="mx-auto w-full max-w-7xl px-4 py-8 pb-28 sm:px-6 lg:px-0 md:pb-8">
+    <article className="mx-auto w-full max-w-7xl px-4 py-8 pb-40 sm:px-6 lg:px-0 md:pb-8">
       <ProductJsonLd product={product} locale={typedLocale} url={url} />
       <AdminEditBar
         dashboardHref={`/${typedLocale}/admin`}
@@ -208,6 +208,7 @@ export default async function ProductPage({
               priceFils: product.priceFils,
               compareAtFils: product.compareAtFils,
               weightGrams: product.weightGrams ?? 0,
+              isFinalSale: product.isFinalSale,
               images: product.images.map((img) => ({
                 url: img.url,
                 colorHex: img.colorHex,
