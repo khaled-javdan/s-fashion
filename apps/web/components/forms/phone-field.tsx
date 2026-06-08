@@ -46,6 +46,16 @@ const FLAGS = flags as Record<
   React.ComponentType<{ title?: string }> | undefined
 >
 
+/**
+ * Reduce arbitrary input to the national significant digits: keep digits only
+ * and drop a leading "0" trunk prefix. UAE/GCC numbers are written locally as
+ * `050…`, but E.164 omits that zero — so `0501234567` and `501234567` both
+ * resolve to `+971501234567`.
+ */
+function nationalDigits(raw: string): string {
+  return raw.replace(/\D/g, "").replace(/^0+/, "")
+}
+
 function CountryFlag({
   country,
   title,
@@ -121,16 +131,17 @@ export function PhoneField({
     setCountry(next)
     onCountryChange?.(next)
     // Re-key the existing digits to the new country's national format.
-    const reformatted = new AsYouType(next).input(national.replace(/\D/g, ""))
+    const reformatted = new AsYouType(next).input(nationalDigits(national))
     setNational(reformatted)
     emit(next, reformatted)
   }
 
   function handleInput(event: React.ChangeEvent<HTMLInputElement>) {
     // The input only ever holds the *national* number — never the country
-    // code or a leading "+". Strip everything but digits, then re-format; the
-    // calling code shown in the picker is appended automatically in `emit`.
-    const digits = event.target.value.replace(/\D/g, "")
+    // code or a leading "+". Strip everything but digits, drop the national
+    // prefix "0" (UAE/GCC numbers are commonly written as 050…), then
+    // re-format; the calling code shown in the picker is appended in `emit`.
+    const digits = nationalDigits(event.target.value)
     const formatted = new AsYouType(country).input(digits)
     setNational(formatted)
     emit(country, formatted)

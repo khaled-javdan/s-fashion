@@ -8,6 +8,31 @@ import { useEffect, useRef, useState } from "react"
 
 import { cn } from "@workspace/ui/lib/utils"
 
+/**
+ * Scroll a horizontal scroller so `child` is revealed — WITHOUT ever scrolling
+ * the page. `Element.scrollIntoView` bubbles to every scrollable ancestor
+ * including the window, so for a card below the fold it drags the whole page
+ * down on mount (the storefront's "jumps down on load" bug). We instead nudge
+ * only the container's own horizontal scroll, computed from live rects (RTL-safe).
+ */
+function scrollChildIntoViewX(
+  container: HTMLElement | null,
+  child: HTMLElement | undefined,
+  align: "center" | "nearest",
+) {
+  if (!container || !child) return
+  const c = container.getBoundingClientRect()
+  const ch = child.getBoundingClientRect()
+  let delta: number
+  if (align === "center") {
+    delta = ch.left + ch.width / 2 - (c.left + c.width / 2)
+  } else {
+    if (ch.left >= c.left && ch.right <= c.right) return // already fully visible
+    delta = ch.left < c.left ? ch.left - c.left : ch.right - c.right
+  }
+  container.scrollBy({ left: delta, behavior: "smooth" })
+}
+
 export type CardSlide = { url: string; alt: string }
 /**
  * `index` is the slide to scroll to, or -1 for a decorative (no-image) color.
@@ -54,7 +79,7 @@ export function ProductCardMedia({
 
   const goTo = (i: number) => {
     const el = scroller.current?.children[i] as HTMLElement | undefined
-    el?.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" })
+    scrollChildIntoViewX(scroller.current, el, "center")
   }
 
   // Direction-agnostic active-slide detection (works in LTR and RTL).
@@ -81,12 +106,13 @@ export function ProductCardMedia({
     if (s.index >= 0 && s.index <= active) activeSwatch = i
   })
 
-  // Keep the active swatch visible in the scrollable swatch row.
+  // Keep the active swatch visible in the scrollable swatch row. Scrolls only
+  // the row itself — never the page (see scrollChildIntoViewX).
   useEffect(() => {
     if (activeSwatch < 0) return
     const ul = swatchScroller.current
     const li = ul?.children[activeSwatch] as HTMLElement | undefined
-    li?.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" })
+    scrollChildIntoViewX(ul, li, "nearest")
   }, [activeSwatch])
 
   if (slides.length === 0) {

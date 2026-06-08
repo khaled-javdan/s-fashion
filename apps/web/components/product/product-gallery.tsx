@@ -91,6 +91,10 @@ export function ProductGallery({ images, priority = false }: Props) {
   // When the shopper picks a color, jump to that color's first photo (desktop
   // active image + mobile strip). No-op for untagged products or unknown colors.
   const selectedColorHex = useProductColor()?.selectedColorHex ?? null
+  // The default color is published on mount; we set the active image for it but
+  // must NOT scroll on that first run, or the page/strip jumps on PDP load.
+  // Subsequent (user-initiated) color changes do scroll into view.
+  const didMountColor = useRef(false)
   useEffect(() => {
     if (!selectedColorHex) return
     const index = images.findIndex((img) => img.colorHex === selectedColorHex)
@@ -98,8 +102,9 @@ export function ProductGallery({ images, priority = false }: Props) {
       // Reactive to the selected color, paired with a DOM scroll side effect.
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setActive(index)
-      scrollToSlide(index)
+      if (didMountColor.current) scrollToSlide(index)
     }
+    didMountColor.current = true
     // `images` is stable for a given product render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedColorHex])

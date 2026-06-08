@@ -108,8 +108,11 @@ export function VariantPicker({
 
   const singleColor = colors.length <= 1
 
+  // Pre-select the first color for every product (not just single-color ones)
+  // so the gallery opens on that color's photo by default. The shopper can still
+  // switch colors freely.
   const [selectedColor, setSelectedColor] = useState<string | null>(
-    singleColor ? (colors[0]?.key ?? null) : null,
+    colors[0]?.key ?? null,
   )
   const [selectedSize, setSelectedSize] = useState<string | null>(null)
   const [quantity, setQuantity] = useState(1)

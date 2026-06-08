@@ -35,6 +35,14 @@ const Toaster = ({ ...props }: ToasterProps) => {
         .cn-toast--warning [data-icon] { color: var(--warning, var(--destructive)); }
         .cn-toast--info { border-inline-start-color: var(--primary); }
         .cn-toast--info [data-icon] { color: var(--primary); }
+        /* Sonner's mobile rule sets the toaster container to width:100% while
+           also offsetting left/right, so it overflows the viewport by the
+           offset. Pin the container to the space between the offsets and let
+           the toast fill it — no horizontal overflow on narrow phones. */
+        @media (max-width: 600px) {
+          [data-sonner-toaster] { width: auto !important; max-width: 100vw; }
+          [data-sonner-toaster] [data-sonner-toast] { width: 100% !important; }
+        }
       `}</style>
       <Sonner
         theme={theme as ToasterProps["theme"]}

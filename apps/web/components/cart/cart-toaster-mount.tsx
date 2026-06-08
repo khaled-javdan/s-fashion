@@ -21,7 +21,6 @@ export function CartToasterMount() {
     <Toaster
       position="bottom-center"
       dir={locale === "ar" ? "rtl" : "ltr"}
-      richColors
       closeButton
     />
   )

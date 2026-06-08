@@ -279,6 +279,9 @@ export async function sendOtpAction(input: {
 
   const result = await sendOtp(phone)
   if (!result.ok) {
+    // Surface the underlying provider error to the owner so delivery problems
+    // (e.g. WhatsApp channel not enabled, account in trial) are diagnosable.
+    reportError("checkout.sendOtpAction.sendOtp", new Error(result.error))
     // Record the failed attempt so abusive senders still accrue toward limits.
     try {
       await recordAttempt(phone, ip, false)
