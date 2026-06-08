@@ -6,6 +6,7 @@ import { CartToasterMount } from "@/components/cart/cart-toaster-mount"
 import { BottomNav } from "@/components/layout/bottom-nav"
 import { Footer } from "@/components/layout/footer"
 import { Header } from "@/components/layout/header"
+import { ScrollToTop } from "@/components/layout/scroll-to-top"
 import { WhatsappFloat } from "@/components/layout/whatsapp-float"
 import { CurrencyProvider } from "@/components/providers/currency-provider"
 import { getCurrencyContext } from "@/lib/currency-context.server"
@@ -46,6 +47,7 @@ export default async function PublicLayout({
       enabledCountries={enabledCountries}
     >
       <GoogleTagManager gtmId={GTM_ID} />
+      <ScrollToTop />
       <div className="flex min-h-svh flex-col">
         <Header />
         <main className="flex-1 pb-16 md:pb-0">{children}</main>

@@ -57,6 +57,44 @@ const EMIRATES = [
   "FUJAIRAH",
 ] as const satisfies readonly Emirate[]
 
+const CITIES_BY_EMIRATE: Record<Emirate, { en: string; ar: string }[]> = {
+  ABU_DHABI: [
+    { en: "Abu Dhabi", ar: "أبوظبي" },
+    { en: "Al Ain", ar: "العين" },
+    { en: "Al Dhafra", ar: "الظفرة" },
+    { en: "Khalifa City", ar: "مدينة خليفة" },
+    { en: "Mohammed Bin Zayed City", ar: "مدينة محمد بن زايد" },
+    { en: "Mussafah", ar: "مصفح" },
+    { en: "Baniyas", ar: "بني ياس" },
+  ],
+  DUBAI: [
+    { en: "Dubai", ar: "دبي" },
+  ],
+  SHARJAH: [
+    { en: "Sharjah", ar: "الشارقة" },
+    { en: "Khor Fakkan", ar: "خورفكان" },
+    { en: "Kalba", ar: "كلباء" },
+    { en: "Dibba Al Hisn", ar: "دبا الحصن" },
+    { en: "Dhaid", ar: "الذيد" },
+  ],
+  AJMAN: [
+    { en: "Ajman", ar: "عجمان" },
+  ],
+  UMM_AL_QUWAIN: [
+    { en: "Umm Al Quwain", ar: "أم القيوين" },
+  ],
+  RAS_AL_KHAIMAH: [
+    { en: "Ras Al Khaimah", ar: "رأس الخيمة" },
+    { en: "Al Jazeera Al Hamra", ar: "الجزيرة الحمراء" },
+    { en: "Khuzam", ar: "خزام" },
+    { en: "Digdaga", ar: "دقداقة" },
+  ],
+  FUJAIRAH: [
+    { en: "Fujairah", ar: "الفجيرة" },
+    { en: "Dibba Al Fujairah", ar: "دبا الفجيرة" },
+  ],
+}
+
 type CheckoutFormValues = {
   name: string
   phone: string
@@ -609,11 +647,12 @@ export function CheckoutForm({
                 >
                   <Select
                     value={emirate || undefined}
-                    onValueChange={(value) =>
-                      setValue("emirate", value as Emirate, {
-                        shouldValidate: true,
-                      })
-                    }
+                    onValueChange={(value) => {
+                      const next = value as Emirate
+                      setValue("emirate", next, { shouldValidate: true })
+                      const cities = CITIES_BY_EMIRATE[next]
+                      setValue("city", cities.length === 1 ? cities[0].en : "", { shouldValidate: false })
+                    }}
                   >
                     <SelectTrigger
                       id="checkout-emirate"
@@ -633,18 +672,44 @@ export function CheckoutForm({
                 </Field>
               ) : null}
 
+              {!(hasEmirates && emirate && CITIES_BY_EMIRATE[emirate as Emirate].length === 1) ? (
               <Field
                 id="checkout-city"
                 label={t("city")}
                 error={errors.city?.message}
               >
-                <Input
-                  id="checkout-city"
-                  autoComplete="address-level2"
-                  aria-invalid={!!errors.city}
-                  {...register("city")}
-                />
+                {hasEmirates && emirate ? (
+                  <Select
+                    value={watch("city") || undefined}
+                    onValueChange={(value) =>
+                      setValue("city", value, { shouldValidate: true })
+                    }
+                  >
+                    <SelectTrigger
+                      id="checkout-city"
+                      aria-invalid={!!errors.city}
+                      className="w-full"
+                    >
+                      <SelectValue placeholder={t("city_placeholder")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CITIES_BY_EMIRATE[emirate as Emirate].map((city) => (
+                        <SelectItem key={city.en} value={city.en}>
+                          {locale === "ar" ? city.ar : city.en}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input
+                    id="checkout-city"
+                    autoComplete="address-level2"
+                    aria-invalid={!!errors.city}
+                    {...register("city")}
+                  />
+                )}
               </Field>
+              ) : null}
 
               <Field
                 id="checkout-address1"

@@ -137,14 +137,15 @@ export function PhoneField({
   }
 
   function handleInput(event: React.ChangeEvent<HTMLInputElement>) {
-    // The input only ever holds the *national* number — never the country
-    // code or a leading "+". Strip everything but digits, drop the national
-    // prefix "0" (UAE/GCC numbers are commonly written as 050…), then
-    // re-format; the calling code shown in the picker is appended in `emit`.
-    const digits = nationalDigits(event.target.value)
-    const formatted = new AsYouType(country).input(digits)
-    setNational(formatted)
-    emit(country, formatted)
+    const allDigits = event.target.value.replace(/\D/g, "")
+    const hasLeadingZero = allDigits.startsWith("0")
+    // AsYouType expects digits without the trunk prefix (0); we re-attach it
+    // for display so users can type in local UAE format (050 xxx xxxx).
+    const significant = allDigits.replace(/^0/, "")
+    const formatted = significant ? new AsYouType(country).input(significant) : ""
+    const displayed = hasLeadingZero ? (formatted ? `0${formatted}` : "0") : formatted
+    setNational(displayed)
+    emit(country, displayed)
   }
 
   return (
