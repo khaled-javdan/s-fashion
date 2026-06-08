@@ -67,8 +67,13 @@ function getVerifyServiceSid(): string {
 }
 
 /**
- * Send an SMS OTP to the given phone number (E.164, e.g. +971501234567).
+ * Send a WhatsApp OTP to the given phone number (E.164, e.g. +971501234567).
  * Returns ok on success; never throws.
+ *
+ * WhatsApp (not SMS) is used deliberately: UAE carriers block SMS from
+ * unregistered alphanumeric Sender IDs, whereas WhatsApp delivers internationally
+ * without that registration. The Twilio Verify service must have the WhatsApp
+ * channel enabled and the account must be out of trial.
  */
 export async function sendOtp(phoneE164: string): Promise<SendOtpResult> {
   try {
@@ -76,7 +81,7 @@ export async function sendOtp(phoneE164: string): Promise<SendOtpResult> {
     const verifySid = getVerifyServiceSid();
     await client.verify.v2
       .services(verifySid)
-      .verifications.create({ to: phoneE164, channel: "sms" });
+      .verifications.create({ to: phoneE164, channel: "whatsapp" });
     return { ok: true };
   } catch (err) {
     const message =

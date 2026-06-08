@@ -667,11 +667,16 @@ export function CheckoutForm({
                 />
               </Field>
 
-              <Field id="checkout-notes" label={t("notes")}>
+              <Field
+                id="checkout-notes"
+                label={t("notes")}
+                hint={t("notes_hint")}
+              >
                 <Textarea
                   id="checkout-notes"
                   rows={3}
                   maxLength={500}
+                  placeholder={t("notes_placeholder")}
                   {...register("notes")}
                 />
               </Field>
@@ -690,6 +695,38 @@ export function CheckoutForm({
                 {t("marketing_consent")}
               </span>
             </label>
+
+            {/* Payment method. COD is the only live option; online payment is
+                shown as "coming soon" so customers know it's planned. Display
+                only — every order is COD today, so there's nothing to submit. */}
+            <fieldset className="space-y-3">
+              <legend className="font-heading text-lg tracking-wide text-foreground">
+                {t("payment_heading")}
+              </legend>
+              <div className="flex items-center gap-3 rounded-lg border border-primary bg-primary/5 p-4">
+                <span
+                  aria-hidden="true"
+                  className="flex size-5 shrink-0 items-center justify-center rounded-full border-2 border-primary"
+                >
+                  <span className="size-2.5 rounded-full bg-primary" />
+                </span>
+                <span className="flex-1 font-medium text-foreground">
+                  {t("payment_cod")}
+                </span>
+              </div>
+              <div className="flex items-center gap-3 rounded-lg border border-border p-4 opacity-60">
+                <span
+                  aria-hidden="true"
+                  className="size-5 shrink-0 rounded-full border-2 border-muted-foreground/40"
+                />
+                <span className="flex-1 text-muted-foreground">
+                  {t("payment_online")}
+                </span>
+                <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                  {t("payment_online_soon")}
+                </span>
+              </div>
+            </fieldset>
 
             {/* Invisible/managed bot challenge. Renders nothing when Turnstile
                 is not configured. */}
