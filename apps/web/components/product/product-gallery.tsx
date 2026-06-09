@@ -393,7 +393,10 @@ function ZoomableImage({
   }, [])
 
   const onPointerDown = (e: React.PointerEvent) => {
-    ;(e.target as Element).setPointerCapture?.(e.pointerId)
+    containerRef.current?.setPointerCapture(e.pointerId)
+    // If a prior gesture left stale tracked pointers (e.g. a missed pointercancel),
+    // clear them so we don't mis-classify the next single-touch as a pinch.
+    if (pointers.current.size >= 2) pointers.current.clear()
     pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
     setGesturing(true)
 
@@ -448,8 +451,10 @@ function ZoomableImage({
       tap.current.moved &&
       pointers.current.size === 0
     ) {
-      const dx = e.clientX - tap.current.x
-      const dy = e.clientY - tap.current.y
+      // Use the last tracked pointermove position — pointerup clientX/Y is
+      // unreliable on iOS Safari for touch-generated pointer events.
+      const dx = released.x - tap.current.x
+      const dy = released.y - tap.current.y
       if (Math.abs(dx) > SWIPE_THRESHOLD && Math.abs(dx) > Math.abs(dy)) {
         if (dx > 0) onSwipePrev?.()
         else onSwipeNext?.()
@@ -471,6 +476,11 @@ function ZoomableImage({
     if (pointers.current.size === 0) setGesturing(false)
   }
 
+  const onLostPointerCapture = (e: React.PointerEvent) => {
+    pointers.current.delete(e.pointerId)
+    if (pointers.current.size === 0) setGesturing(false)
+  }
+
   return (
     <div
       ref={containerRef}
@@ -478,6 +488,7 @@ function ZoomableImage({
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
+      onLostPointerCapture={onLostPointerCapture}
       style={{ touchAction: "none" }}
       className={cn(
         "relative flex-1 select-none overflow-hidden",
