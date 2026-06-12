@@ -13,7 +13,7 @@ import { getSetting } from "@/lib/repos/settings.repo"
 /** Fallback mirrors the placeholder used by the floating WhatsApp button. */
 const DEFAULT_WHATSAPP_NUMBER = "+971501234567"
 /** Fallback used when no `contact.email` setting has been configured. */
-const DEFAULT_CONTACT_EMAIL = "hello@sfashion.ae"
+const DEFAULT_CONTACT_EMAIL = "support@s-fashions.com"
 
 export async function generateMetadata({
   params,

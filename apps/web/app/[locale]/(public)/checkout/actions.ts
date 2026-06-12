@@ -24,11 +24,6 @@ import {
   parseShippingConfig,
   resolveShipping,
 } from "@/lib/shipping-config"
-import {
-  countAttemptsForIp,
-  countAttemptsForPhone,
-  recordAttempt,
-} from "@/lib/repos/otp-attempts.repo"
 import { getSetting } from "@/lib/repos/settings.repo"
 import {
   ABSOLUTE_MAX_QTY_PER_VARIANT,
@@ -39,21 +34,14 @@ import {
   type OrderCreateInput,
 } from "@/lib/schemas/order.schema"
 import { dispatchOrderNotifications } from "@/lib/services/order-notifications"
-import { tryAcquire } from "@/lib/services/rate-limit"
-import { checkOtp, sendOtp } from "@/lib/services/twilio"
 import { verifyTurnstile } from "@/lib/services/turnstile"
 
 /** Public field handle used for targeted client-side error mapping. */
 type OrderInput = OrderCreateInput
 
-// ─── Rate-limit policy ──────────────────────────────────────────────────────
-const PHONE_LIMIT = 5 // attempts per phone …
-const IP_LIMIT = 20 // … per IP …
-const WINDOW_MINUTES = 60 // … per rolling hour.
-
 // ─── Schemas ──────────────────────────────────────────────────────────────
 
-/** Cart line shape shared by the send-OTP pre-check and the verify/create flow. */
+/** Cart line shape for cart pre-check and order creation. */
 const cartItemSchema = z.object({
   variantId: z.string().min(1),
   // Absolute ceiling only — the configured per-variant cap is enforced against
@@ -61,20 +49,11 @@ const cartItemSchema = z.object({
   quantity: z.number().int().min(1).max(ABSOLUTE_MAX_QTY_PER_VARIANT),
 })
 
-const sendOtpSchema = z.object({
-  phone: z.string().min(1),
-  locale: z.union([z.literal("ar"), z.literal("en")]),
-  // Optional so the schema stays lenient, but the client always sends the cart
-  // so we can fail fast (out-of-stock) before spending an SMS.
-  items: z.array(cartItemSchema).optional(),
-  // Cloudflare Turnstile token (present only when Turnstile is configured).
-  turnstileToken: z.string().optional(),
-})
-
-const verifyAndCreateSchema = orderCreateSchema
+const createOrderSchema = orderCreateSchema
   .omit({ items: true })
   .extend({
-    otpCode: z.string().regex(/^\d{6}$/, "invalid code"),
+    // Cloudflare Turnstile token (present only when Turnstile is configured).
+    turnstileToken: z.string().optional(),
     items: z.array(cartItemSchema).min(1),
   })
 
@@ -126,8 +105,7 @@ type ResolvedItem = {
  * stock, and within the admin-configured per-variant quantity cap. Returns the
  * fully-snapshotted items for order creation, or a tagged error.
  *
- * Shared by sendOtpAction (fail fast before spending an SMS) and
- * verifyOtpAndCreateOrderAction (authoritative check at order time).
+ * Called by createOrderAction before committing the order.
  */
 async function resolveAndValidateItems(
   items: { variantId: string; quantity: number }[],
@@ -221,93 +199,14 @@ export async function applyCouponAction(input: {
   return { ok: true, code: result.code, discountFils: result.discountFils }
 }
 
-// ─── sendOtpAction ────────────────────────────────────────────────────────
+// ─── createOrderAction ──────────────────────────────────────────────────────
 
 /**
- * Verify the bot challenge, validate the phone + cart, enforce per-phone and
- * per-IP hourly rate limits, then send an SMS OTP via Twilio Verify. Records
- * the attempt on success.
- *
- * Order of checks is deliberate: bot challenge and cart validation run *before*
- * Twilio so we never spend an SMS on a bot or an un-buyable cart.
+ * Validate the cart and order details, compute pricing server-side, create the
+ * order (stock decrement happens in the repo transaction), then fire-and-forget
+ * the Telegram + Resend notifications.
  */
-export async function sendOtpAction(input: {
-  phone: string
-  locale: Locale
-  items?: { variantId: string; quantity: number }[]
-  turnstileToken?: string
-}): Promise<{ ok: true } | { ok: false; error: string }> {
-  const parsed = sendOtpSchema.safeParse(input)
-  if (!parsed.success) {
-    return { ok: false, error: "Invalid request" }
-  }
-
-  const ip = await getClientIp()
-
-  // 0. Bot challenge (Cloudflare Turnstile). No-op when not configured.
-  const human = await verifyTurnstile(parsed.data.turnstileToken, ip)
-  if (!human) {
-    return { ok: false, error: "verification_failed" }
-  }
-
-  const phone = toE164(parsed.data.phone)
-  if (!phone) {
-    return { ok: false, error: "Invalid phone number" }
-  }
-
-  try {
-    const [phoneCount, ipCount] = await Promise.all([
-      countAttemptsForPhone(phone, WINDOW_MINUTES),
-      countAttemptsForIp(ip, WINDOW_MINUTES),
-    ])
-    if (phoneCount >= PHONE_LIMIT || ipCount >= IP_LIMIT) {
-      return { ok: false, error: "Too many attempts" }
-    }
-  } catch (err) {
-    reportError("checkout.sendOtpAction.rateLimit", err)
-    return { ok: false, error: "Something went wrong" }
-  }
-
-  // Fail fast on an un-buyable cart before spending an SMS. The authoritative
-  // re-check still runs at order time in verifyOtpAndCreateOrderAction.
-  if (parsed.data.items && parsed.data.items.length > 0) {
-    const cart = await resolveAndValidateItems(parsed.data.items)
-    if (!cart.ok) {
-      return { ok: false, error: cart.error }
-    }
-  }
-
-  const result = await sendOtp(phone)
-  if (!result.ok) {
-    // Surface the underlying provider error to the owner so delivery problems
-    // (e.g. WhatsApp channel not enabled, account in trial) are diagnosable.
-    reportError("checkout.sendOtpAction.sendOtp", new Error(result.error))
-    // Record the failed attempt so abusive senders still accrue toward limits.
-    try {
-      await recordAttempt(phone, ip, false)
-    } catch (err) {
-      reportError("checkout.sendOtpAction.recordAttemptFailure", err)
-    }
-    return { ok: false, error: "Could not send code. Please try again." }
-  }
-
-  try {
-    await recordAttempt(phone, ip, true)
-  } catch (err) {
-    reportError("checkout.sendOtpAction.recordAttemptSuccess", err)
-  }
-
-  return { ok: true }
-}
-
-// ─── verifyOtpAndCreateOrderAction ──────────────────────────────────────────
-
-/**
- * Verify the OTP, re-validate the cart against the DB, compute pricing
- * server-side, create the order (stock decrement happens in the repo
- * transaction), then fire-and-forget the Telegram + Resend notifications.
- */
-export async function verifyOtpAndCreateOrderAction(input: {
+export async function createOrderAction(input: {
   name: string
   phone: string
   country: string
@@ -320,7 +219,7 @@ export async function verifyOtpAndCreateOrderAction(input: {
   locale: Locale
   marketingConsent?: boolean
   couponCode?: string
-  otpCode: string
+  turnstileToken?: string
   items: { variantId: string; quantity: number }[]
 }): Promise<
   | { ok: true; orderNumber: string }
@@ -328,7 +227,7 @@ export async function verifyOtpAndCreateOrderAction(input: {
 > {
   // 1. Validate the full payload. `orderCreateSchema` expects `customerName`,
   //    so adapt the client field name (`name`) into the schema's shape.
-  const parsed = verifyAndCreateSchema.safeParse({
+  const parsed = createOrderSchema.safeParse({
     customerName: input.name,
     phone: input.phone,
     email: input.email,
@@ -341,7 +240,7 @@ export async function verifyOtpAndCreateOrderAction(input: {
     locale: input.locale,
     marketingConsent: input.marketingConsent ?? false,
     couponCode: input.couponCode,
-    otpCode: input.otpCode,
+    turnstileToken: input.turnstileToken,
     items: input.items,
   })
 
@@ -366,30 +265,22 @@ export async function verifyOtpAndCreateOrderAction(input: {
     return { ok: false, error: "Invalid request", field: "emirate" }
   }
 
-  // 2. Throttle verify attempts per phone (defence-in-depth against brute-forcing
-  //    the 6-digit code; Twilio Verify also caps checks per verification).
-  if (
-    !tryAcquire(`otp:check:phone:${phone}`, 10, WINDOW_MINUTES * 60_000)
-  ) {
-    return { ok: false, error: "Too many attempts" }
+  // 2. Bot challenge (Cloudflare Turnstile). No-op when not configured.
+  const ip = await getClientIp()
+  const human = await verifyTurnstile(data.turnstileToken, ip)
+  if (!human) {
+    return { ok: false, error: "verification_failed" }
   }
 
-  // 3. Verify the OTP.
-  const check = await checkOtp(phone, data.otpCode)
-  if (!check.ok) {
-    return { ok: false, error: "Invalid code" }
-  }
-
-  // 4. Re-load + validate each cart line against the DB (active, in stock,
-  //    within the admin-configured per-variant cap). Authoritative check at
-  //    order time — the same helper runs in sendOtpAction as a fast pre-check.
+  // 3. Re-load + validate each cart line against the DB (active, in stock,
+  //    within the admin-configured per-variant cap).
   const resolved = await resolveAndValidateItems(data.items)
   if (!resolved.ok) {
     return { ok: false, error: resolved.error }
   }
   const resolvedItems = resolved.items
 
-  // 5. Compute pricing server-side. Never trust client totals.
+  // 4. Compute pricing server-side. Never trust client totals.
   const subtotalFils = resolvedItems.reduce(
     (sum, item) => sum + item.unitPriceFils * item.quantity,
     0,
@@ -450,8 +341,8 @@ export async function verifyOtpAndCreateOrderAction(input: {
   const displayCurrency = currencyForCountry(data.country)
   const fxRate = effectiveRate(currencyConfig, displayCurrency)
 
-  // 6. Create the order. Stock decrement, customer upsert + link, order number,
-  //    and the verified NEW status all happen in one transaction.
+  // 5. Create the order. Stock decrement, customer upsert + link, order number,
+  //    and the NEW status all happen in one transaction.
   let created: { id: string; orderNumber: string }
   try {
     created = await createOrder(
@@ -488,13 +379,13 @@ export async function verifyOtpAndCreateOrderAction(input: {
     if (err instanceof CouponExhaustedError) {
       return { ok: false, error: "coupon_unavailable" }
     }
-    reportError("checkout.verifyOtpAndCreateOrderAction.createOrder", err, {
+    reportError("checkout.createOrderAction.createOrder", err, {
       country: data.country,
     })
     return { ok: false, error: "Something went wrong" }
   }
 
-  // 7. Fire-and-forget side effects. The dispatcher rebuilds payloads from the
+  // 6. Fire-and-forget side effects. The dispatcher rebuilds payloads from the
   //    persisted order, stamps each channel on success, and is idempotent — a
   //    retry cron re-runs it for any order still missing a stamp, so a transient
   //    Telegram/email failure here is recovered rather than silently lost.
@@ -504,6 +395,6 @@ export async function verifyOtpAndCreateOrderAction(input: {
     }),
   )
 
-  // 8. Done.
+  // 7. Done.
   return { ok: true, orderNumber: created.orderNumber }
 }

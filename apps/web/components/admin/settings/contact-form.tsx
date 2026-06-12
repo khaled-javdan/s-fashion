@@ -140,7 +140,7 @@ export function ContactForm({
           dir="ltr"
           value={emailValue}
           onChange={(e) => setEmailValue(e.target.value)}
-          placeholder="hello@sfashion.ae"
+          placeholder="support@s-fashions.com"
         />
         <p className="text-muted-foreground text-xs">
           {t("contact.email_help")}

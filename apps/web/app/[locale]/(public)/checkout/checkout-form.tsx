@@ -23,7 +23,6 @@ import {
 } from "@workspace/ui/components/select"
 
 import { OrderSummary } from "@/app/[locale]/(public)/checkout/order-summary"
-import { OtpStep } from "@/app/[locale]/(public)/checkout/otp-step"
 import { PhoneField } from "@/components/forms/phone-field"
 import {
   TurnstileWidget,
@@ -31,8 +30,7 @@ import {
 } from "@/app/[locale]/(public)/checkout/turnstile-widget"
 import {
   applyCouponAction,
-  sendOtpAction,
-  verifyOtpAndCreateOrderAction,
+  createOrderAction,
 } from "@/app/[locale]/(public)/checkout/actions"
 import { useCurrency } from "@/components/providers/currency-provider"
 import {
@@ -160,9 +158,8 @@ function serverFieldToFormField(
  * runs server-side in the action.
  *
  * Flow:
- *  1. "Place order" → `sendOtpAction`. On success, swap to `OtpStep`.
- *  2. OTP complete → `verifyOtpAndCreateOrderAction`. On success, clear the
- *     cart and navigate to the confirmation page.
+ *  1. "Place order" → `createOrderAction`. On success, clear the cart and
+ *     navigate to the confirmation page.
  */
 export function CheckoutForm({
   shippingConfig,
@@ -183,9 +180,7 @@ export function CheckoutForm({
   const hasHydrated = useCartStore(selectHasHydrated)
   const clear = useCartStore((s) => s.clear)
 
-  const [step, setStep] = useState<"form" | "otp">("form")
   const [submitting, setSubmitting] = useState(false)
-  const [otpError, setOtpError] = useState<string | null>(null)
 
   // Coupon state (display preview). The applied code is sent with the order and
   // re-validated server-side, so this is best-effort UI only.
@@ -281,6 +276,13 @@ export function CheckoutForm({
       const raw = sessionStorage.getItem(FORM_STORAGE_KEY)
       if (raw) {
         const saved = JSON.parse(raw) as Partial<CheckoutFormValues>
+        // Sanitize emirate — stale sessionStorage from an older code version
+        // could hold a key that no longer exists in CITIES_BY_EMIRATE, causing
+        // a TypeError crash on render. Drop any value not in the current enum.
+        if (saved.emirate && !(EMIRATES as readonly string[]).includes(saved.emirate)) {
+          saved.emirate = ""
+          saved.city = ""
+        }
         reset({ ...DEFAULT_VALUES, country: defaultCountry, ...saved })
         // Keep the global ship-to currency in sync with the restored country.
         if (saved.country) setCountry(saved.country)
@@ -375,21 +377,6 @@ export function CheckoutForm({
     setCouponError(null)
   }
 
-  // Map a send-OTP error code to a toast. The cart pre-check can surface
-  // out-of-stock here (before any SMS is spent), so handle it like the form step.
-  function reportSendError(error: string) {
-    if (error === "Too many attempts") {
-      toast.error(t("error_too_many"))
-    } else if (error === "out_of_stock") {
-      toast.error(t("error_out_of_stock"))
-    } else if (error === "verification_failed") {
-      toast.error(t("error_verification"))
-    } else {
-      toast.error(t("error_generic"))
-    }
-  }
-
-  // Step 1 — send OTP.
   const onSubmit = async () => {
     if (items.length === 0) {
       toast.error(t("empty_cart"))
@@ -402,45 +389,9 @@ export function CheckoutForm({
     }
 
     setSubmitting(true)
-    setOtpError(null)
-    try {
-      const result = await sendOtpAction({
-        phone,
-        locale,
-        items: cartPayload(),
-        turnstileToken: turnstileRef.current?.getToken(),
-      })
-      // The Turnstile token is single-use — drop it so a resend re-challenges.
-      turnstileRef.current?.reset()
-      if (!result.ok) {
-        reportSendError(result.error)
-        return
-      }
-      setStep("otp")
-    } catch {
-      toast.error(t("error_generic"))
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  // Step 2 — verify OTP + create order.
-  async function handleVerify(code: string) {
-    const phone = canonicalPhone()
-    if (!phone) {
-      setStep("form")
-      return
-    }
-    if (items.length === 0) {
-      toast.error(t("empty_cart"))
-      return
-    }
-
-    setSubmitting(true)
-    setOtpError(null)
     try {
       const values = getValues()
-      const result = await verifyOtpAndCreateOrderAction({
+      const result = await createOrderAction({
         name: values.name.trim(),
         phone,
         country: values.country,
@@ -453,31 +404,22 @@ export function CheckoutForm({
         marketingConsent: values.marketingConsent,
         couponCode: couponCode ?? undefined,
         locale,
-        otpCode: code,
+        turnstileToken: turnstileRef.current?.getToken(),
         items: cartPayload(),
       })
+      // Turnstile token is single-use — reset after the action.
+      turnstileRef.current?.reset()
 
       if (!result.ok) {
-        if (result.error === "Invalid code") {
-          setOtpError(t("error_invalid_code"))
-        } else if (result.error === "out_of_stock") {
+        if (result.error === "out_of_stock") {
           toast.error(t("error_out_of_stock"))
-          setStep("form")
         } else if (result.error === "coupon_unavailable") {
-          // The coupon's cap was hit between preview + creation. Clear it and
-          // return to the form so the customer can re-place without it.
           removeCoupon()
           toast.error(tCoupon("error.coupon_unavailable"))
-          setStep("form")
         } else if (result.error === "verification_failed") {
           toast.error(t("error_verification"))
-          setStep("form")
         } else if (result.field) {
-          // A field-level problem slipped past client validation (e.g. a stale
-          // bundle or an edge the resolver missed). Return to the form and
-          // highlight the offending field so it's actionable, not a dead end.
           const formField = serverFieldToFormField(result.field)
-          setStep("form")
           if (formField) {
             setError(formField, {
               type: "server",
@@ -486,7 +428,7 @@ export function CheckoutForm({
           }
           toast.error(t("error_check_details"))
         } else {
-          setOtpError(t("error_generic"))
+          toast.error(t("error_generic"))
         }
         return
       }
@@ -500,30 +442,14 @@ export function CheckoutForm({
       }
       router.push(`/${locale}/orders/${result.orderNumber}`)
     } catch {
-      setOtpError(t("error_generic"))
+      toast.error(t("error_generic"))
     } finally {
       setSubmitting(false)
     }
   }
 
-  async function handleResend() {
-    const phone = canonicalPhone()
-    if (!phone) return
-    const result = await sendOtpAction({
-      phone,
-      locale,
-      items: cartPayload(),
-      turnstileToken: turnstileRef.current?.getToken(),
-    })
-    // Single-use token — reset so a subsequent resend re-challenges.
-    turnstileRef.current?.reset()
-    if (!result.ok) {
-      reportSendError(result.error)
-    }
-  }
-
   // Empty-cart guard (after hydration).
-  if (hasHydrated && items.length === 0 && step === "form") {
+  if (hasHydrated && items.length === 0) {
     return (
       <div className="rounded-lg border border-border bg-card p-8 text-center">
         <p className="text-muted-foreground">{t("empty_cart")}</p>
@@ -541,8 +467,7 @@ export function CheckoutForm({
   return (
     <div className="grid gap-8 lg:grid-cols-[1fr_22rem]">
       <div className="order-2 min-w-0 lg:order-1">
-        {step === "form" ? (
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-8" noValidate>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-8" noValidate>
             {/* Contact section */}
             <fieldset className="space-y-4">
               <legend className="font-heading text-lg tracking-wide text-foreground">
@@ -617,6 +542,7 @@ export function CheckoutForm({
                     setValue("country", next, { shouldValidate: true })
                     if (!countryHasEmirates(next)) {
                       setValue("emirate", "", { shouldValidate: true })
+                      setValue("city", "", { shouldValidate: false })
                     }
                     // Sync the global ship-to currency to the chosen country.
                     setCountry(next)
@@ -672,7 +598,7 @@ export function CheckoutForm({
                 </Field>
               ) : null}
 
-              {!(hasEmirates && emirate && CITIES_BY_EMIRATE[emirate as Emirate].length === 1) ? (
+              {!(hasEmirates && emirate && (CITIES_BY_EMIRATE[emirate as Emirate] ?? []).length === 1) ? (
               <Field
                 id="checkout-city"
                 label={t("city")}
@@ -693,7 +619,7 @@ export function CheckoutForm({
                       <SelectValue placeholder={t("city_placeholder")} />
                     </SelectTrigger>
                     <SelectContent>
-                      {CITIES_BY_EMIRATE[emirate as Emirate].map((city) => (
+                      {(CITIES_BY_EMIRATE[emirate as Emirate] ?? []).map((city) => (
                         <SelectItem key={city.en} value={city.en}>
                           {locale === "ar" ? city.ar : city.en}
                         </SelectItem>
@@ -808,19 +734,6 @@ export function CheckoutForm({
               )}
             </Button>
           </form>
-        ) : (
-          <OtpStep
-            phone={canonicalPhone() ?? getValues("phone")}
-            submitting={submitting}
-            error={otpError}
-            onComplete={handleVerify}
-            onResend={handleResend}
-            onEdit={() => {
-              setStep("form")
-              setOtpError(null)
-            }}
-          />
-        )}
       </div>
 
       <div className="order-1 min-w-0 lg:order-2">

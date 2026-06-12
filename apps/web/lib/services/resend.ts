@@ -6,7 +6,7 @@
  *
  * Env vars (server-only):
  * - RESEND_API_KEY
- * - RESEND_FROM_EMAIL  e.g. "S Fashion <orders@sfashion.ae>"
+ * - RESEND_FROM_EMAIL  e.g. "S Fashion <orders@s-fashions.com>"
  *
  * Must not be imported by client components.
  */
