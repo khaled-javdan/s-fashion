@@ -503,6 +503,57 @@ function SlideCard({
           })}
         </p>
       </div>
+
+      <div className="border-border border-t pt-4">
+        <p className="text-muted-foreground mb-3 text-xs font-semibold uppercase tracking-widest">
+          {t("hero.secondary_cta_section")}
+        </p>
+        <div className="space-y-4">
+          <PairFields
+            label={t("hero.cta2_label_label")}
+            en={slide.cta2LabelEn}
+            ar={slide.cta2LabelAr}
+            onEn={(v) => onChange({ cta2LabelEn: v })}
+            onAr={(v) => onChange({ cta2LabelAr: v })}
+            placeholderEn="Browse all"
+            placeholderAr="تصفّحي الكل"
+          />
+          <div className="grid gap-2">
+            <Label>{t("hero.cta2_href_label")}</Label>
+            {productLinks.length > 0 ? (
+              <Select
+                value={
+                  productLinks.some((p) => slide.cta2Href === `/products/${p.slug}`)
+                    ? slide.cta2Href
+                    : ""
+                }
+                onValueChange={(href) => onChange({ cta2Href: href })}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder={t("hero.product_link_placeholder")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {productLinks.map((p) => (
+                    <SelectItem key={p.slug} value={`/products/${p.slug}`}>
+                      {p.nameEn} · {p.nameAr}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : null}
+            <Input
+              dir="ltr"
+              className="font-mono"
+              value={slide.cta2Href}
+              onChange={(e) => onChange({ cta2Href: e.target.value })}
+              placeholder="/products"
+            />
+            <p className="text-muted-foreground text-xs">
+              {t("hero.cta2_href_help")}
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

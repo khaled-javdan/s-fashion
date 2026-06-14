@@ -22,6 +22,9 @@ export type HeroSlide = {
   /** Formatted price string. */
   subtitle: string
   cta: string
+  /** Optional secondary (ghost) button — shown only when both are non-empty. */
+  cta2?: string
+  cta2Href?: string
 }
 
 type Props = {
@@ -47,7 +50,7 @@ type Props = {
 export function HeroCarousel({ slides, isRtl, autoplayMs = 6000 }: Props) {
   const t = useTranslations("home")
   const trackRef = useRef<HTMLDivElement>(null)
-  const slideRefs = useRef<(HTMLAnchorElement | null)[]>([])
+  const slideRefs = useRef<(HTMLDivElement | null)[]>([])
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([])
   const [active, setActive] = useState(0)
   const [paused, setPaused] = useState(false)
@@ -188,9 +191,8 @@ export function HeroCarousel({ slides, isRtl, autoplayMs = 6000 }: Props) {
         className="flex snap-x snap-mandatory overflow-x-auto scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {slides.map((slide, i) => (
-          <Link
+          <div
             key={slide.id}
-            href={slide.href}
             ref={(el) => {
               slideRefs.current[i] = el
             }}
@@ -227,7 +229,7 @@ export function HeroCarousel({ slides, isRtl, autoplayMs = 6000 }: Props) {
             {/* Legibility scrim — stronger toward the bottom-start text. */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/15 to-transparent" />
 
-            <div className="absolute inset-0 flex flex-col justify-end pb-20 sm:pb-24 lg:pb-28">
+            <div className="absolute inset-0 z-10 flex flex-col justify-end pb-20 sm:pb-24 lg:pb-28">
               {/* Align the text to the same container as the header logo. */}
               <div className="mx-auto flex w-full max-w-7xl flex-col gap-3 px-4 text-start sm:px-6 lg:px-0">
                 {slide.eyebrow ? (
@@ -245,14 +247,29 @@ export function HeroCarousel({ slides, isRtl, autoplayMs = 6000 }: Props) {
                     {slide.subtitle}
                   </p>
                 ) : null}
-                {slide.cta ? (
-                  <span className="bg-background text-foreground mt-2 inline-flex w-fit items-center justify-center rounded-md px-6 py-2.5 text-sm font-semibold tracking-wide transition group-hover:opacity-90">
-                    {slide.cta}
-                  </span>
+                {(slide.cta || (slide.cta2 && slide.cta2Href)) ? (
+                  <div className="mt-2 flex flex-wrap items-center gap-3">
+                    {slide.cta ? (
+                      <Link
+                        href={slide.href}
+                        className="bg-background text-foreground inline-flex w-fit items-center justify-center rounded-md px-6 py-2.5 text-sm font-semibold tracking-wide transition hover:opacity-90"
+                      >
+                        {slide.cta}
+                      </Link>
+                    ) : null}
+                    {slide.cta2 && slide.cta2Href ? (
+                      <Link
+                        href={slide.cta2Href}
+                        className="inline-flex w-fit items-center justify-center rounded-md border border-white/80 bg-black/25 px-6 py-2.5 text-sm font-semibold tracking-wide text-white backdrop-blur-sm transition hover:bg-black/40 hover:border-white"
+                      >
+                        {slide.cta2}
+                      </Link>
+                    ) : null}
+                  </div>
                 ) : null}
               </div>
             </div>
-          </Link>
+          </div>
         ))}
       </div>
 

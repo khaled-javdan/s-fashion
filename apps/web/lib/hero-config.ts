@@ -51,6 +51,18 @@ export const heroSlideSchema = z.object({
       "Use an internal path starting with / or #, e.g. /products/abaya or #shop",
     )
     .default(""),
+  /** Optional secondary (ghost) button label — shown only when both label and href are set. */
+  cta2LabelAr: z.string().trim().max(40).default(""),
+  cta2LabelEn: z.string().trim().max(40).default(""),
+  cta2Href: z
+    .string()
+    .trim()
+    .max(200)
+    .refine(
+      (v) => v === "" || v.startsWith("/") || v.startsWith("#"),
+      "Use an internal path starting with / or #, e.g. /products or #shop",
+    )
+    .default(""),
 })
 
 export type HeroSlideConfig = z.infer<typeof heroSlideSchema>
@@ -83,6 +95,9 @@ export const EMPTY_SLIDE: HeroSlideConfig = {
   ctaLabelAr: "",
   ctaLabelEn: "",
   ctaHref: "",
+  cta2LabelAr: "",
+  cta2LabelEn: "",
+  cta2Href: "",
 }
 
 /**

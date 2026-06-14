@@ -45,6 +45,8 @@ export async function Hero({
       title: locale === "ar" ? s.headlineAr : s.headlineEn,
       subtitle: locale === "ar" ? s.subtextAr : s.subtextEn,
       cta: locale === "ar" ? s.ctaLabelAr : s.ctaLabelEn,
+      cta2: (locale === "ar" ? s.cta2LabelAr : s.cta2LabelEn) || undefined,
+      cta2Href: resolveHeroHref(s.cta2Href, locale) || undefined,
     }))
     return <HeroCarousel slides={heroSlides} isRtl={locale === "ar"} />
   }
