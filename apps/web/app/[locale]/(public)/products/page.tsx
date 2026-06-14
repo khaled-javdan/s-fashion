@@ -212,8 +212,8 @@ export default async function ProductsPage({
             {q
               ? t("search_results", { count: total, query: q })
               : !isStylesView
-                ? t("count_styles", { count: entries.length })
-                : t("count", { count: total })}
+                ? t("count", { count: entries.length })
+                : t("count_styles", { count: total })}
           </p>
         </div>
         <div className="max-w-md flex-1">
