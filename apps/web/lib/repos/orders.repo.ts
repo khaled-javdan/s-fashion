@@ -13,7 +13,18 @@ import {
 import type { OrderCreateInput, OrderItemInput } from "@/lib/schemas/order.schema";
 
 export type OrderWithItems = Order & { items: OrderItem[] };
+/** OrderItem enriched with a resolved product thumbnail and color swatch. */
+export type OrderItemWithImage = OrderItem & {
+  imageUrl: string | null
+  colorHex: string | null
+}
+/** Full order with image-enriched items (admin detail view). */
 export type OrderWithItemsAndEvents = Order & {
+  items: OrderItemWithImage[];
+  events: OrderEvent[];
+};
+/** Full order with plain items + events (customer-facing tracking). */
+export type OrderWithItemsAndEventsBasic = Order & {
   items: OrderItem[];
   events: OrderEvent[];
 };
@@ -200,18 +211,52 @@ export { CouponExhaustedError };
 export async function getOrderById(
   id: string,
 ): Promise<OrderWithItemsAndEvents | null> {
-  return prisma.order.findUnique({
+  const row = await prisma.order.findUnique({
     where: { id },
     include: {
-      items: true,
+      items: {
+        include: {
+          variant: {
+            select: {
+              colorHex: true,
+              product: {
+                select: {
+                  images: {
+                    select: { url: true, colorHex: true },
+                    orderBy: { position: "asc" },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
       events: { orderBy: { createdAt: "asc" } },
     },
   });
+
+  if (!row) return null;
+
+  return {
+    ...row,
+    items: row.items.map(({ variant, ...item }) => {
+      const images = variant?.product?.images ?? [];
+      const colorHex = variant?.colorHex ?? null;
+      // Prefer the image tagged with the variant's color; fall back to the
+      // first product image.
+      const imageUrl =
+        (colorHex ? images.find((img) => img.colorHex === colorHex) : null)
+          ?.url ??
+        images[0]?.url ??
+        null;
+      return { ...item, imageUrl, colorHex } as OrderItemWithImage;
+    }),
+  };
 }
 
 export async function getOrderByNumber(
   orderNumber: string,
-): Promise<OrderWithItemsAndEvents | null> {
+): Promise<OrderWithItemsAndEventsBasic | null> {
   return prisma.order.findUnique({
     where: { orderNumber },
     include: {

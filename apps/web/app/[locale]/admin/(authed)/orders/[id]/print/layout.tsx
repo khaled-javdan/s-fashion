@@ -1,55 +1,36 @@
 /**
  * Print layout override.
  *
- * Auth is still enforced by the parent `(authed)/layout.tsx` segment, which runs
- * above this layout (this nested layout inherits that gate). Because the parent
- * layout renders the admin sidebar + topbar around every authed page, we can't
- * structurally remove that chrome from a nested layout — instead we hide it for
- * print and render the document in a clean, A5-friendly, black-on-white frame.
+ * Auth is still enforced by the parent `(authed)/layout.tsx` segment. The
+ * actual print isolation (hiding admin chrome, fixing iOS Safari) is done in
+ * print.css, which Next.js injects into <head> as a <link> tag — the only
+ * place iOS Safari processes @media print rules. An inline <style> inside
+ * <body> is silently ignored by iOS during printing.
  *
- * The `@media print` rules below hide the sidebar (shadcn `data-slot="sidebar*"`)
- * and the topbar (`<header>`), and reset the `<main>` padding so the printout is
- * just the order hand-off sheet.
- *
- * Tablet/iOS-Safari notes: on iPad the sidebar renders as an off-canvas drawer
- * (a `data-slot="sidebar"` Sheet plus a `data-slot="sheet-overlay"` backdrop),
- * both hidden below. We also pin the page box to A5 with margins so the sheet
- * fills the paper instead of sitting tiny in a corner, and force
- * `print-color-adjust` so the black rules/borders actually render — iOS Safari
- * drops backgrounds and borders by default.
+ * The [data-print-only] attribute on the wrapper div is the hook used by
+ * print.css to isolate the slip from all surrounding admin UI.
  */
+import "./print.css"
+
 export default function OrderPrintLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
   return (
-    <>
-      <style>{`
-        @page {
-          size: A5;
-          margin: 10mm;
-        }
-        @media print {
-          [data-slot="sidebar"],
-          [data-slot="sidebar-gap"],
-          [data-slot="sidebar-container"],
-          [data-slot="sidebar-trigger"],
-          [data-slot="sheet-overlay"],
-          header { display: none !important; }
-          main { padding: 0 !important; }
-          html, body {
-            background: #fff !important;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-          }
-        }
-      `}</style>
-      <div className="bg-white text-black">
-        <div className="mx-auto max-w-[148mm] py-4 print:max-w-none print:py-0">
-          {children}
-        </div>
-      </div>
-    </>
+    <div
+      data-print-only
+      style={{
+        background: "white",
+        color: "#1f1916",
+        maxWidth: "148mm",
+        margin: "0 auto",
+        padding: "1rem",
+        fontFamily: "Arial, Helvetica, sans-serif",
+      }}
+      className="print:max-w-none print:p-0"
+    >
+      {children}
+    </div>
   )
 }

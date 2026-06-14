@@ -1,0 +1,46 @@
+@page {
+  size: A5;
+  margin: 10mm;
+}
+
+/**
+ * iOS Safari (iPad) print fix.
+ *
+ * iOS Safari ignores @media print rules that live in a <style> tag inside
+ * <body>, but it DOES process rules from CSS files loaded via <link> in <head>.
+ * Next.js bundles imported CSS files as <link> tags in <head>, so importing
+ * this file from the layout is enough.
+ *
+ * Strategy: make everything invisible in print, then make the isolated
+ * [data-print-only] element and all its descendants visible. Position it
+ * absolutely so it sits at the top of the page regardless of what admin
+ * chrome surrounds it in the DOM.
+ */
+@media print {
+  /* Force the page background white so no admin theme colour bleeds through. */
+  html,
+  body {
+    background: white !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Hide everything ... */
+  body * {
+    visibility: hidden;
+  }
+
+  /* … except the isolated print container and everything inside it. */
+  [data-print-only],
+  [data-print-only] * {
+    visibility: visible;
+  }
+
+  /* Pull the print container to the top-left of the first page. */
+  [data-print-only] {
+    position: absolute;
+    inset: 0;
+    background: white;
+    overflow: visible;
+  }
+}

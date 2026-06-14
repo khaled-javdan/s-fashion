@@ -36,12 +36,27 @@ export function Header() {
 
         {/* Desktop: centered nav. */}
         <nav className="hidden md:flex md:flex-1 md:items-center md:justify-center md:gap-8">
-          <Link
-            href={`/${locale}/products`}
-            className="text-xs font-semibold tracking-widest text-foreground/80 uppercase hover:text-foreground"
-          >
-            {t("shop_all")}
-          </Link>
+          <div className="group relative">
+            <span className="flex cursor-default items-center gap-1 text-xs font-semibold tracking-widest text-foreground/80 uppercase select-none">
+              {t("shop_all")}
+            </span>
+            <div className="invisible absolute start-1/2 top-full z-50 -translate-x-1/2 pt-3 group-hover:visible rtl:translate-x-1/2">
+              <div className="flex min-w-40 flex-col overflow-hidden rounded-md border border-border bg-background py-1 shadow-md">
+                <Link
+                  href={`/${locale}/products`}
+                  className="px-4 py-2.5 text-xs font-semibold tracking-widest text-foreground/70 uppercase transition hover:bg-muted hover:text-foreground"
+                >
+                  {t("shop_products")}
+                </Link>
+                <Link
+                  href={`/${locale}/products?view=styles`}
+                  className="px-4 py-2.5 text-xs font-semibold tracking-widest text-foreground/70 uppercase transition hover:bg-muted hover:text-foreground"
+                >
+                  {t("shop_styles")}
+                </Link>
+              </div>
+            </div>
+          </div>
           <Link
             href={`/${locale}/orders/track`}
             className="text-xs font-semibold tracking-widest text-foreground/80 uppercase hover:text-foreground"

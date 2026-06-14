@@ -35,7 +35,6 @@ export function MobileMenu() {
 
   const root = `/${locale}`
   const links = [
-    { key: "shop_all", href: `${root}/products` },
     { key: "track", href: `${root}/orders/track` },
     { key: "shipping", href: `${root}/shipping` },
     { key: "returns", href: `${root}/returns` },
@@ -70,6 +69,29 @@ export function MobileMenu() {
         </SheetHeader>
 
         <nav className="flex flex-col p-2">
+          {/* Shop section with sub-links */}
+          <p className="px-3 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+            {t("shop_all")}
+          </p>
+          <SheetClose asChild>
+            <Link
+              href={`/${locale}/products`}
+              className="rounded-md px-5 py-2.5 text-sm font-semibold uppercase tracking-widest text-foreground/80 transition-colors hover:bg-muted hover:text-foreground"
+            >
+              {t("shop_products")}
+            </Link>
+          </SheetClose>
+          <SheetClose asChild>
+            <Link
+              href={`/${locale}/products?view=styles`}
+              className="rounded-md px-5 py-2.5 text-sm font-semibold uppercase tracking-widest text-foreground/80 transition-colors hover:bg-muted hover:text-foreground"
+            >
+              {t("shop_styles")}
+            </Link>
+          </SheetClose>
+
+          <div className="my-2 border-t border-border" />
+
           {links.map((item) => (
             <SheetClose asChild key={item.key}>
               <Link
