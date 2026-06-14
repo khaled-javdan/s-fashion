@@ -72,12 +72,21 @@ export async function generateMetadata({
   }
 }
 
+type SearchParams = Record<string, string | string[] | undefined>
+
+function firstParam(v: string | string[] | undefined): string | undefined {
+  return Array.isArray(v) ? v[0] : v
+}
+
 export default async function ProductPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string; slug: string }>
+  searchParams: Promise<SearchParams>
 }) {
-  const { locale, slug } = await params
+  const [{ locale, slug }, sp] = await Promise.all([params, searchParams])
+  const initialColor = firstParam(sp.color) ?? null
   if (!hasLocale(LOCALES, locale)) notFound()
   setRequestLocale(locale)
 
@@ -165,7 +174,7 @@ export default async function ProductPage({
         editLabel="Edit product"
       />
 
-      <ProductColorProvider>
+      <ProductColorProvider initialColorHex={initialColor}>
         <div className="grid gap-8 lg:grid-cols-2 lg:gap-12">
           {/* Gallery */}
           <ProductGallery images={galleryImages} priority />
@@ -217,6 +226,7 @@ export default async function ProductPage({
             variants={pickerVariants}
             locale={typedLocale}
             maxQtyPerVariant={maxQtyPerVariant}
+            initialColor={initialColor}
           />
 
           {ratingSummary.count > 0 ? (

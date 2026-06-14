@@ -55,6 +55,8 @@ type Props = {
   dimmed?: boolean
   /** Non-interactive overlays (sale/stock badges) rendered over the image. */
   overlay?: React.ReactNode
+  /** Slide index to show on mount (instant, no animation). Used by styles view. */
+  initialSlide?: number
 }
 
 /**
@@ -70,12 +72,22 @@ export function ProductCardMedia({
   priority = false,
   dimmed = false,
   overlay,
+  initialSlide,
 }: Props) {
   const t = useTranslations("product")
   const scroller = useRef<HTMLDivElement>(null)
   const swatchScroller = useRef<HTMLUListElement>(null)
-  const [active, setActive] = useState(0)
+  const [active, setActive] = useState(initialSlide ?? 0)
   const multi = slides.length > 1
+
+  // Instantly position the scroller at the pre-selected colour's first slide.
+  useEffect(() => {
+    if (!initialSlide || initialSlide <= 0) return
+    const el = scroller.current?.children[initialSlide] as HTMLElement | undefined
+    if (scroller.current && el) {
+      scroller.current.scrollLeft = el.offsetLeft
+    }
+  }, []) // mount only
 
   const goTo = (i: number) => {
     const el = scroller.current?.children[i] as HTMLElement | undefined

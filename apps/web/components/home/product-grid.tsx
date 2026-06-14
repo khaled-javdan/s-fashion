@@ -61,6 +61,7 @@ export function ProductGrid({
   children,
   desktopToggle = false,
   storageScope = "shop",
+  viewToggle,
 }: {
   config: GridConfig
   children: React.ReactNode
@@ -72,6 +73,8 @@ export function ProductGrid({
    * page doesn't change the grid on another.
    */
   storageScope?: string
+  /** Optional view-mode toggle rendered to the start (left) of the toolbar. */
+  viewToggle?: React.ReactNode
 }) {
   const t = useTranslations("home")
   const mobileKey = `${MOBILE_STORAGE_PREFIX}:${storageScope}`
@@ -110,56 +113,34 @@ export function ProductGrid({
 
   return (
     <>
-      <div
-        className={cn(
-          "mb-4 flex justify-end gap-2",
-          // Mobile toggle shows < sm; desktop toggle (when enabled) shows >= lg.
-          // Hide the whole toolbar in the tablet band where neither applies.
-          desktopToggle ? "sm:hidden lg:flex" : "sm:hidden",
-        )}
-      >
-        {/* Mobile density: 1 vs 2 columns. */}
-        <div
-          role="group"
-          aria-label={t("density_label")}
-          className="border-border inline-flex overflow-hidden rounded-md border sm:hidden"
-        >
-          {[1, 2].map((n) => (
-            <button
-              key={n}
-              type="button"
-              onClick={() => chooseMobile(n)}
-              aria-pressed={mobileCols === n}
-              aria-label={t("density_option", { count: n })}
-              className={cn(
-                "grid size-9 place-items-center transition-colors",
-                mobileCols === n
-                  ? "bg-foreground text-background"
-                  : "text-muted-foreground hover:bg-muted",
-              )}
-            >
-              <ColumnsGlyph count={n} />
-            </button>
-          ))}
-        </div>
+      <div className="mb-4 flex items-center justify-between gap-2">
+        {/* View-mode toggle (e.g. products vs styles) — always visible when present. */}
+        {viewToggle ?? <span />}
 
-        {/* Desktop density: 2–5 columns (products page only). */}
-        {desktopToggle && (
+        <div
+          className={cn(
+            "flex gap-2",
+            // Mobile toggle shows < sm; desktop toggle (when enabled) shows >= lg.
+            // Hide the density controls in the tablet band where neither applies.
+            desktopToggle ? "sm:hidden lg:flex" : "sm:hidden",
+          )}
+        >
+          {/* Mobile density: 1 vs 2 columns. */}
           <div
             role="group"
             aria-label={t("density_label")}
-            className="border-border hidden overflow-hidden rounded-md border lg:inline-flex"
+            className="border-border inline-flex overflow-hidden rounded-md border sm:hidden"
           >
-            {DESKTOP_TOGGLE_COLS.map((n) => (
+            {[1, 2].map((n) => (
               <button
                 key={n}
                 type="button"
-                onClick={() => chooseDesktop(n)}
-                aria-pressed={desktopCols === n}
+                onClick={() => chooseMobile(n)}
+                aria-pressed={mobileCols === n}
                 aria-label={t("density_option", { count: n })}
                 className={cn(
                   "grid size-9 place-items-center transition-colors",
-                  desktopCols === n
+                  mobileCols === n
                     ? "bg-foreground text-background"
                     : "text-muted-foreground hover:bg-muted",
                 )}
@@ -168,7 +149,34 @@ export function ProductGrid({
               </button>
             ))}
           </div>
-        )}
+
+          {/* Desktop density: 2–5 columns (products page only). */}
+          {desktopToggle && (
+            <div
+              role="group"
+              aria-label={t("density_label")}
+              className="border-border hidden overflow-hidden rounded-md border lg:inline-flex"
+            >
+              {DESKTOP_TOGGLE_COLS.map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => chooseDesktop(n)}
+                  aria-pressed={desktopCols === n}
+                  aria-label={t("density_option", { count: n })}
+                  className={cn(
+                    "grid size-9 place-items-center transition-colors",
+                    desktopCols === n
+                      ? "bg-foreground text-background"
+                      : "text-muted-foreground hover:bg-muted",
+                  )}
+                >
+                  <ColumnsGlyph count={n} />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       <ul

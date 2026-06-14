@@ -17,10 +17,14 @@ const ProductColorContext = createContext<ProductColorValue | null>(null)
 
 export function ProductColorProvider({
   children,
+  initialColorHex,
 }: {
   children: React.ReactNode
+  initialColorHex?: string | null
 }) {
-  const [selectedColorHex, setSelectedColorHex] = useState<string | null>(null)
+  const [selectedColorHex, setSelectedColorHex] = useState<string | null>(
+    initialColorHex ?? null,
+  )
   const value = useMemo(
     () => ({ selectedColorHex, selectColor: setSelectedColorHex }),
     [selectedColorHex],

@@ -27,6 +27,10 @@ type Props = {
   priority?: boolean
   /** Aggregate rating; omit (or count 0) to hide the stars. */
   rating?: { average: number; count: number }
+  /** Hex colour to pre-scroll to in the image carousel (styles view). */
+  preselectedColor?: string
+  /** Colour name shown beneath the product name (styles view). */
+  colorLabel?: string
 }
 
 export async function ProductCard({
@@ -34,11 +38,15 @@ export async function ProductCard({
   locale,
   priority = false,
   rating,
+  preselectedColor,
+  colorLabel,
 }: Props) {
   const t = await getTranslations("product")
   const { currency, rate } = await getCurrencyContext()
   const name = locale === "ar" ? product.nameAr : product.nameEn
-  const href = `/${locale}/products/${product.slug}`
+  const href = preselectedColor
+    ? `/${locale}/products/${product.slug}?color=${encodeURIComponent(preselectedColor)}`
+    : `/${locale}/products/${product.slug}`
 
   const totalStock = product.variants.reduce((sum, v) => sum + v.stock, 0)
   const outOfStock = totalStock <= 0
@@ -81,31 +89,47 @@ export async function ProductCard({
     )
   }
 
-  // Build the slide list: untagged photos first, then each color's photos.
-  // Swatches jump to a color's first slide (index -1 = no dedicated photo).
-  const slides: CardSlide[] = []
-  for (const img of product.images.filter((i) => !i.colorHex)) {
-    slides.push({ url: img.url, alt: altOf(img) })
-  }
-  const swatches: CardSwatch[] = []
-  for (const hex of colorOrder) {
-    const imgs = product.images.filter((i) => i.colorHex === hex)
-    if (imgs.length > 0) {
-      swatches.push({
-        hex,
-        label: labelFor(hex),
-        index: slides.length,
-        thumbUrl: imgs[0]!.url,
-      })
-      for (const img of imgs) slides.push({ url: img.url, alt: altOf(img) })
-    } else {
-      swatches.push({ hex, label: labelFor(hex), index: -1, thumbUrl: null })
-    }
-  }
-  // Safety net: if nothing landed in slides but the product has images, show them.
-  if (slides.length === 0 && product.images.length > 0) {
-    for (const img of product.images) {
+  let slides: CardSlide[]
+  let swatches: CardSwatch[]
+
+  if (preselectedColor) {
+    // Styles view: show only this colour's images (no swatches, no other colours).
+    const colorImgs = product.images.filter(
+      (i) => i.colorHex?.toLowerCase() === preselectedColor.toLowerCase(),
+    )
+    const imgs = colorImgs.length > 0
+      ? colorImgs
+      : product.images.filter((i) => !i.colorHex)
+    slides = imgs.length > 0
+      ? imgs.map((img) => ({ url: img.url, alt: altOf(img) }))
+      : product.images.slice(0, 1).map((img) => ({ url: img.url, alt: altOf(img) }))
+    swatches = []
+  } else {
+    // Normal view: untagged photos first, then each colour's photos with swatches.
+    slides = []
+    for (const img of product.images.filter((i) => !i.colorHex)) {
       slides.push({ url: img.url, alt: altOf(img) })
+    }
+    swatches = []
+    for (const hex of colorOrder) {
+      const imgs = product.images.filter((i) => i.colorHex === hex)
+      if (imgs.length > 0) {
+        swatches.push({
+          hex,
+          label: labelFor(hex),
+          index: slides.length,
+          thumbUrl: imgs[0]!.url,
+        })
+        for (const img of imgs) slides.push({ url: img.url, alt: altOf(img) })
+      } else {
+        swatches.push({ hex, label: labelFor(hex), index: -1, thumbUrl: null })
+      }
+    }
+    // Safety net: if nothing landed in slides but the product has images, show them.
+    if (slides.length === 0 && product.images.length > 0) {
+      for (const img of product.images) {
+        slides.push({ url: img.url, alt: altOf(img) })
+      }
     }
   }
 
@@ -152,6 +176,10 @@ export async function ProductCard({
         <h3 className="font-heading text-lg leading-tight tracking-wide">
           {name}
         </h3>
+
+        {colorLabel ? (
+          <p className="text-muted-foreground text-xs">{colorLabel}</p>
+        ) : null}
 
         {rating && rating.count > 0 ? (
           <StarRating value={rating.average} count={rating.count} size="sm" />

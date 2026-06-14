@@ -49,6 +49,8 @@ type Props = {
   variants: PickerVariant[]
   locale: Locale
   maxQtyPerVariant: number
+  /** Hex color to pre-select on mount (e.g. passed from the catalog styles view). */
+  initialColor?: string | null
 }
 
 /** A color group keyed by a stable identifier (hex or a sentinel). */
@@ -76,6 +78,7 @@ export function VariantPicker({
   variants,
   locale,
   maxQtyPerVariant,
+  initialColor,
 }: Props) {
   const t = useTranslations("product")
 
@@ -110,11 +113,17 @@ export function VariantPicker({
   const singleColor = colors.length <= 1
 
   // Pre-select the first color for every product (not just single-color ones)
-  // so the gallery opens on that color's photo by default. The shopper can still
-  // switch colors freely.
-  const [selectedColor, setSelectedColor] = useState<string | null>(
-    colors[0]?.key ?? null,
-  )
+  // so the gallery opens on that color's photo by default. When initialColor is
+  // provided (e.g. from the styles catalog view), jump to that color instead.
+  const [selectedColor, setSelectedColor] = useState<string | null>(() => {
+    if (initialColor) {
+      const match = colors.find(
+        (c) => c.colorHex?.toLowerCase() === initialColor.toLowerCase(),
+      )
+      if (match) return match.key
+    }
+    return colors[0]?.key ?? null
+  })
   const [selectedSize, setSelectedSize] = useState<string | null>(null)
   const [quantity, setQuantity] = useState(1)
 

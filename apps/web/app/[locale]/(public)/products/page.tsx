@@ -1,10 +1,12 @@
+import Link from "next/link"
 import { hasLocale } from "next-intl"
 import { getTranslations, setRequestLocale } from "next-intl/server"
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
-import { ChevronDown, SlidersHorizontal } from "lucide-react"
+import { ChevronDown, Layers, Shirt, SlidersHorizontal } from "lucide-react"
 
 import { Size } from "@workspace/db"
+import { cn } from "@workspace/ui/lib/utils"
 
 import { CatalogSearch } from "@/components/product/catalog-search"
 import { ProductCard } from "@/components/product/product-card"
@@ -19,6 +21,7 @@ import {
   PRODUCT_SORTS,
   type ProductSort,
 } from "@/lib/repos/products.repo"
+import type { ProductWithRelations } from "@/lib/repos/products.shared"
 import { getRatingSummaries } from "@/lib/repos/reviews.repo"
 import { getSetting } from "@/lib/repos/settings.repo"
 
@@ -93,6 +96,9 @@ export default async function ProductsPage({
       ? "relevance"
       : "newest"
 
+  const view = firstParam(sp.view) === "styles" ? "styles" : "products"
+  const isStylesView = view === "styles"
+
   const [facets, gridRaw, { products, total }] = await Promise.all([
     getCatalogFacets(),
     getSetting("home.grid"),
@@ -109,6 +115,58 @@ export default async function ProductsPage({
   ])
   const grid = parseGridConfig(gridRaw)
   const ratings = await getRatingSummaries(products.map((p) => p.id))
+
+  type StyleEntry = {
+    product: ProductWithRelations
+    preselectedColor: string | undefined
+    colorLabel: string | undefined
+    key: string
+  }
+
+  // "All products" (default) = one card per color variant (every individual style visible).
+  // "All styles" (?view=styles) = one card per product with color swatch carousel.
+  const entries: StyleEntry[] = !isStylesView
+    ? products.flatMap((product): StyleEntry[] => {
+        const seen = new Map<string, { nameEn: string | null; nameAr: string | null }>()
+        for (const v of product.variants) {
+          if (v.colorHex && !seen.has(v.colorHex)) {
+            seen.set(v.colorHex, { nameEn: v.colorNameEn, nameAr: v.colorNameAr })
+          }
+        }
+        if (seen.size === 0) {
+          return [{ product, preselectedColor: undefined, colorLabel: undefined, key: product.id }]
+        }
+        return [...seen.entries()].map(([hex, names]) => ({
+          product,
+          preselectedColor: hex,
+          colorLabel:
+            typedLocale === "ar"
+              ? (names.nameAr ?? names.nameEn ?? undefined)
+              : (names.nameEn ?? names.nameAr ?? undefined),
+          key: `${product.id}-${hex}`,
+        }))
+      })
+    : products.map((p) => ({
+        product: p,
+        preselectedColor: undefined,
+        colorLabel: undefined,
+        key: p.id,
+      }))
+
+  const buildViewHref = (v: "products" | "styles") => {
+    const p = new URLSearchParams()
+    if (colors.length) p.set("color", colors.join(","))
+    if (sizes.length) p.set("size", sizes.join(","))
+    if (minAed != null) p.set("min", String(minAed))
+    if (maxAed != null) p.set("max", String(maxAed))
+    if (inStockOnly) p.set("in_stock", "1")
+    if (onSaleOnly) p.set("on_sale", "1")
+    if (sort !== "newest" && sort !== "relevance") p.set("sort", sort)
+    if (q) p.set("q", q)
+    if (v === "styles") p.set("view", "styles")
+    const qs = p.toString()
+    return qs ? `?${qs}` : "?"
+  }
 
   const priceBounds = {
     min: Math.floor(filsToAed(facets.minFils)),
@@ -153,10 +211,12 @@ export default async function ProductsPage({
           <p className="text-muted-foreground text-sm">
             {q
               ? t("search_results", { count: total, query: q })
-              : t("count", { count: total })}
+              : !isStylesView
+                ? t("count_styles", { count: entries.length })
+                : t("count", { count: total })}
           </p>
         </div>
-        <div className="max-w-md">
+        <div className="max-w-md flex-1">
           <CatalogSearch initialQuery={q ?? ""} />
         </div>
       </header>
@@ -190,19 +250,53 @@ export default async function ProductsPage({
         </aside>
 
         <div>
-          {products.length === 0 ? (
+          {entries.length === 0 ? (
             <p className="text-muted-foreground py-16 text-center">
               {q ? t("search_empty", { query: q }) : t("empty")}
             </p>
           ) : (
-            <ProductGrid config={grid} desktopToggle storageScope="products">
-              {products.map((product, index) => (
-                <li key={product.id}>
+            <ProductGrid
+              config={grid}
+              desktopToggle
+              storageScope="products"
+              viewToggle={
+                <div className="flex items-center gap-1 rounded-md border p-0.5 text-sm">
+                  <Link
+                    href={buildViewHref("products")}
+                    className={cn(
+                      "flex items-center gap-1.5 rounded px-3 py-1.5 font-medium transition",
+                      !isStylesView
+                        ? "bg-foreground text-background"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    <Shirt className="size-3.5" />
+                    {t("view_products")}
+                  </Link>
+                  <Link
+                    href={buildViewHref("styles")}
+                    className={cn(
+                      "flex items-center gap-1.5 rounded px-3 py-1.5 font-medium transition",
+                      isStylesView
+                        ? "bg-foreground text-background"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    <Layers className="size-3.5" />
+                    {t("view_styles")}
+                  </Link>
+                </div>
+              }
+            >
+              {entries.map(({ product, preselectedColor, colorLabel, key }, index) => (
+                <li key={key}>
                   <ProductCard
                     product={product}
                     locale={typedLocale}
                     priority={index < 4}
                     rating={ratings.get(product.id)}
+                    preselectedColor={preselectedColor}
+                    colorLabel={colorLabel}
                   />
                 </li>
               ))}

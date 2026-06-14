@@ -43,6 +43,13 @@ export function ProductGallery({ images, priority = false }: Props) {
 
   const stripRef = useRef<HTMLDivElement>(null)
   const slideRefs = useRef<(HTMLButtonElement | null)[]>([])
+  // True while a programmatic (color-driven) scroll is animating.
+  // Suppresses IO-triggered setActive so intermediate frames don't feed back
+  // into the color context and cause a scroll loop.
+  const programmaticScrollRef = useRef(false)
+  const programmaticScrollTimer = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  )
 
   // Keep the mobile dots in sync with the scroll position.
   useEffect(() => {
@@ -58,6 +65,9 @@ export function ProductGallery({ images, priority = false }: Props) {
           const index = slides.indexOf(entry.target as HTMLElement)
           if (index !== -1) ratios.set(index, entry.intersectionRatio)
         }
+        // Skip intermediate IO callbacks during programmatic scrolls so we
+        // don't accidentally publish a wrong color mid-animation.
+        if (programmaticScrollRef.current) return
         let bestIndex = 0
         let bestRatio = -1
         ratios.forEach((ratio, index) => {
@@ -68,7 +78,7 @@ export function ProductGallery({ images, priority = false }: Props) {
         })
         setActive(bestIndex)
       },
-      { root, threshold: [0, 0.25, 0.5, 0.75, 1] },
+      { root, threshold: [0, 0.5, 1] },
     )
 
     slides.forEach((slide) => observer.observe(slide))
@@ -76,11 +86,24 @@ export function ProductGallery({ images, priority = false }: Props) {
   }, [images.length])
 
   const scrollToSlide = useCallback((index: number) => {
-    slideRefs.current[index]?.scrollIntoView({
-      behavior: "smooth",
-      inline: "center",
-      block: "nearest",
-    })
+    const strip = stripRef.current
+    const slide = slideRefs.current[index]
+    if (!strip || !slide) return
+
+    // Suppress IO and the gallery→color publish during the animation so
+    // intermediate visible frames don't trigger color/scroll feedback loops.
+    programmaticScrollRef.current = true
+    if (programmaticScrollTimer.current)
+      clearTimeout(programmaticScrollTimer.current)
+    programmaticScrollTimer.current = setTimeout(() => {
+      programmaticScrollRef.current = false
+      // Guarantee active is correct once the animation settles.
+      setActive(index)
+    }, 400)
+
+    // Scroll only horizontally within the strip container — this never moves
+    // the page scroll position, eliminating the jump-to-gallery UX problem.
+    strip.scrollTo({ left: slide.offsetLeft, behavior: "smooth" })
   }, [])
 
   const openLightboxAt = useCallback((index: number) => {
@@ -94,27 +117,47 @@ export function ProductGallery({ images, priority = false }: Props) {
   const selectedColorHex = colorCtx?.selectedColorHex ?? null
   const selectColor = colorCtx?.selectColor
 
-  // Gallery → color: when the active image changes (swipe / thumbnail click),
+  // Gallery → color: when the active image changes via user swipe or dot tap,
   // publish its colorHex back to the context so the variant picker stays in sync.
+  // Suppressed during programmatic (color-driven) scrolls AND on the very first
+  // render — skipping the first publish prevents the gallery's initial image from
+  // racing against VariantPicker's initialColor and overriding the ?color= param.
+  const didPublishColor = useRef(false)
   useEffect(() => {
+    if (!didPublishColor.current) {
+      didPublishColor.current = true
+      return
+    }
+    if (programmaticScrollRef.current) return
     const colorHex = images[active]?.colorHex
     if (colorHex) selectColor?.(colorHex)
   }, [active, images, selectColor])
-  // The default color is published on mount; we set the active image for it but
-  // must NOT scroll on that first run, or the page/strip jumps on PDP load.
-  // Subsequent (user-initiated) color changes do scroll into view.
+
+  // Color → gallery: jump to the first image for the selected color.
+  // On initial load we instant-jump (no animation) so the strip starts at the
+  // right position without a visible scroll. Subsequent user-initiated color
+  // changes use smooth scrolling.
   const didMountColor = useRef(false)
   useEffect(() => {
     if (!selectedColorHex) return
     const index = images.findIndex((img) => img.colorHex === selectedColorHex)
-    if (index >= 0) {
-      // Reactive to the selected color, paired with a DOM scroll side effect.
+    // Only act when the target slide actually differs from the current one.
+    if (index >= 0 && index !== active) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setActive(index)
-      if (didMountColor.current) scrollToSlide(index)
+      if (didMountColor.current) {
+        scrollToSlide(index)
+      } else {
+        // Instant position on initial load — no animation so there's no visible
+        // jump, but the strip opens at the correct image from the start.
+        const strip = stripRef.current
+        const slide = slideRefs.current[index]
+        if (strip && slide) strip.scrollLeft = slide.offsetLeft
+      }
     }
     didMountColor.current = true
-    // `images` is stable for a given product render.
+    // `active` and `images` are intentionally excluded: we only want to react
+    // to color changes, and reading `active` here is a one-shot snapshot.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedColorHex])
 
@@ -124,54 +167,89 @@ export function ProductGallery({ images, priority = false }: Props) {
     )
   }
 
-  const activeImage = images[active] ?? images[0]!
-
   return (
     <div className="flex flex-col gap-4 lg:flex-row-reverse lg:items-start">
-      {/* Active image (desktop) + lightbox trigger */}
+      {/* Active image (desktop) + lightbox trigger.
+          All images are stacked and pre-loaded; only the active one is visible.
+          This eliminates the fetch/flash lag when switching via thumbnail or color. */}
       <button
         type="button"
         onClick={() => setLightboxOpen(true)}
         aria-label={t("open_image")}
         className="bg-muted relative hidden aspect-[3/4] w-full cursor-zoom-in overflow-hidden rounded-md lg:block"
       >
-        <Image
-          src={activeImage.url}
-          alt={activeImage.alt}
-          fill
-          priority={priority}
-          sizes="(min-width: 1024px) 40vw, 100vw"
-          className="object-cover"
-        />
+        {images.map((image, index) => (
+          <Image
+            key={image.url}
+            src={image.url}
+            alt={image.alt}
+            fill
+            priority={priority && index === 0}
+            sizes="(min-width: 1024px) 40vw, 100vw"
+            className={cn(
+              "object-cover transition-opacity duration-200",
+              index === active ? "opacity-100" : "opacity-0",
+            )}
+          />
+        ))}
       </button>
 
       {/* Swipeable strip (mobile) */}
       <div className="lg:hidden">
-        <div
-          ref={stripRef}
-          className="flex snap-x snap-mandatory gap-2 overflow-x-auto rounded-md [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-        >
-          {images.map((image, index) => (
-            <button
-              key={image.url}
-              ref={(el) => {
-                slideRefs.current[index] = el
-              }}
-              type="button"
-              onClick={() => openLightboxAt(index)}
-              aria-label={t("thumbnail_label", { number: index + 1 })}
-              className="bg-muted relative aspect-[3/4] w-full shrink-0 snap-center cursor-zoom-in overflow-hidden rounded-md"
-            >
-              <Image
-                src={image.url}
-                alt={image.alt}
-                fill
-                priority={priority && index === 0}
-                sizes="100vw"
-                className="object-cover"
-              />
-            </button>
-          ))}
+        <div className="relative">
+          <div
+            ref={stripRef}
+            className="flex snap-x snap-mandatory gap-2 overflow-x-auto rounded-md [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          >
+            {images.map((image, index) => (
+              <button
+                key={image.url}
+                ref={(el) => {
+                  slideRefs.current[index] = el
+                }}
+                type="button"
+                onClick={() => openLightboxAt(index)}
+                aria-label={t("thumbnail_label", { number: index + 1 })}
+                className="bg-muted relative aspect-[3/4] w-full shrink-0 snap-center cursor-zoom-in overflow-hidden rounded-md"
+              >
+                <Image
+                  src={image.url}
+                  alt={image.alt}
+                  fill
+                  priority={priority && index === 0}
+                  sizes="100vw"
+                  className="object-cover"
+                />
+              </button>
+            ))}
+          </div>
+
+          {images.length > 1 ? (
+            <>
+              <button
+                type="button"
+                onClick={() => scrollToSlide(active - 1)}
+                aria-label={t("previous_image")}
+                className={cn(
+                  "absolute start-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-black/30 p-2 text-white backdrop-blur-sm transition hover:bg-black/50",
+                  active === 0 && "pointer-events-none opacity-0",
+                )}
+              >
+                <ChevronLeft className="size-5 rtl:rotate-180" />
+              </button>
+              <button
+                type="button"
+                onClick={() => scrollToSlide(active + 1)}
+                aria-label={t("next_image")}
+                className={cn(
+                  "absolute end-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-black/30 p-2 text-white backdrop-blur-sm transition hover:bg-black/50",
+                  active === images.length - 1 && "pointer-events-none opacity-0",
+                )}
+              >
+                <ChevronRight className="size-5 rtl:rotate-180" />
+              </button>
+            </>
+          ) : null}
         </div>
         {images.length > 1 ? (
           <div className="mt-3 flex justify-center gap-2">
