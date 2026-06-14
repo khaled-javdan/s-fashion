@@ -122,7 +122,15 @@ const DEFAULT_VALUES: CheckoutFormValues = {
 // sessionStorage key for the in-progress checkout form (survives accidental
 // reloads / navigation; cleared on successful order). Scoped to sessionStorage
 // — not localStorage — so it doesn't linger across browser sessions.
-const FORM_STORAGE_KEY = "s-fashion-checkout-form"
+//
+// Versioned: when the persisted field shape changes (e.g. the emirate→city
+// map), bump the suffix so stale data written by an older bundle is discarded
+// on restore instead of being fed into a renderer that assumes the new shape.
+// Restoring a v1 form once crashed checkout — a saved emirate key that no
+// longer existed indexed `CITIES_BY_EMIRATE` to `undefined` (TypeError on
+// `.length` during render).
+const FORM_STORAGE_KEY = "s-fashion-checkout-form-v2"
+const LEGACY_FORM_STORAGE_KEYS = ["s-fashion-checkout-form"] as const
 
 /**
  * Map a server-reported field name (the `OrderCreateInput` shape) onto a form
@@ -275,16 +283,38 @@ export function CheckoutForm({
   useEffect(() => {
     if (formHydrated) return
     try {
+      // Drop any pre-v2 saved form outright — its field shape predates the
+      // current emirate→city model, so restoring it is what used to crash.
+      for (const key of LEGACY_FORM_STORAGE_KEYS) sessionStorage.removeItem(key)
+
       const raw = sessionStorage.getItem(FORM_STORAGE_KEY)
       if (raw) {
         const saved = JSON.parse(raw) as Partial<CheckoutFormValues>
-        // Sanitize emirate — stale sessionStorage from an older code version
-        // could hold a key that no longer exists in CITIES_BY_EMIRATE, causing
-        // a TypeError crash on render. Drop any value not in the current enum.
-        if (saved.emirate && !(EMIRATES as readonly string[]).includes(saved.emirate)) {
+
+        // Drop a country that's no longer offered (e.g. disabled since it was
+        // saved) so the form + ship-to currency fall back to the request
+        // default rather than a country with no shipping/Select option.
+        if (saved.country && !enabledCountries.includes(saved.country)) {
+          delete saved.country
+        }
+        const effectiveCountry = saved.country ?? defaultCountry
+
+        // The emirate sub-region only applies to UAE-style countries; clear a
+        // stray emirate for the rest (their `city` is free-text, so keep it).
+        // For emirate countries, a saved emirate must still be a current enum
+        // key — older bundles could persist one that no longer exists in
+        // CITIES_BY_EMIRATE, which indexed to `undefined` and crashed render on
+        // `.length`. Drop a stale emirate and its now-orphaned dependent city.
+        if (!countryHasEmirates(effectiveCountry)) {
+          saved.emirate = ""
+        } else if (
+          saved.emirate &&
+          !(EMIRATES as readonly string[]).includes(saved.emirate)
+        ) {
           saved.emirate = ""
           saved.city = ""
         }
+
         reset({ ...DEFAULT_VALUES, country: defaultCountry, ...saved })
         // Keep the global ship-to currency in sync with the restored country.
         if (saved.country) setCountry(saved.country)
@@ -293,7 +323,7 @@ export function CheckoutForm({
       // Corrupt/unavailable storage — fall back to defaults.
     }
     setFormHydrated(true)
-  }, [formHydrated, reset, defaultCountry, setCountry])
+  }, [formHydrated, reset, defaultCountry, setCountry, enabledCountries])
 
   // Persist form values to sessionStorage on every change (after hydration).
   // react-hook-form's `watch` subscription is opaque to the React Compiler

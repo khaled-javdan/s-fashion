@@ -1053,6 +1053,15 @@
         "save_button": "Save model",
         "saved_toast": "AI model saved."
       },
+      "market_mode": {
+        "card_title": "Market scope",
+        "card_description": "Switch between UAE-only and full GCC mode. UAE-only hides the country/currency switcher and locks checkout to the UAE.",
+        "uae_label": "UAE only",
+        "uae_description": "Only UAE is available. Currency is locked to AED and the country switcher is hidden.",
+        "gcc_label": "GCC enabled",
+        "gcc_description": "All enabled GCC countries are available. Customers can switch their country and see prices in their local currency.",
+        "saved_toast": "Market scope saved."
+      },
       "markets": {
         "card_title": "Shipping by country",
         "card_description": "Set a flat fee, free-shipping threshold, weight pricing, and delivery window per country. Amounts are in AED.",

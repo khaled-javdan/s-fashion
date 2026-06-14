@@ -23,6 +23,8 @@ export function ShipToSwitcher() {
   const t = useTranslations("country")
   const { country, enabledCountries, setCountry } = useCurrency()
 
+  if (enabledCountries.length <= 1) return null
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>

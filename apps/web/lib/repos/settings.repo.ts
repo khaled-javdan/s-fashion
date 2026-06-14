@@ -66,6 +66,13 @@ export type KnownSettings = {
   /** Home-page layout: ordered static + product blocks (Shopify-style organiser). */
   "home.sections": HomeLayoutConfig;
   /**
+   * Active market scope.
+   * - "uae": only UAE is offered; currency switcher is hidden.
+   * - "gcc": all per-country enabled flags in `shipping.countries` apply.
+   * Defaults to "uae" when unset.
+   */
+  "market.mode": "uae" | "gcc";
+  /**
    * Bilingual shipping & return copy rendered in the PDP tabs. Shared across
    * every product (per-product overrides intentionally not modelled).
    */

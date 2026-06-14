@@ -17,6 +17,7 @@ import { GridForm } from "@/components/admin/settings/grid-form"
 import { HeroForm } from "@/components/admin/settings/hero-form"
 import { HomeSectionsForm } from "@/components/admin/settings/home-sections-form"
 import { CurrencyForm } from "@/components/admin/settings/currency-form"
+import { MarketModeForm } from "@/components/admin/settings/market-mode-form"
 import { MarketsForm } from "@/components/admin/settings/markets-form"
 import { ReturnsForm } from "@/components/admin/settings/returns-form"
 import { ShippingReturnForm } from "@/components/admin/settings/shipping-return-form"
@@ -100,6 +101,7 @@ export default async function AdminSettingsPage() {
   const t = await getTranslations("admin.settings")
   const all = await getAllSettings()
 
+  const marketMode = (all["market.mode"] as "uae" | "gcc" | undefined) ?? "uae"
   const shippingConfig = parseShippingConfig(all["shipping.countries"])
   const currencyConfig = parseCurrencyConfig(all["currency.config"])
   const whatsappNumber = read(all, "contact.whatsapp_number", "+971501234567")
@@ -201,7 +203,13 @@ export default async function AdminSettingsPage() {
           </SettingsCard>
         </TabsContent>
 
-        <TabsContent value="markets" className="pt-4">
+        <TabsContent value="markets" className="pt-4 space-y-4">
+          <SettingsCard
+            title={t("market_mode.card_title")}
+            description={t("market_mode.card_description")}
+          >
+            <MarketModeForm initial={marketMode} />
+          </SettingsCard>
           <SettingsCard
             title={t("markets.card_title")}
             description={t("markets.card_description")}

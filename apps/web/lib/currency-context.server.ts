@@ -33,14 +33,18 @@ export type CurrencyContext = {
  * share a single settings read.
  */
 export const getCurrencyContext = cache(async (): Promise<CurrencyContext> => {
-  const [rawCurrency, rawShipping, cookieStore] = await Promise.all([
+  const [rawCurrency, rawShipping, marketMode, cookieStore] = await Promise.all([
     getSetting("currency.config"),
     getSetting("shipping.countries"),
+    getSetting("market.mode"),
     cookies(),
   ])
 
   const config = parseCurrencyConfig(rawCurrency)
-  const allowed = enabledCountries(parseShippingConfig(rawShipping))
+  const allowed =
+    (marketMode ?? "uae") === "uae"
+      ? (["AE"] as CountryCode[])
+      : enabledCountries(parseShippingConfig(rawShipping))
 
   const cookieVal = cookieStore.get(SHIP_TO_COOKIE)?.value
   let country: CountryCode = DEFAULT_COUNTRY

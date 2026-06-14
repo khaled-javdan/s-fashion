@@ -51,6 +51,7 @@ const sizeChartRow = z.object({
  * malformed payload from the client never lands in the DB.
  */
 const settingValidators: Record<SettingKey, z.ZodTypeAny> = {
+  "market.mode": z.enum(["uae", "gcc"]),
   "shipping.countries": shippingConfigSchema,
   "currency.config": currencyConfigSchema,
   "contact.whatsapp_number": z
@@ -139,6 +140,7 @@ export async function updateSettingsAction(input: {
       input.key === "home.sections" ||
       input.key === "shipping.countries" ||
       input.key === "currency.config" ||
+      input.key === "market.mode" ||
       input.key === "returns.window_days"
     ) {
       revalidatePath("/[locale]", "page")
@@ -171,6 +173,9 @@ async function persist(
   value: KnownSettings[SettingKey],
 ): Promise<void> {
   switch (key) {
+    case "market.mode":
+      await setSetting(key, value as KnownSettings["market.mode"])
+      return
     case "order.max_items":
     case "order.max_qty_per_variant":
     case "returns.window_days":
