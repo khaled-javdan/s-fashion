@@ -65,6 +65,9 @@ export const metadata: Metadata = {
   },
   description:
     "S Fashion — luxury mukhawar (traditional Arabic dresses), delivered across the UAE.",
+  // Reinforce the html `translate="no"` opt-out for crawlers/Chrome that honor
+  // the legacy meta signal. See the `<html translate="no">` note below.
+  other: { google: "notranslate" },
 }
 
 export const viewport: Viewport = {
@@ -98,9 +101,18 @@ export default async function RootLayout({
     <html
       lang={htmlLocale}
       dir={htmlDir}
+      // The app ships native en/ar via next-intl, so browser auto-translation
+      // (Android Chrome offers it aggressively) adds no value — and it's the
+      // root cause of mobile "removeChild: node is not a child" crashes:
+      // Google Translate re-parents text nodes into <font> wrappers, so when a
+      // conditional subtree (e.g. the checkout city field on emirate change)
+      // unmounts, React's removeChild targets a detached node and throws.
+      // Opt out app-wide; users can still switch locale via the UI.
+      translate="no"
       suppressHydrationWarning
       className={cn(
         "antialiased",
+        "notranslate",
         nunitoSans.variable,
         cormorant.variable,
         ibmPlexArabic.variable,
