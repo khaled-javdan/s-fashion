@@ -223,7 +223,9 @@ export function CheckoutForm({
     if (!parsedPhone || !parsedPhone.isValid()) {
       errors.phone = { type: "phone", message: t("invalid_phone") }
     }
-    if (values.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email.trim())) {
+    if (!values.email.trim()) {
+      errors.email = { type: "required", message: t("field_required") }
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email.trim())) {
       errors.email = { type: "email", message: t("invalid_email") }
     }
     if (!values.country) {
@@ -400,7 +402,7 @@ export function CheckoutForm({
         addressLine1: values.addressLine1.trim(),
         addressLine2: values.addressLine2.trim() || undefined,
         notes: values.notes.trim() || undefined,
-        email: values.email.trim() || undefined,
+        email: values.email.trim(),
         marketingConsent: values.marketingConsent,
         couponCode: couponCode ?? undefined,
         locale,
@@ -490,7 +492,6 @@ export function CheckoutForm({
               <Field
                 id="checkout-phone"
                 label={t("phone")}
-                hint={t("phone_hint")}
                 error={errors.phone?.message}
               >
                 <PhoneField

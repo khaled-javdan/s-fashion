@@ -15,8 +15,7 @@ import { getSetting } from "@/lib/repos/settings.repo"
  *  - Business hours line — read from `contact.business_hours_{ar,en}`,
  *    falling back to the localized copy when unset.
  *  - Bottom strip: copyright, "Made with care in the UAE", and the UAE
- *    compliance details (registered name, trade licence, VAT TRN) when set —
- *    consumer-protection law requires the trade licence to be visible.
+ *    compliance details (registered name, VAT TRN) when set.
  *
  * Async Server Component — reads contact/company settings; no interactivity.
  */
@@ -25,18 +24,12 @@ export async function Footer() {
   const locale = (await getLocale()) as Locale
   const year = new Date().getUTCFullYear()
 
-  const [social, hoursAr, hoursEn, legalName, tradeLicense, vatTrn] =
+  const [social, legalName, vatTrn] =
     await Promise.all([
       getSetting("contact.social"),
-      getSetting("contact.business_hours_ar"),
-      getSetting("contact.business_hours_en"),
       getSetting("company.legal_name"),
-      getSetting("company.trade_license"),
       getSetting("company.vat_trn"),
     ])
-
-  const settingHours = locale === "ar" ? hoursAr : hoursEn
-  const businessHours = settingHours ?? t("business_hours")
 
   const socialLinks = [
     {
@@ -62,7 +55,6 @@ export async function Footer() {
   // UAE compliance details — each rendered only when configured.
   const registeredName = legalName?.trim() ?? ""
   const complianceItems = [
-    { key: "trade_license", label: t("trade_license"), value: tradeLicense },
     { key: "vat_trn", label: t("vat_trn"), value: vatTrn },
   ].filter((item) => (item.value ?? "").trim() !== "")
 
@@ -185,14 +177,6 @@ export async function Footer() {
             </>
           ) : null}
 
-          <div className={socialLinks.length > 0 ? "mt-6" : undefined}>
-            <h3 className="text-xs font-semibold uppercase tracking-widest text-foreground">
-              {t("business_hours_heading")}
-            </h3>
-            <p className="mt-2 text-sm text-muted-foreground">
-              {businessHours}
-            </p>
-          </div>
         </div>
       </div>
 

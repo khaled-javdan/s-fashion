@@ -30,7 +30,7 @@ export function CartEmptyState({ onNavigate }: { onNavigate?: () => void }) {
         <p className="text-sm text-muted-foreground">{t("empty_hint")}</p>
       </div>
       <Button asChild>
-        <Link href={`/${locale}`} onClick={onNavigate}>
+        <Link href={`/${locale}/products`} onClick={onNavigate}>
           {t("continue_shopping")}
         </Link>
       </Button>

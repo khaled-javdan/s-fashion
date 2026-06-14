@@ -202,7 +202,7 @@
     "phone": "Phone number",
     "phone_hint": "We'll send a verification code on WhatsApp",
     "phone_placeholder": "50 123 4567",
-    "email": "Email (optional)",
+    "email": "Email",
     "emirate": "Emirate",
     "emirate_placeholder": "Select an emirate",
     "city_placeholder": "Select a city",

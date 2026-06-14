@@ -74,7 +74,7 @@ export function CartPageContents() {
           <Link href={`/${locale}/checkout`}>{t("checkout")}</Link>
         </Button>
         <Button asChild variant="ghost" className="mt-2 w-full">
-          <Link href={`/${locale}`}>{t("continue_shopping")}</Link>
+          <Link href={`/${locale}/products`}>{t("continue_shopping")}</Link>
         </Button>
       </aside>
     </div>

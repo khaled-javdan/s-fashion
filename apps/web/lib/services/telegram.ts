@@ -170,7 +170,10 @@ function buildOrderMessage(order: OrderNotificationInput): string {
     `<b>Items:</b> ${order.itemCount}`,
     `<b>Total:</b> ${escapeHtml(total)}`,
     "",
-    `<a href="${escapeHtml(order.adminUrl)}">Open in admin</a>`,
+    // Print the raw URL (not hidden behind anchor text) so it is always
+    // visible and tappable in every Telegram client; Telegram auto-links it.
+    `<b>Open in admin:</b>`,
+    escapeHtml(order.adminUrl),
   ].join("\n");
 }
 

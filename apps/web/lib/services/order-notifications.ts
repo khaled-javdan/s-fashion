@@ -32,8 +32,8 @@ function appBaseUrl(): string {
   );
 }
 
-function absoluteAdminOrderUrl(orderId: string): string {
-  return `${appBaseUrl()}/admin/orders/${orderId}`;
+function absoluteAdminOrderUrl(locale: Locale, orderId: string): string {
+  return `${appBaseUrl()}/${locale}/admin/orders/${orderId}`;
 }
 
 function absoluteCustomerOrderUrl(locale: Locale, orderNumber: string): string {
@@ -65,7 +65,7 @@ export async function dispatchOrderNotifications(
       emirate: order.emirate,
       totalFils: order.totalFils,
       itemCount: order.items.reduce((sum, i) => sum + i.quantity, 0),
-      adminUrl: absoluteAdminOrderUrl(order.id),
+      adminUrl: absoluteAdminOrderUrl(locale, order.id),
     });
     if (result.ok) {
       await prisma.order.update({
