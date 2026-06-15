@@ -16,12 +16,6 @@ const withNextIntl = createNextIntlPlugin("./i18n.ts")
 
 const nextConfig: NextConfig = {
   transpilePackages: ["@workspace/ui", "@workspace/db"],
-  // Emit browser source maps in production so client error stacks deminify to
-  // real file:line:col (in DevTools and via the uploaded .map files) instead of
-  // an opaque `chunks/…js:1:7639`. Temporary diagnostic aid for the checkout
-  // crash — safe to remove once the root cause is fixed if you'd rather not ship
-  // public source maps.
-  productionBrowserSourceMaps: true,
   experimental: {
     serverActions: {
       // Product image uploads go through a Server Action. The framework's
@@ -32,6 +26,11 @@ const nextConfig: NextConfig = {
     },
   },
   images: {
+    // Serve AVIF first (30-50% smaller than WebP), then WebP, then original.
+    formats: ["image/avif", "image/webp"],
+    // Vercel Blob URLs are content-addressed — the URL never changes for the
+    // same image, so a long TTL is safe and avoids redundant re-optimizations.
+    minimumCacheTTL: 2592000, // 30 days
     remotePatterns: [
       { protocol: "https", hostname: "images.unsplash.com" },
       // Vercel Blob public store — product image uploads.

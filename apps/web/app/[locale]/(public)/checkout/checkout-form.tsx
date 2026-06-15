@@ -610,14 +610,22 @@ export function CheckoutForm({
                   <Select
                     value={emirate || undefined}
                     onValueChange={(value) => {
+                      const cities = CITIES_BY_EMIRATE[value as Emirate]
+                      // Radix Select's hidden native <select> emits a spurious
+                      // onValueChange with an empty/unknown value during
+                      // hydration + form-restore (and with mobile autofill).
+                      // Only real emirate keys map to a city list — ignore
+                      // anything else, so we neither crash on `cities.length`
+                      // nor wipe a restored emirate with the phantom "".
+                      if (!cities) {
+                        addBreadcrumb(
+                          `checkout:select_emirate ignored value=${value || "(empty)"}`,
+                        )
+                        return
+                      }
                       const next = value as Emirate
-                      const cities = CITIES_BY_EMIRATE[next]
-                      // Breadcrumb captures the raw selected value and whether it
-                      // mapped to a known city list — if `cities` is undefined,
-                      // the `.length` read below throws and this is the last
-                      // breadcrumb before the crash report.
                       addBreadcrumb(
-                        `checkout:select_emirate value=${value} cities=${cities ? cities.length : "undefined"}`,
+                        `checkout:select_emirate value=${next} cities=${cities.length}`,
                       )
                       setValue("emirate", next, { shouldValidate: true })
                       setValue("city", cities.length === 1 ? (cities[0]?.en ?? "") : "", { shouldValidate: false })
@@ -650,9 +658,12 @@ export function CheckoutForm({
                 {hasEmirates && emirate ? (
                   <Select
                     value={watch("city") || undefined}
-                    onValueChange={(value) =>
+                    onValueChange={(value) => {
+                      // Ignore the same phantom empty event Radix can emit on
+                      // hydration/autofill, so it can't wipe a restored city.
+                      if (!value) return
                       setValue("city", value, { shouldValidate: true })
-                    }
+                    }}
                   >
                     <SelectTrigger
                       id="checkout-city"

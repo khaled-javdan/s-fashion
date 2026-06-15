@@ -78,6 +78,9 @@ export function ProductCardMedia({
   const scroller = useRef<HTMLDivElement>(null)
   const swatchScroller = useRef<HTMLUListElement>(null)
   const [active, setActive] = useState(initialSlide ?? 0)
+  // Priority images are fetched before React hydrates, so they're already
+  // available — skip the shimmer to prevent an unnecessary opacity flash.
+  const [firstLoaded, setFirstLoaded] = useState(priority)
   const multi = slides.length > 1
 
   // Instantly position the scroller at the pre-selected colour's first slide.
@@ -134,6 +137,14 @@ export function ProductCardMedia({
   return (
     <div className="flex flex-col gap-2">
       <div className="bg-muted relative aspect-[3/4] w-full overflow-hidden rounded-md">
+        {/* Shimmer visible while the first slide is still fetching.
+            Sits behind the images so badges / overlay are unaffected. */}
+        {!firstLoaded && (
+          <div
+            aria-hidden
+            className="animate-pulse absolute inset-0 z-0 bg-inherit"
+          />
+        )}
         <div
           ref={scroller}
           onScroll={onScroll}
@@ -153,9 +164,14 @@ export function ProductCardMedia({
                 fill
                 priority={priority && i === 0}
                 sizes={sizes}
+                onLoad={i === 0 ? () => setFirstLoaded(true) : undefined}
                 className={cn(
-                  "object-cover transition duration-500 group-hover:scale-105",
-                  dimmed && "opacity-50 grayscale",
+                  "object-cover transition-[opacity,transform] duration-500 group-hover:scale-105",
+                  dimmed
+                    ? "opacity-50 grayscale"
+                    : i === 0 && !firstLoaded
+                      ? "opacity-0"
+                      : undefined,
                 )}
               />
             </Link>

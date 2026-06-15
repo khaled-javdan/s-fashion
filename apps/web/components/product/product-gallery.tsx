@@ -40,6 +40,8 @@ export function ProductGallery({ images, priority = false }: Props) {
   const t = useTranslations("product")
   const [active, setActive] = useState(0)
   const [lightboxOpen, setLightboxOpen] = useState(false)
+  // Skip shimmer for priority (above-fold) galleries — image is already fetched.
+  const [firstLoaded, setFirstLoaded] = useState(priority)
 
   const stripRef = useRef<HTMLDivElement>(null)
   const slideRefs = useRef<(HTMLButtonElement | null)[]>([])
@@ -178,6 +180,9 @@ export function ProductGallery({ images, priority = false }: Props) {
         aria-label={t("open_image")}
         className="bg-muted relative hidden aspect-[3/4] w-full cursor-zoom-in overflow-hidden rounded-md lg:block"
       >
+        {!firstLoaded && (
+          <div aria-hidden className="animate-pulse absolute inset-0 bg-inherit" />
+        )}
         {images.map((image, index) => (
           <Image
             key={image.url}
@@ -186,9 +191,12 @@ export function ProductGallery({ images, priority = false }: Props) {
             fill
             priority={priority && index === 0}
             sizes="(min-width: 1024px) 40vw, 100vw"
+            onLoad={index === 0 ? () => setFirstLoaded(true) : undefined}
             className={cn(
-              "object-cover transition-opacity duration-200",
-              index === active ? "opacity-100" : "opacity-0",
+              "object-cover transition-opacity duration-300",
+              index === active
+                ? firstLoaded ? "opacity-100" : "opacity-0"
+                : "opacity-0",
             )}
           />
         ))}
@@ -218,7 +226,11 @@ export function ProductGallery({ images, priority = false }: Props) {
                   fill
                   priority={priority && index === 0}
                   sizes="100vw"
-                  className="object-cover"
+                  className={cn(
+                    "object-cover transition-opacity duration-500",
+                    index === 0 && !firstLoaded ? "opacity-0" : undefined,
+                  )}
+                  onLoad={index === 0 ? () => setFirstLoaded(true) : undefined}
                 />
               </button>
             ))}
