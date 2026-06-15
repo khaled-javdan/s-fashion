@@ -3,6 +3,7 @@ import { GoogleTagManager } from "@next/third-parties/google"
 import { AnalyticsProvider } from "@/components/analytics/analytics-provider"
 import { CartConfigMount } from "@/components/cart/cart-config-mount"
 import { CartToasterMount } from "@/components/cart/cart-toaster-mount"
+import { ClientErrorReporter } from "@/components/diagnostics/client-error-reporter"
 import { BottomNav } from "@/components/layout/bottom-nav"
 import { Footer } from "@/components/layout/footer"
 import { Header } from "@/components/layout/header"
@@ -57,6 +58,7 @@ export default async function PublicLayout({
         <AnalyticsProvider />
         <CartToasterMount />
         <CartConfigMount maxQtyPerVariant={maxQtyPerVariant} />
+        <ClientErrorReporter />
       </div>
     </CurrencyProvider>
   )

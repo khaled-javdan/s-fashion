@@ -38,6 +38,7 @@ import {
   selectHasHydrated,
   useCartStore,
 } from "@/lib/cart-store"
+import { addBreadcrumb } from "@/lib/client/report-client-error"
 import { countryHasEmirates, type CountryCode } from "@/lib/geo"
 import type { Locale } from "@/lib/locale"
 import type { ShippingConfig } from "@/lib/shipping-config"
@@ -315,6 +316,9 @@ export function CheckoutForm({
           saved.city = ""
         }
 
+        addBreadcrumb(
+          `checkout:restore_form country=${saved.country ?? defaultCountry} emirate=${saved.emirate ?? ""} city=${saved.city ? "set" : ""}`,
+        )
         reset({ ...DEFAULT_VALUES, country: defaultCountry, ...saved })
         // Keep the global ship-to currency in sync with the restored country.
         if (saved.country) setCountry(saved.country)
@@ -570,6 +574,7 @@ export function CheckoutForm({
                   value={country || undefined}
                   onValueChange={(value) => {
                     const next = value as CountryCode
+                    addBreadcrumb(`checkout:select_country ${value}`)
                     setValue("country", next, { shouldValidate: true })
                     if (!countryHasEmirates(next)) {
                       setValue("emirate", "", { shouldValidate: true })
@@ -606,8 +611,15 @@ export function CheckoutForm({
                     value={emirate || undefined}
                     onValueChange={(value) => {
                       const next = value as Emirate
-                      setValue("emirate", next, { shouldValidate: true })
                       const cities = CITIES_BY_EMIRATE[next]
+                      // Breadcrumb captures the raw selected value and whether it
+                      // mapped to a known city list — if `cities` is undefined,
+                      // the `.length` read below throws and this is the last
+                      // breadcrumb before the crash report.
+                      addBreadcrumb(
+                        `checkout:select_emirate value=${value} cities=${cities ? cities.length : "undefined"}`,
+                      )
+                      setValue("emirate", next, { shouldValidate: true })
                       setValue("city", cities.length === 1 ? (cities[0]?.en ?? "") : "", { shouldValidate: false })
                     }}
                   >
