@@ -36,9 +36,22 @@ import {
 import { getProductRatingSummary } from "@/lib/repos/reviews.repo"
 import { getSetting } from "@/lib/repos/settings.repo"
 
+function appBaseUrl(): string {
+  return (process.env.NEXT_PUBLIC_APP_URL ?? "https://s-fashions.com").replace(
+    /\/$/,
+    "",
+  )
+}
+
 function canonicalUrl(locale: string, slug: string): string {
-  const base = process.env.NEXT_PUBLIC_APP_URL ?? "https://sfashion.ae"
-  return `${base.replace(/\/$/, "")}/${locale}/products/${slug}`
+  return `${appBaseUrl()}/${locale}/products/${slug}`
+}
+
+// Social crawlers (esp. WhatsApp) won't render WebP/AVIF og:images, and stored
+// product photos are often WebP. Serve a transcoded JPEG via /api/og instead of
+// the raw Blob URL. See app/api/og/products/[slug]/route.ts.
+function ogImageUrl(slug: string): string {
+  return `${appBaseUrl()}/api/og/products/${slug}`
 }
 
 export async function generateMetadata({
@@ -57,7 +70,10 @@ export async function generateMetadata({
   const description = rawDescription
     ? htmlToPlainText(rawDescription, 200)
     : undefined
-  const image = product.images[0]?.url
+  const hasImage = Boolean(product.images[0]?.url)
+  const ogImages = hasImage
+    ? [{ url: ogImageUrl(slug), type: "image/jpeg" }]
+    : undefined
 
   return {
     title: name,
@@ -66,7 +82,7 @@ export async function generateMetadata({
     openGraph: {
       title: name,
       description,
-      images: image ? [image] : undefined,
+      images: ogImages,
       type: "website",
     },
   }
