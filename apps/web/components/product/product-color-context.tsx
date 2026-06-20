@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, useMemo, useState } from "react"
+import { createContext, useContext, useEffect, useMemo, useState } from "react"
 
 /**
  * Shares the PDP's currently-selected color between the variant picker (which
@@ -25,6 +25,26 @@ export function ProductColorProvider({
   const [selectedColorHex, setSelectedColorHex] = useState<string | null>(
     initialColorHex ?? null,
   )
+
+  // Keep the URL's `?color=` in sync with the selection so the address bar can
+  // be copied to share a link that opens on this exact color. Uses
+  // history.replaceState (Next's supported shallow-update path) to update the
+  // URL without a navigation or server refetch. Every color change — swatch
+  // click, gallery swipe, default auto-select — flows through this state, so
+  // this single effect covers them all.
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const url = new URL(window.location.href)
+    if (selectedColorHex) {
+      if (url.searchParams.get("color") === selectedColorHex) return
+      url.searchParams.set("color", selectedColorHex)
+    } else {
+      if (!url.searchParams.has("color")) return
+      url.searchParams.delete("color")
+    }
+    window.history.replaceState(window.history.state, "", url)
+  }, [selectedColorHex])
+
   const value = useMemo(
     () => ({ selectedColorHex, selectColor: setSelectedColorHex }),
     [selectedColorHex],
