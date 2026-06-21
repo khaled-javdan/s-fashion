@@ -22,12 +22,22 @@ export const runtime = "nodejs"
 const MAX_DIM = 1200
 
 export async function GET(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ slug: string }> },
 ) {
   const { slug } = await params
   const product = await getProductBySlug(slug)
-  const src = product?.images[0]?.url
+  if (!product) return new Response(null, { status: 404 })
+
+  // Honour `?color=<hex>` so a shared color-specific link previews that color's
+  // photo. Falls back to the first image when the color has no dedicated photo.
+  const color = new URL(req.url).searchParams.get("color")
+  const colorImage = color
+    ? product.images.find(
+        (img) => img.colorHex?.toLowerCase() === color.toLowerCase(),
+      )
+    : null
+  const src = (colorImage ?? product.images[0])?.url
   if (!src) return new Response(null, { status: 404 })
 
   try {

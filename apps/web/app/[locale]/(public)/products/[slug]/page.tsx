@@ -50,20 +50,26 @@ function canonicalUrl(locale: string, slug: string): string {
 // Social crawlers (esp. WhatsApp) won't render WebP/AVIF og:images, and stored
 // product photos are often WebP. Serve a transcoded JPEG via /api/og instead of
 // the raw Blob URL. See app/api/og/products/[slug]/route.ts.
-function ogImageUrl(slug: string): string {
-  return `${appBaseUrl()}/api/og/products/${slug}`
+function ogImageUrl(slug: string, color?: string | null): string {
+  const base = `${appBaseUrl()}/api/og/products/${slug}`
+  // Pass the selected color through so a shared color-specific link previews
+  // that color's photo (the route resolves it back to the matching image).
+  return color ? `${base}?color=${encodeURIComponent(color)}` : base
 }
 
 export async function generateMetadata({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string; slug: string }>
+  searchParams: Promise<SearchParams>
 }): Promise<Metadata> {
   const { locale, slug } = await params
   if (!hasLocale(LOCALES, locale)) return {}
   const product = await getProductBySlug(slug)
   if (!product) return {}
 
+  const color = firstParam((await searchParams).color)
   const name = locale === "ar" ? product.nameAr : product.nameEn
   const rawDescription = locale === "ar" ? product.descAr : product.descEn
   // Rich text is HTML — strip tags for meta/OG descriptions.
@@ -72,7 +78,7 @@ export async function generateMetadata({
     : undefined
   const hasImage = Boolean(product.images[0]?.url)
   const ogImages = hasImage
-    ? [{ url: ogImageUrl(slug), type: "image/jpeg" }]
+    ? [{ url: ogImageUrl(slug, color), type: "image/jpeg" }]
     : undefined
 
   return {
