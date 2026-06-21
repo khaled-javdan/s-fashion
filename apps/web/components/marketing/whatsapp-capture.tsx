@@ -72,7 +72,9 @@ export function WhatsappCapture({
         setError(
           result.error === "invalid_request"
             ? t("error.invalid_request")
-            : t("error.generic"),
+            : result.error === "already_subscribed"
+              ? t("error.already_subscribed")
+              : t("error.generic"),
         )
       }
     } catch {

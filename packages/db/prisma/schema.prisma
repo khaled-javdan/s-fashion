@@ -112,6 +112,10 @@ model Customer {
   unsubscribedAt   DateTime?
   consentSource    String?
 
+  // The one welcome coupon code minted for this phone on newsletter signup.
+  // Set once and re-shown on repeat signups so a phone never gets two coupons.
+  welcomeCouponCode String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

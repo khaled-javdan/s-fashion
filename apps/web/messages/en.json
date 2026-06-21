@@ -1505,23 +1505,24 @@
   "marketing": {
     "badge": "WhatsApp offers",
     "headline": "Get 10% off your first order",
-    "subcopy": "Join on WhatsApp for new arrivals and exclusive offers.",
+    "subcopy": "Join us on WhatsApp for new arrivals and exclusive offers.",
     "name_label": "Name",
     "name_placeholder": "Your name",
     "phone_label": "WhatsApp number",
     "phone_placeholder": "50 123 4567",
-    "submit": "Get my code",
+    "submit": "Get my coupon",
     "submitting": "Sending…",
-    "consent": "By joining you agree to receive WhatsApp marketing messages. Unsubscribe anytime.",
-    "success_title": "You're in! Here's your code",
-    "success_body": "Use it at checkout on your first order.",
-    "copy_code": "Copy code",
+    "consent": "By joining, you agree to receive WhatsApp marketing messages. Unsubscribe anytime.",
+    "success_title": "You're in! Here's your coupon",
+    "success_body": "Use it at checkout to get 10% off your first order.",
+    "copy_code": "Copy coupon",
     "popup_title": "10% off your first order",
-    "popup_subcopy": "Join our WhatsApp list and get a welcome code now.",
+    "popup_subcopy": "Join our WhatsApp list and get a welcome coupon now.",
     "error": {
       "name_required": "Please enter your name.",
       "invalid_phone": "Enter a valid phone number.",
       "invalid_request": "Please check your details.",
+      "already_subscribed": "This number is already subscribed.",
       "generic": "Something went wrong. Please try again."
     }
   }

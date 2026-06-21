@@ -7,7 +7,10 @@ import { CouponType } from "@workspace/db"
 
 import { reportError } from "@/lib/errors"
 import { createCoupon, generateUniqueCode } from "@/lib/repos/coupons.repo"
-import { subscribeMarketing } from "@/lib/repos/customers.repo"
+import {
+  claimWelcomeCouponCode,
+  subscribeMarketing,
+} from "@/lib/repos/customers.repo"
 
 /** Strict E.164 phone — mirrors the checkout schema's transform. */
 const phoneE164 = z.string().transform((raw, ctx) => {
@@ -48,26 +51,40 @@ export async function subscribeWhatsappAction(input: {
   }
 
   try {
-    await subscribeMarketing({
+    const customer = await subscribeMarketing({
       phone: parsed.data.phone,
       name: parsed.data.name,
       locale: parsed.data.locale,
     })
 
-    const code = await generateUniqueCode("WELCOME")
-    await createCoupon({
-      code,
-      type: CouponType.PERCENT,
-      value: WELCOME_DISCOUNT_PERCENT,
-      minSubtotalFils: 0,
-      maxDiscountFils: null,
-      firstOrderOnly: true,
-      maxRedemptions: null,
-      perCustomerLimit: 1,
-      startsAt: null,
-      expiresAt: null,
-      isActive: true,
-    })
+    // One welcome coupon per phone: if this subscriber already has one, block
+    // the re-signup and surface a clear error instead of silently re-issuing.
+    if (customer.welcomeCouponCode) {
+      return { ok: false, error: "already_subscribed" }
+    }
+
+    // Claim a code atomically before creating the coupon, so a concurrent
+    // double-submit can't produce two coupons for the same phone.
+    const candidate = await generateUniqueCode("WELCOME")
+    const { code, reserved } = await claimWelcomeCouponCode(
+      customer.id,
+      candidate,
+    )
+    if (reserved) {
+      await createCoupon({
+        code,
+        type: CouponType.PERCENT,
+        value: WELCOME_DISCOUNT_PERCENT,
+        minSubtotalFils: 0,
+        maxDiscountFils: null,
+        firstOrderOnly: true,
+        maxRedemptions: null,
+        perCustomerLimit: 1,
+        startsAt: null,
+        expiresAt: null,
+        isActive: true,
+      })
+    }
 
     return { ok: true, code }
   } catch (err) {

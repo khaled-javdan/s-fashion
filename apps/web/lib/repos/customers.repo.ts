@@ -96,7 +96,7 @@ export type SubscribeMarketingInput = {
 export async function subscribeMarketing(
   input: SubscribeMarketingInput,
   db: Db = prisma,
-): Promise<string> {
+): Promise<{ id: string; welcomeCouponCode: string | null }> {
   const consent = {
     marketingConsent: true,
     consentAt: new Date(),
@@ -117,10 +117,36 @@ export async function subscribeMarketing(
       locale: input.locale,
       ...consent,
     },
-    select: { id: true },
+    select: { id: true, welcomeCouponCode: true },
   });
 
-  return customer.id;
+  return customer;
+}
+
+/**
+ * Atomically claim a welcome-coupon code for a customer that doesn't have one
+ * yet. The conditional `updateMany` (where `welcomeCouponCode IS NULL`) is the
+ * lock: exactly one concurrent caller wins and gets `reserved: true` — that
+ * caller is the one responsible for actually creating the coupon. Everyone else
+ * gets `reserved: false` and the code that was already stored, so a phone can
+ * never end up with two welcome coupons (e.g. on a double-submit).
+ */
+export async function claimWelcomeCouponCode(
+  customerId: string,
+  code: string,
+  db: Db = prisma,
+): Promise<{ code: string; reserved: boolean }> {
+  const res = await db.customer.updateMany({
+    where: { id: customerId, welcomeCouponCode: null },
+    data: { welcomeCouponCode: code },
+  });
+  if (res.count > 0) return { code, reserved: true };
+
+  const fresh = await db.customer.findUnique({
+    where: { id: customerId },
+    select: { welcomeCouponCode: true },
+  });
+  return { code: fresh?.welcomeCouponCode ?? code, reserved: false };
 }
 
 export type CustomerStats = {
