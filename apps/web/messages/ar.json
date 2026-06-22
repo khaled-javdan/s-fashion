@@ -883,7 +883,8 @@
         "markets": "الأسواق",
         "currency": "العملات",
         "shop_by": "تسوّقي حسب",
-        "home_sections": "الأقسام"
+        "home_sections": "الأقسام",
+        "marketing": "التسويق"
       },
       "home_sections": {
         "card_title": "أقسام الصفحة الرئيسية",
@@ -1048,6 +1049,19 @@
         "max_items_min_error": "يجب ألّا يقل الحد الأقصى للعناصر عن 1.",
         "max_qty_min_error": "يجب ألّا يقل الحد الأقصى للكمية لكل خيار عن 1.",
         "saved_toast": "تم حفظ حدود الطلب."
+      },
+      "marketing": {
+        "card_title": "اشتراكات واتساب",
+        "card_description": "تحكّمي في إمكانية اشتراك الزوار في تسويق واتساب وضبط خصم الترحيب.",
+        "enabled_label": "الاشتراكات مفعّلة",
+        "disabled_label": "الاشتراكات معطّلة",
+        "enabled_description": "يظهر قسم التسجيل والنافذة المنبثقة للزوار.",
+        "disabled_description": "قسم التسجيل والنافذة المنبثقة مخفيان عن الزوار.",
+        "enabled_saved_toast": "تم حفظ إعداد ظهور الاشتراكات.",
+        "discount_label": "خصم الترحيب (%)",
+        "discount_help": "نسبة الخصم الممنوحة كقسيمة للطلب الأول للمشتركين الجدد عبر واتساب.",
+        "discount_range_error": "يجب أن تكون نسبة الخصم بين 1 و100.",
+        "discount_saved_toast": "تم حفظ خصم الترحيب."
       },
       "ai_model": {
         "card_title": "نموذج الذكاء الاصطناعي",

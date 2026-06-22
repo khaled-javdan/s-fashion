@@ -5,6 +5,7 @@ import { toast } from "sonner"
 
 import { Button } from "@workspace/ui/components/button"
 
+import { addToCart } from "@/lib/analytics/data-layer"
 import type { Locale } from "@/lib/locale"
 import { type CartItem, useCartStore } from "@/lib/cart-store"
 
@@ -41,6 +42,13 @@ export function AddToCartButton({ item, locale, className }: Props) {
     // Consume the documented public mutation surface (Track F implements `add`).
     const store = useCartStore.getState() as unknown as CartMutations
     store.add(item)
+    // GA4 add_to_cart → dataLayer (GTM fans out). Variant-level: item_id = variantId.
+    addToCart({
+      variantId: item.variantId,
+      nameEn: item.nameEn,
+      unitPriceFils: item.unitPriceFils,
+      quantity: item.quantity,
+    })
     // `<Toaster />` mount is owned by Track F; if not mounted yet, this no-ops.
     toast.success(t("added_to_cart_toast"), {
       action: {

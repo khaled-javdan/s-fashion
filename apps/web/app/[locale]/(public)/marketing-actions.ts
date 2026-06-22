@@ -11,6 +11,7 @@ import {
   claimWelcomeCouponCode,
   subscribeMarketing,
 } from "@/lib/repos/customers.repo"
+import { getSetting } from "@/lib/repos/settings.repo"
 
 /** Strict E.164 phone — mirrors the checkout schema's transform. */
 const phoneE164 = z.string().transform((raw, ctx) => {
@@ -31,8 +32,7 @@ const subscribeSchema = z.object({
   locale: z.union([z.literal("ar"), z.literal("en")]),
 })
 
-/** Welcome-coupon defaults issued to a fresh WhatsApp subscriber. */
-const WELCOME_DISCOUNT_PERCENT = 10
+const DEFAULT_WELCOME_DISCOUNT_PERCENT = 10
 
 /**
  * Capture a WhatsApp marketing opt-in from the home section / popup: record the
@@ -51,11 +51,15 @@ export async function subscribeWhatsappAction(input: {
   }
 
   try {
-    const customer = await subscribeMarketing({
-      phone: parsed.data.phone,
-      name: parsed.data.name,
-      locale: parsed.data.locale,
-    })
+    const [customer, discountRaw] = await Promise.all([
+      subscribeMarketing({
+        phone: parsed.data.phone,
+        name: parsed.data.name,
+        locale: parsed.data.locale,
+      }),
+      getSetting("marketing.welcome_discount_percent"),
+    ])
+    const discountPercent = discountRaw ?? DEFAULT_WELCOME_DISCOUNT_PERCENT
 
     // One welcome coupon per phone: if this subscriber already has one, block
     // the re-signup and surface a clear error instead of silently re-issuing.
@@ -74,7 +78,7 @@ export async function subscribeWhatsappAction(input: {
       await createCoupon({
         code,
         type: CouponType.PERCENT,
-        value: WELCOME_DISCOUNT_PERCENT,
+        value: discountPercent,
         minSubtotalFils: 0,
         maxDiscountFils: null,
         firstOrderOnly: true,

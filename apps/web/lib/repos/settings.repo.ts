@@ -80,6 +80,16 @@ export type KnownSettings = {
     contentAr: string;
     contentEn: string;
   };
+  /**
+   * Whether the WhatsApp subscription form (inline home section) and popup
+   * are shown to visitors. Defaults to true when unset.
+   */
+  "marketing.whatsapp_enabled": boolean;
+  /**
+   * Discount percentage issued as the welcome coupon for new WhatsApp
+   * subscribers. Defaults to 10 when unset.
+   */
+  "marketing.welcome_discount_percent": number;
 };
 
 /**

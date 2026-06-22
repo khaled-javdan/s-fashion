@@ -60,11 +60,13 @@ export default async function HomePage({
   const t = await getTranslations("home")
   const tTrack = await getTranslations("tracking")
   const tProduct = await getTranslations("product")
-  const [heroProducts, gridRaw, layoutRaw] = await Promise.all([
+  const [heroProducts, gridRaw, layoutRaw, whatsappEnabledRaw] = await Promise.all([
     listActiveProducts({ take: 60 }),
     getSetting("home.grid"),
     getSetting("home.sections"),
+    getSetting("marketing.whatsapp_enabled"),
   ])
+  const whatsappEnabled = (whatsappEnabledRaw as boolean | null) ?? true
   const grid = parseGridConfig(gridRaw)
   const { blocks } = parseHomeLayout(layoutRaw)
 
@@ -123,7 +125,7 @@ export default async function HomePage({
     ),
     testimonials: <Testimonials locale={typedLocale} />,
     ugc_strip: <UgcStrip locale={typedLocale} />,
-    whatsapp_signup: <WhatsappSignup locale={typedLocale} />,
+    whatsapp_signup: whatsappEnabled ? <WhatsappSignup locale={typedLocale} /> : null,
     recently_viewed: (
       <div className="mx-auto w-full max-w-7xl px-4 pb-12 sm:px-6 sm:pb-16 lg:px-0">
         <RecentlyViewed
@@ -170,7 +172,7 @@ export default async function HomePage({
           )
         })}
 
-      <WhatsappPopup />
+      {whatsappEnabled && <WhatsappPopup />}
     </>
   )
 }

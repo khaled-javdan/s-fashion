@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { useTranslations } from "next-intl"
 
+import { viewItem } from "@/lib/analytics/data-layer"
 import type { Locale } from "@/lib/locale"
 import type { CartItem } from "@/lib/cart-store"
 
@@ -81,6 +82,15 @@ export function VariantPicker({
   initialColor,
 }: Props) {
   const t = useTranslations("product")
+
+  // GA4 view_item → dataLayer, once per product (product-level: item_id = productId).
+  useEffect(() => {
+    viewItem({
+      productId: product.productId,
+      nameEn: product.nameEn,
+      priceFils: product.priceFils,
+    })
+  }, [product.productId, product.nameEn, product.priceFils])
 
   const colorLabel = (v: PickerVariant): string => {
     const name = locale === "ar" ? v.colorNameAr : v.colorNameEn

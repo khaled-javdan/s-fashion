@@ -9,6 +9,7 @@ import { Button } from "@workspace/ui/components/button"
 import { Separator } from "@workspace/ui/components/separator"
 
 import { AdminEditBar } from "@/components/admin-bar/admin-edit-bar"
+import { PurchaseTracker } from "./purchase-tracker"
 import { OrderStatusTracker } from "@/components/order/order-status-tracker"
 import type { TrackStatus } from "@/components/order/order-tracking-types"
 import { Money } from "@/components/currency/money"
@@ -74,6 +75,17 @@ export default async function OrderConfirmationPage({
 
   return (
     <section className="mx-auto w-full max-w-2xl px-4 py-12 sm:px-6">
+      <PurchaseTracker
+        orderNumber={order.orderNumber}
+        totalFils={order.totalFils}
+        shippingFils={order.shippingFils}
+        lines={order.items.map((item) => ({
+          variantId: item.variantId,
+          nameEn: item.productNameEn,
+          unitPriceFils: item.unitPriceFils,
+          quantity: item.quantity,
+        }))}
+      />
       <AdminEditBar
         dashboardHref={`/${locale}/admin`}
         editHref={`/${locale}/admin/orders/${order.id}`}

@@ -33,9 +33,11 @@ import {
   createOrderAction,
 } from "@/app/[locale]/(public)/checkout/actions"
 import { useCurrency } from "@/components/providers/currency-provider"
+import { beginCheckout } from "@/lib/analytics/data-layer"
 import {
   selectItems,
   selectHasHydrated,
+  selectSubtotalFils,
   useCartStore,
 } from "@/lib/cart-store"
 import { addBreadcrumb } from "@/lib/client/report-client-error"
@@ -187,9 +189,28 @@ export function CheckoutForm({
 
   const items = useCartStore(selectItems)
   const hasHydrated = useCartStore(selectHasHydrated)
+  const subtotalFils = useCartStore(selectSubtotalFils)
   const clear = useCartStore((s) => s.clear)
 
   const [submitting, setSubmitting] = useState(false)
+
+  // GA4 begin_checkout → dataLayer, once the cart has hydrated and is non-empty.
+  // Guarded so it fires a single time per checkout-page mount, not on every
+  // cart change.
+  const beginCheckoutFired = useRef(false)
+  useEffect(() => {
+    if (beginCheckoutFired.current || !hasHydrated || items.length === 0) return
+    beginCheckoutFired.current = true
+    beginCheckout({
+      lines: items.map((i) => ({
+        variantId: i.variantId,
+        nameEn: i.nameEn,
+        unitPriceFils: i.unitPriceFils,
+        quantity: i.quantity,
+      })),
+      subtotalFils,
+    })
+  }, [hasHydrated, items, subtotalFils])
 
   // Coupon state (display preview). The applied code is sent with the order and
   // re-validated server-side, so this is best-effort UI only.

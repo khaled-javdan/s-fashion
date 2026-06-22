@@ -883,7 +883,8 @@
         "markets": "Markets",
         "currency": "Currency",
         "shop_by": "Shop by",
-        "home_sections": "Sections"
+        "home_sections": "Sections",
+        "marketing": "Marketing"
       },
       "home_sections": {
         "card_title": "Home sections",
@@ -1048,6 +1049,19 @@
         "max_items_min_error": "Max items must be at least 1.",
         "max_qty_min_error": "Max quantity per variant must be at least 1.",
         "saved_toast": "Order limits saved."
+      },
+      "marketing": {
+        "card_title": "WhatsApp subscriptions",
+        "card_description": "Control whether visitors can subscribe to WhatsApp marketing and configure the welcome discount.",
+        "enabled_label": "Subscriptions enabled",
+        "disabled_label": "Subscriptions disabled",
+        "enabled_description": "The inline sign-up section and popup are shown to visitors.",
+        "disabled_description": "The inline sign-up section and popup are hidden from visitors.",
+        "enabled_saved_toast": "Subscription visibility saved.",
+        "discount_label": "Welcome discount (%)",
+        "discount_help": "Percentage discount issued as a first-order coupon to new WhatsApp subscribers.",
+        "discount_range_error": "Discount must be between 1 and 100.",
+        "discount_saved_toast": "Welcome discount saved."
       },
       "ai_model": {
         "card_title": "AI model",
