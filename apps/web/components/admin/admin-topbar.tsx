@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation"
 import { Maximize2, Minimize2, Store } from "lucide-react"
 
 import { Button } from "@workspace/ui/components/button"
-import { SidebarTrigger } from "@workspace/ui/components/sidebar"
+import { SidebarTrigger, useSidebar } from "@workspace/ui/components/sidebar"
 import { cn } from "@workspace/ui/lib/utils"
 
 import { useAdminContentWidth } from "@/components/admin/admin-content-width"
@@ -23,16 +23,28 @@ export function AdminTopbar({ email }: Props) {
   const pathname = usePathname()
   const { dirty } = useSaveBarState()
   const { expanded, toggle } = useAdminContentWidth()
+  const { state, isMobile } = useSidebar()
 
   // Build the "switch to other locale" URL by swapping the leading segment.
   const otherLocale: Locale = LOCALES.find((l) => l !== locale) ?? locale
   const switchHref = swapLocale(pathname, locale, otherLocale)
 
+  const isRTL = locale === "ar"
+  const sidebarOffset =
+    isMobile ? "0px"
+    : state === "expanded" ? "var(--sidebar-width)"
+    : "var(--sidebar-width-icon)"
+
+  const insetStyle: React.CSSProperties = isRTL
+    ? { left: 0, right: sidebarOffset }
+    : { left: sidebarOffset, right: 0 }
+
   return (
     <header
+      style={insetStyle}
       className={cn(
-        "sticky top-0 z-30 flex h-14 items-center gap-3 border-b px-4",
-        dirty ? "bg-foreground text-background" : "bg-background",
+        "fixed top-0 z-30 flex h-14 items-center gap-3 border-b px-4 transition-[left,right] duration-200 ease-linear",
+        dirty ? "bg-foreground text-background" : "bg-background"
       )}
     >
       {dirty ? (
@@ -41,7 +53,7 @@ export function AdminTopbar({ email }: Props) {
         <>
           <SidebarTrigger className="shrink-0" />
 
-          <div className="text-muted-foreground hidden min-w-0 truncate text-xs font-medium uppercase tracking-widest sm:block">
+          <div className="hidden min-w-0 truncate text-xs font-medium tracking-widest text-muted-foreground uppercase sm:block">
             {email}
           </div>
 
@@ -84,11 +96,7 @@ export function AdminTopbar({ email }: Props) {
   )
 }
 
-function swapLocale(
-  pathname: string,
-  current: Locale,
-  next: Locale,
-): string {
+function swapLocale(pathname: string, current: Locale, next: Locale): string {
   if (pathname === `/${current}`) return `/${next}`
   const prefix = `/${current}/`
   if (pathname.startsWith(prefix)) {

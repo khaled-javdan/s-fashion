@@ -612,7 +612,10 @@
       "subtitle": "نظرة سريعة على متجرك.",
       "orders_today": "طلبات اليوم",
       "pending_orders": "طلبات قيد المراجعة",
-      "low_stock": "مخزون منخفض"
+      "low_stock": "مخزون منخفض",
+      "tab_orders": "تحليلات الطلبات",
+      "tab_visitors": "تحليلات الزوار",
+      "tab_ads": "إعلانات ميتا"
     },
     "analytics": {
       "heading": "التحليلات",
@@ -1428,6 +1431,33 @@
         "updated": "تم تحديث الكوبون.",
         "deactivated": "تم تعطيل الكوبون."
       }
+    },
+    "traffic": {
+      "heading": "حركة الموقع",
+      "today": "اليوم",
+      "n_days": "{days} أيام",
+      "page_views": "مشاهدات الصفحة",
+      "visitors": "زوار فريدون",
+      "over_time": "حركة الموقع عبر الوقت"
+    },
+    "ads": {
+      "heading": "إعلانات ميتا",
+      "n_days": "{days} أيام",
+      "apply": "تطبيق",
+      "from": "من",
+      "to": "إلى",
+      "spend": "إجمالي الإنفاق",
+      "impressions": "مرات الظهور",
+      "reach": "الوصول",
+      "clicks": "النقرات",
+      "ctr": "نسبة النقر",
+      "cpc": "تكلفة النقرة",
+      "purchases": "المشتريات",
+      "roas": "العائد على الإنفاق",
+      "campaigns": "الحملات",
+      "campaign_name": "الحملة",
+      "no_data": "لا توجد بيانات إعلانية لهذه الفترة.",
+      "not_configured": "تحليلات إعلانات ميتا تتطلب إعداد META_ADS_ACCESS_TOKEN وMETA_ADS_ACCOUNT_ID."
     }
   },
   "country": {

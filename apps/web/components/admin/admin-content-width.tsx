@@ -62,7 +62,7 @@ export function useAdminContentWidth(): Ctx {
 export function AdminContent({ children }: { children: React.ReactNode }) {
   const { expanded } = useAdminContentWidth()
   return (
-    <main className="flex flex-1 flex-col p-6">
+    <main className="flex flex-1 flex-col p-6 pt-20">
       <div
         className={cn(
           "mx-auto flex w-full flex-col gap-6",

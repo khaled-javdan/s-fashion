@@ -16,6 +16,9 @@ type Props = {
   from: string
   to: string
   labels: { apply: string; from: string; to: string }
+  /** URL search-param names. Defaults to range/from/to. Override when
+   *  multiple range pickers share the same page to avoid collisions. */
+  paramKeys?: { range: string; from: string; to: string }
 }
 
 /**
@@ -29,6 +32,7 @@ export function AnalyticsRangeControls({
   from,
   to,
   labels,
+  paramKeys = { range: "range", from: "from", to: "to" },
 }: Props) {
   const router = useRouter()
   const pathname = usePathname()
@@ -47,11 +51,19 @@ export function AnalyticsRangeControls({
   }
 
   const choosePreset = (days: number) =>
-    navigate({ range: String(days), from: null, to: null })
+    navigate({
+      [paramKeys.range]: String(days),
+      [paramKeys.from]: null,
+      [paramKeys.to]: null,
+    })
 
   const applyCustom = () => {
     if (!fromValue || !toValue) return
-    navigate({ from: fromValue, to: toValue, range: null })
+    navigate({
+      [paramKeys.from]: fromValue,
+      [paramKeys.to]: toValue,
+      [paramKeys.range]: null,
+    })
   }
 
   const customActive = activeDays === null

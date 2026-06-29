@@ -101,7 +101,7 @@ export function AdminSidebar() {
       <SidebarHeader className="h-14 flex-row items-center border-b p-0 px-2">
         <Link
           href={root}
-          className="text-sidebar-foreground flex items-center px-2 text-sm font-semibold uppercase tracking-[0.2em]"
+          className="flex items-center px-2 text-sm font-semibold tracking-[0.2em] text-sidebar-foreground uppercase"
         >
           S
           <span className="group-data-[collapsible=icon]:hidden">
@@ -136,7 +136,7 @@ export function AdminSidebar() {
                         <item.icon />
                         <span>{tNav(item.key)}</span>
                         {item.comingSoon ? (
-                          <span className="text-muted-foreground ms-auto text-[9px] font-semibold uppercase tracking-widest">
+                          <span className="ms-auto text-[9px] font-semibold tracking-widest text-muted-foreground uppercase">
                             {t("soon")}
                           </span>
                         ) : null}

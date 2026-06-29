@@ -612,7 +612,10 @@
       "subtitle": "Your store at a glance.",
       "orders_today": "Orders today",
       "pending_orders": "Pending orders",
-      "low_stock": "Low stock"
+      "low_stock": "Low stock",
+      "tab_orders": "Order Analytics",
+      "tab_visitors": "Visitor Analytics",
+      "tab_ads": "Meta Ads"
     },
     "analytics": {
       "heading": "Analytics",
@@ -1428,6 +1431,33 @@
         "updated": "Coupon updated.",
         "deactivated": "Coupon deactivated."
       }
+    },
+    "traffic": {
+      "heading": "Traffic",
+      "today": "Today",
+      "n_days": "{days} days",
+      "page_views": "Page views",
+      "visitors": "Unique visitors",
+      "over_time": "Traffic over time"
+    },
+    "ads": {
+      "heading": "Meta Ads",
+      "n_days": "{days} days",
+      "apply": "Apply",
+      "from": "From",
+      "to": "To",
+      "spend": "Total spend",
+      "impressions": "Impressions",
+      "reach": "Reach",
+      "clicks": "Clicks",
+      "ctr": "CTR",
+      "cpc": "CPC",
+      "purchases": "Purchases",
+      "roas": "ROAS",
+      "campaigns": "Campaigns",
+      "campaign_name": "Campaign",
+      "no_data": "No ad data for this period.",
+      "not_configured": "Meta Ads analytics requires META_ADS_ACCESS_TOKEN and META_ADS_ACCOUNT_ID to be configured."
     }
   },
   "country": {
