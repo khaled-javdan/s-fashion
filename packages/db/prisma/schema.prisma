@@ -35,6 +35,10 @@ model Product {
   sizeChart         Json?
   isActive          Boolean          @default(true)
   isFinalSale       Boolean          @default(false)
+  // Admin-controlled manual display order (lower shows first). Ties break by
+  // `createdAt desc`. Defaults to 0 for every existing row, so the storefront
+  // order is unchanged until an admin actually drags a product.
+  sortOrder         Int              @default(0)
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
   variants          ProductVariant[]
@@ -42,6 +46,7 @@ model Product {
   reviews           Review[]
 
   @@index([isActive, createdAt])
+  @@index([isActive, sortOrder])
 }
 
 model ProductVariant {

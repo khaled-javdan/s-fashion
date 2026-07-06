@@ -9,6 +9,7 @@ import {
   createProduct,
   updateProduct,
   toggleProductActive,
+  reorderProducts,
 } from "@/lib/repos/products.repo"
 import {
   productCreateSchema,
@@ -332,6 +333,32 @@ export async function updateProductAction(
       error: toActionError("updateProductAction", err, {
         diagnostic: true,
         extra: { id, slug: payload.slug, variants: payload.variants.length },
+      }),
+    }
+  }
+}
+
+/** Persist a drag-and-drop reorder. `ids` is the full new order, top to bottom. */
+export async function reorderProductsAction(
+  ids: string[],
+): Promise<ActionResult<null>> {
+  const authed = await requireAdmin()
+  if (!authed.ok) return authed
+
+  if (!Array.isArray(ids) || ids.some((id) => typeof id !== "string")) {
+    return { ok: false, error: "Invalid product order." }
+  }
+
+  try {
+    await reorderProducts(ids)
+    revalidatePath("/admin/products")
+    return { ok: true, data: null }
+  } catch (err) {
+    return {
+      ok: false,
+      error: toActionError("reorderProductsAction", err, {
+        diagnostic: true,
+        extra: { count: ids.length },
       }),
     }
   }

@@ -759,7 +759,8 @@
         "active": "نشط",
         "edit": "تعديل",
         "out_of_stock": "نفد",
-        "toggle_active": "تبديل الحالة النشطة"
+        "toggle_active": "تبديل الحالة النشطة",
+        "reorder": "اسحب لإعادة الترتيب"
       },
       "sections": {
         "images": "الصور",

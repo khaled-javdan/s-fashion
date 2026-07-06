@@ -759,7 +759,8 @@
         "active": "Active",
         "edit": "Edit",
         "out_of_stock": "Out",
-        "toggle_active": "Toggle active"
+        "toggle_active": "Toggle active",
+        "reorder": "Drag to reorder"
       },
       "sections": {
         "images": "Images",

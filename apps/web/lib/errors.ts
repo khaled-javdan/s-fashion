@@ -280,6 +280,7 @@ export function reportError(
   context: string,
   err: unknown,
   extra?: Record<string, unknown>,
+  options?: AlertOptions,
 ): string {
   const norm = normalizeError(err)
   const id = shortId()
@@ -289,11 +290,20 @@ export function reportError(
     console.warn(tag, extra ?? "", err)
   } else {
     console.error(tag, extra ?? "", err)
-    void maybeAlert(id, context, norm, err, extra)
+    void maybeAlert(id, context, norm, err, extra, options)
   }
 
   return id
 }
+
+/**
+ * Per-call alert overrides. Defaults preserve the original behavior:
+ *  - `title`       — Telegram alert heading (e.g. a severity emoji).
+ *  - `throttleKey` — bucket used to rate-limit alerts. Defaults to the
+ *    normalized code; pass a more specific key (e.g. per severity/category) so a
+ *    benign error can't suppress a critical one that shares the same `code`.
+ */
+type AlertOptions = { title?: string; throttleKey?: string }
 
 async function maybeAlert(
   id: string,
@@ -301,11 +311,13 @@ async function maybeAlert(
   norm: NormalizedError,
   err: unknown,
   extra?: Record<string, unknown>,
+  options?: AlertOptions,
 ): Promise<void> {
   const now = Date.now()
-  const last = lastAlertAt.get(norm.code) ?? 0
+  const key = options?.throttleKey ?? norm.code
+  const last = lastAlertAt.get(key) ?? 0
   if (now - last < ALERT_THROTTLE_MS) return
-  lastAlertAt.set(norm.code, now)
+  lastAlertAt.set(key, now)
 
   const detail = err instanceof Error ? `${err.name}: ${err.message}` : String(err)
   const lines = [
@@ -318,7 +330,7 @@ async function maybeAlert(
     lines.push(`Extra: ${safeJson(extra)}`)
   }
   try {
-    await sendAdminAlert("⚠️ App error", lines)
+    await sendAdminAlert(options?.title ?? "⚠️ App error", lines)
   } catch {
     // Never let alerting failure mask the original error.
   }

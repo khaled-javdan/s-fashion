@@ -65,6 +65,96 @@ function describe(error: unknown): {
 }
 
 /**
+ * How much a reported error should actually worry us. Computed at report time
+ * from the error's shape + where it happened, so the alert channel can route by
+ * criticality instead of treating every `window.onerror` as a page-the-team
+ * incident.
+ *
+ *  - `drop`     — not our code / unactionable (third-party & in-app-browser
+ *                 injected scripts, cross-origin "Script error.", extensions).
+ *                 Never sent.
+ *  - `warn`     — non-fatal: the app recovered (hydration mismatch, a Next
+ *                 not-found fallback) or the failure was environmental (network,
+ *                 aborted request). Logged, no alert.
+ *  - `error`    — a genuine app failure a user hit. Alerted.
+ *  - `critical` — conversion-blocking / data-loss (anything on the checkout /
+ *                 order / payment path). Alerted loudly, on its own throttle.
+ */
+export type ClientErrorSeverity = "drop" | "warn" | "error" | "critical"
+
+/**
+ * Signatures of code we don't control and can't fix. Matched on message+stack
+ * (NOT user-agent) on purpose: a *real* crash from the same Instagram/Facebook
+ * in-app browser carries its own app stack and is still reported — only the
+ * injected-bridge and cross-origin noise is dropped.
+ */
+const NOISE_PATTERNS: RegExp[] = [
+  /webkit\.messageHandlers/i, // iOS webview native bridge
+  /sendDataToNative|sendPageHideMessage/i, // Meta/IG in-app-browser injected handlers
+  /\bResizeObserver loop\b/i, // benign browser layout notice, never user-visible
+  /-extension:\/\//i, // chrome-/moz-/safari-web-extension stacks (user add-ons)
+]
+
+/** Non-fatal conditions: the app recovered, or the failure was environmental. */
+const WARN_PATTERNS: RegExp[] = [
+  // Hydration family — React discards the server HTML for that subtree and
+  // re-renders on the client. Cosmetic flicker at worst.
+  /Minified React error #(418|419|421|422|423|425)\b/,
+  /hydrat/i,
+  // Network / aborted requests — not a code bug.
+  /\bAbortError\b/,
+  /Failed to fetch|NetworkError|Load failed|network ?error/i,
+]
+
+/**
+ * Classify a client error by severity + a coarse category. Pure and total —
+ * must never throw (it runs on the error path).
+ */
+export function classifyClientError(input: {
+  context: string
+  message: string
+  stack: string
+  digest: string
+  path: string
+}): { severity: ClientErrorSeverity; category: string } {
+  const text = `${input.message}\n${input.stack}`
+
+  // 1. Unactionable third-party / cross-origin noise → never report.
+  if (
+    input.message === "Script error." ||
+    NOISE_PATTERNS.some((re) => re.test(text))
+  ) {
+    return { severity: "drop", category: "third-party" }
+  }
+
+  // 2. Anything that reaches us on the checkout/order path is conversion-
+  //    blocking — page loudly regardless of the underlying error type.
+  if (
+    /\/(checkout|order|payment)(\/|\?|$)/.test(input.path) ||
+    /checkout|order|payment/i.test(input.context)
+  ) {
+    return { severity: "critical", category: "checkout" }
+  }
+
+  // 3. A Next.js not-found / HTTP fallback thrown during render — app behavior,
+  //    not a crash. Keep for trends, don't page.
+  if (/NEXT_HTTP_ERROR_FALLBACK/.test(input.digest)) {
+    return { severity: "warn", category: "not-found" }
+  }
+
+  // 4. Recovered / environmental failures.
+  if (WARN_PATTERNS.some((re) => re.test(text))) {
+    const category = /react error #41[89]|hydrat/i.test(text)
+      ? "hydration"
+      : "environmental"
+    return { severity: "warn", category }
+  }
+
+  // 5. Everything else: a real app error a user actually hit.
+  return { severity: "error", category: "app" }
+}
+
+/**
  * Forward a caught error to the server. `extra` carries anything diagnostic the
  * call site already has — most importantly the React `componentStack` from an
  * error boundary's `errorInfo`, but also arbitrary state (form values, the
@@ -84,6 +174,24 @@ export function reportClientError(
 
     const { componentStack, ...rest } = extra ?? {}
 
+    // Full URL (path + query) so we can tell which locale/step crashed.
+    const path =
+      typeof window !== "undefined"
+        ? window.location.pathname + window.location.search
+        : ""
+
+    // Classify before sending. `drop` (third-party / injected / cross-origin
+    // noise) is silently discarded so it never reaches the alert channel; the
+    // rest rides to the server tagged with its severity + category.
+    const { severity, category } = classifyClientError({
+      context,
+      message,
+      stack,
+      digest,
+      path,
+    })
+    if (severity === "drop") return
+
     const body = JSON.stringify({
       context,
       name,
@@ -91,11 +199,9 @@ export function reportClientError(
       stack,
       componentStack: componentStack ?? "",
       digest,
-      // Full URL (path + query) so we can tell which locale/step crashed.
-      path:
-        typeof window !== "undefined"
-          ? window.location.pathname + window.location.search
-          : "",
+      path,
+      severity,
+      category,
       userAgent:
         typeof navigator !== "undefined" ? navigator.userAgent : "",
       breadcrumbs: breadcrumbs.slice(),
@@ -125,8 +231,18 @@ export function installGlobalErrorReporting(): void {
   installed = true
 
   window.addEventListener("error", (event) => {
+    // Drop sanitized cross-origin "Script error." events. When a script served
+    // from another origin throws, the browser strips the message, stack,
+    // filename and line/col (`event.error` is null, message is "Script error.",
+    // filename "" and lineno/colno 0) for security. There's nothing to act on —
+    // these come from third-party / in-app-browser-injected scripts (Meta
+    // Pixel, GTM, Instagram & Facebook webviews) we don't control, so reporting
+    // them just spams the alert channel with noise.
+    if (!event.error && (!event.filename || event.message === "Script error.")) {
+      return
+    }
     // `event.error` is the thrown value when available; fall back to the
-    // message/filename the browser reports for cross-origin script errors.
+    // message/filename the browser reports for (same-origin) script errors.
     const err =
       event.error ??
       ({

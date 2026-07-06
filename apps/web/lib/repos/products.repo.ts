@@ -38,13 +38,23 @@ const activeVariantsInclude = {
   where: { isArchived: false },
 } as const;
 
-/** Public catalog: only active products. Newest first. */
+/**
+ * Default display order: admin-curated `sortOrder` first (lower shows first),
+ * newest breaking ties. Every product defaults to `sortOrder: 0`, so this is
+ * indistinguishable from newest-first until an admin actually reorders.
+ */
+const DEFAULT_ORDER_BY: Prisma.ProductOrderByWithRelationInput[] = [
+  { sortOrder: "asc" },
+  { createdAt: "desc" },
+];
+
+/** Public catalog: only active products. Admin-ordered, newest breaking ties. */
 export async function listActiveProducts(
   opts: ListOpts = {},
 ): Promise<ProductWithRelations[]> {
   return prisma.product.findMany({
     where: { isActive: true },
-    orderBy: { createdAt: "desc" },
+    orderBy: DEFAULT_ORDER_BY,
     take: opts.take,
     skip: opts.skip,
     include: {
@@ -161,9 +171,9 @@ function catalogWhere(
 
 const SORT_ORDER: Record<
   Exclude<ProductSort, "best_selling" | "relevance">,
-  Prisma.ProductOrderByWithRelationInput
+  Prisma.ProductOrderByWithRelationInput | Prisma.ProductOrderByWithRelationInput[]
 > = {
-  newest: { createdAt: "desc" },
+  newest: DEFAULT_ORDER_BY,
   price_asc: { priceFils: "asc" },
   price_desc: { priceFils: "desc" },
 };
@@ -254,6 +264,7 @@ export async function listProductsFiltered(
     matched.sort((a, b) => {
       const diff = (scores.get(b.id) ?? 0) - (scores.get(a.id) ?? 0);
       if (diff !== 0) return diff;
+      if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
       return b.createdAt.getTime() - a.createdAt.getTime();
     });
     const total = matched.length;
@@ -307,6 +318,7 @@ export async function listProductsFiltered(
     matched.sort((a, b) => {
       const diff = (soldByProduct.get(b.id) ?? 0) - (soldByProduct.get(a.id) ?? 0);
       if (diff !== 0) return diff;
+      if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
       return b.createdAt.getTime() - a.createdAt.getTime();
     });
     const total = matched.length;
@@ -537,10 +549,10 @@ export async function listPopularProducts(
     .sort((a, b) => b[1] - a[1])
     .map(([id]) => id);
 
-  // 3. Active products, newest first; reorder best-sellers to the front.
+  // 3. Active products, admin-ordered; reorder best-sellers to the front.
   const products = await prisma.product.findMany({
     where: { isActive: true },
-    orderBy: { createdAt: "desc" },
+    orderBy: DEFAULT_ORDER_BY,
     select: { id: true, slug: true, nameEn: true, nameAr: true },
   });
   const byId = new Map(products.map((p) => [p.id, p]));
@@ -664,12 +676,12 @@ export async function getProductById(
   });
 }
 
-/** Admin list — includes inactive. */
+/** Admin list — includes inactive. Ordered to match the admin's manual sort. */
 export async function listAllProductsForAdmin(
   opts: ListOpts = {},
 ): Promise<ProductWithRelations[]> {
   return prisma.product.findMany({
-    orderBy: { createdAt: "desc" },
+    orderBy: DEFAULT_ORDER_BY,
     take: opts.take,
     skip: opts.skip,
     include: {
@@ -944,6 +956,24 @@ export async function updateProduct(
   }, TX_OPTS);
 }
 
+/**
+ * Persist a new manual display order from a drag-and-drop reorder. `ids` is
+ * the full ordered list as the admin now wants it (index 0 = shows first);
+ * each product's `sortOrder` is set to its index. Runs as a transaction so a
+ * page reload never observes a half-applied order.
+ */
+export async function reorderProducts(ids: string[]): Promise<void> {
+  await prisma.$transaction(
+    ids.map((id, index) =>
+      prisma.product.update({
+        where: { id },
+        data: { sortOrder: index },
+      }),
+    ),
+    TX_OPTS,
+  );
+}
+
 /** Flip `isActive`. Returns the new boolean. */
 export async function toggleProductActive(id: string): Promise<boolean> {
   const current = await prisma.product.findUniqueOrThrow({
@@ -1051,10 +1081,10 @@ export async function listBestSellerProducts(
     .sort((a, b) => b[1] - a[1])
     .map(([id]) => id);
 
-  // 3. Active products with full relations, newest first; reorder sellers up.
+  // 3. Active products with full relations, admin-ordered; reorder sellers up.
   const products = await prisma.product.findMany({
     where: { isActive: true },
-    orderBy: { createdAt: "desc" },
+    orderBy: DEFAULT_ORDER_BY,
     include: {
       variants: activeVariantsInclude,
       images: { orderBy: { position: "asc" } },
