@@ -29,6 +29,7 @@ import {
 } from "@/lib/home-sections-config"
 import { LOCALES, type Locale } from "@/lib/locale"
 import {
+  getProductsByIds,
   listActiveProducts,
   listProductsForSource,
 } from "@/lib/repos/products.repo"
@@ -77,7 +78,10 @@ export default async function HomePage({
   )
   const rowEntries = await Promise.all(
     productBlocks.map(async (b) => {
-      const products = await listProductsForSource(b.source, b.limit)
+      const products =
+        b.mode === "manual"
+          ? await getProductsByIds(b.manualProducts.map((p) => p.id))
+          : await listProductsForSource(b.source, b.limit)
       const ratings = await getRatingSummaries(products.map((p) => p.id))
       return [b.id, { products, ratings }] as const
     }),

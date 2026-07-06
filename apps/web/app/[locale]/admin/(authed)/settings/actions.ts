@@ -18,6 +18,7 @@ import {
   type KnownSettings,
   type SettingKey,
 } from "@/lib/repos/settings.repo"
+import { listAllProductsForAdmin } from "@/lib/repos/products.repo"
 import { uploadProductImage } from "@/lib/services/blob"
 
 export type ActionResult<T> =
@@ -228,6 +229,54 @@ async function persist(
     default: {
       const _exhaustive: never = key
       throw new Error(`Unhandled setting key: ${String(_exhaustive)}`)
+    }
+  }
+}
+
+/** A product hit for the home-sections manual-mode picker. */
+export type ProductPickerResult = {
+  id: string
+  nameEn: string
+  nameAr: string
+  imageUrl: string | null
+  /** false = hidden from the storefront; picking it is allowed but it won't
+   * render on the live home page until it's reactivated. */
+  isActive: boolean
+}
+
+/**
+ * The full catalogue (active AND hidden), thumbnail-first, for the
+ * home-sections manual-mode picker. The admin browses by photo (they often
+ * recognise a product by look before they recall its name) and can
+ * optionally type to narrow the grid; the catalogue is small enough to send
+ * in one shot rather than build a live search. Hidden products are included
+ * (flagged) so the admin can pre-stage a row before flipping a product live,
+ * rather than the picker mysteriously excluding some products.
+ */
+export async function listProductsForPickerAction(): Promise<
+  ActionResult<ProductPickerResult[]>
+> {
+  const session = await auth()
+  if (!session?.user) {
+    return { ok: false, error: "Not authorized." }
+  }
+
+  try {
+    const products = await listAllProductsForAdmin()
+    return {
+      ok: true,
+      data: products.map((p) => ({
+        id: p.id,
+        nameEn: p.nameEn,
+        nameAr: p.nameAr,
+        imageUrl: p.images[0]?.url ?? null,
+        isActive: p.isActive,
+      })),
+    }
+  } catch (err) {
+    return {
+      ok: false,
+      error: toActionError("listProductsForPickerAction", err),
     }
   }
 }

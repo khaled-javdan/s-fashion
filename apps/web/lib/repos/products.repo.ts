@@ -648,6 +648,31 @@ export async function listSimilarProducts(opts: {
   return [...picked, ...fill];
 }
 
+/**
+ * Active products by explicit id list, returned in that exact order — powers
+ * admin-curated ("manual" mode) home sections. Ids that no longer exist, are
+ * inactive, or repeat are silently dropped, so a since-deleted or hidden pick
+ * just disappears from the row instead of erroring.
+ */
+export async function getProductsByIds(
+  ids: string[],
+): Promise<ProductWithRelations[]> {
+  const uniqueIds = [...new Set(ids)];
+  if (uniqueIds.length === 0) return [];
+
+  const products = await prisma.product.findMany({
+    where: { id: { in: uniqueIds }, isActive: true },
+    include: {
+      variants: activeVariantsInclude,
+      images: { orderBy: { position: "asc" } },
+    },
+  });
+  const byId = new Map(products.map((p) => [p.id, p]));
+  return uniqueIds
+    .map((id) => byId.get(id))
+    .filter((p): p is ProductWithRelations => Boolean(p));
+}
+
 /** PDP fetch. Returns `null` when slug doesn't exist OR product is inactive. */
 export async function getProductBySlug(
   slug: string,

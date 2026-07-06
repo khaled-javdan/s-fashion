@@ -166,7 +166,7 @@ export function ProductCardMedia({
                 sizes={sizes}
                 onLoad={i === 0 ? () => setFirstLoaded(true) : undefined}
                 className={cn(
-                  "object-cover transition-[opacity,transform] duration-500 group-hover:scale-105",
+                  "object-cover transition-[opacity,scale] duration-500 ease-out group-hover:scale-105",
                   dimmed
                     ? "opacity-50 grayscale"
                     : i === 0 && !firstLoaded

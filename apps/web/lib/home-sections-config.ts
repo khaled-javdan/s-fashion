@@ -100,6 +100,20 @@ export function staticBlockLimit(block: StaticBlock): number {
   return block.limit ?? STATIC_SECTION_LIMITS[block.key] ?? 12
 }
 
+/** A hand-picked product snapshotted for the manual-mode picker UI. */
+export type ManualProductRef = {
+  id: string
+  nameEn: string
+  nameAr: string
+  imageUrl: string | null
+  /**
+   * Snapshotted at pick time, for the admin UI's "Hidden" badge only — the
+   * homepage always re-checks the live `isActive` flag at render time, so a
+   * stale value here never lets a hidden product actually appear.
+   */
+  isActive: boolean
+}
+
 export type ProductBlock = {
   type: "products"
   /** Stable id (used for React keys + the grid density storage scope). */
@@ -107,11 +121,19 @@ export type ProductBlock = {
   titleEn: string
   titleAr: string
   source: ProductSource
-  /** Max products shown before the "See all" button. */
+  /** Max products shown before the "See all" button. Ignored in "manual" mode. */
   limit: number
   /** Override for the "See all" link; empty → the source default. */
   ctaHref?: string
   visible: boolean
+  /**
+   * "auto" (default) fills the row from `source` the way it always has.
+   * "manual" shows exactly `manualProducts`, in that order, instead — the
+   * admin picks and reorders them by hand.
+   */
+  mode: "auto" | "manual"
+  /** The admin's hand-picked products for "manual" mode. Ignored otherwise. */
+  manualProducts: ManualProductRef[]
 }
 
 export type HomeBlock = StaticBlock | ProductBlock
@@ -141,6 +163,8 @@ export const DEFAULT_HOME_LAYOUT: HomeLayoutConfig = {
       source: "best_selling",
       limit: 8,
       visible: true,
+      mode: "auto",
+      manualProducts: [],
     },
     { type: "static", key: "testimonials", visible: true },
     { type: "static", key: "ugc_strip", visible: true },
@@ -153,6 +177,8 @@ export const DEFAULT_HOME_LAYOUT: HomeLayoutConfig = {
       source: "newest",
       limit: 8,
       visible: true,
+      mode: "auto",
+      manualProducts: [],
     },
     { type: "static", key: "recently_viewed", visible: true },
   ],
@@ -168,6 +194,8 @@ export function emptyProductBlock(id: string): ProductBlock {
     source: "all",
     limit: 8,
     visible: true,
+    mode: "auto",
+    manualProducts: [],
   }
 }
 
@@ -182,6 +210,14 @@ const staticBlockSchema = z.object({
   limit: z.number().int().min(1).max(48).optional(),
 })
 
+const manualProductRefSchema = z.object({
+  id: z.string().min(1),
+  nameEn: z.string().default(""),
+  nameAr: z.string().default(""),
+  imageUrl: z.string().nullable().default(null),
+  isActive: z.boolean().default(true),
+})
+
 const productBlockSchema = z.object({
   type: z.literal("products"),
   id: z.string().min(1).max(64),
@@ -191,6 +227,8 @@ const productBlockSchema = z.object({
   limit: z.number().int().min(1).max(48).default(8),
   ctaHref: z.string().trim().max(200).optional(),
   visible: z.boolean().default(true),
+  mode: z.enum(["auto", "manual"]).default("auto"),
+  manualProducts: z.array(manualProductRefSchema).max(24).default([]),
 })
 
 export const homeLayoutConfigSchema = z.object({
@@ -285,6 +323,8 @@ export function parseHomeLayout(raw: unknown): HomeLayoutConfig {
         limit: b.limit,
         ...(b.ctaHref ? { ctaHref: b.ctaHref } : {}),
         visible: b.visible,
+        mode: b.mode,
+        manualProducts: b.manualProducts,
       })
     }
   }
