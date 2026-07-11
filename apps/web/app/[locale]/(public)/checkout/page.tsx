@@ -7,6 +7,7 @@ import { CheckoutForm } from "@/app/[locale]/(public)/checkout/checkout-form"
 import { getCurrencyContext } from "@/lib/currency-context.server"
 import { LOCALES } from "@/lib/locale"
 import { getSetting } from "@/lib/repos/settings.repo"
+import { isStripeConfigured } from "@/lib/services/stripe"
 import { parseShippingConfig } from "@/lib/shipping-config"
 
 export async function generateMetadata({
@@ -36,10 +37,14 @@ export default async function CheckoutPage({
 
   const t = await getTranslations("checkout")
 
-  const [shippingConfig, currencyCtx] = await Promise.all([
+  const [shippingConfig, currencyCtx, stripeSetting] = await Promise.all([
     getSetting("shipping.countries").then(parseShippingConfig),
     getCurrencyContext(),
+    getSetting("payments.stripe_enabled"),
   ])
+  // Online payment is offered only when admin-enabled AND the server has a
+  // Stripe key. The action re-checks both, so this is display gating only.
+  const stripeEnabled = stripeSetting === true && isStripeConfigured()
 
   return (
     <section className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6">
@@ -50,6 +55,7 @@ export default async function CheckoutPage({
         shippingConfig={shippingConfig}
         defaultCountry={currencyCtx.country}
         enabledCountries={currencyCtx.enabledCountries}
+        stripeEnabled={stripeEnabled}
       />
     </section>
   )

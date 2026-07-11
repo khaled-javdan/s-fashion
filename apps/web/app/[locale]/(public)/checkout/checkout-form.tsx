@@ -30,6 +30,7 @@ import {
 } from "@/app/[locale]/(public)/checkout/turnstile-widget"
 import {
   applyCouponAction,
+  cancelPendingPaymentAction,
   createOrderAction,
 } from "@/app/[locale]/(public)/checkout/actions"
 import { useCurrency } from "@/components/providers/currency-provider"
@@ -162,6 +163,10 @@ function serverFieldToFormField(
     : null
 }
 
+// Client-safe payment-method literals (importing the Prisma runtime enum here
+// would pull the Prisma client into the browser bundle).
+type CheckoutPaymentMethod = "COD" | "STRIPE"
+
 /**
  * Single-page checkout form (Contact + Delivery sections) with a sticky order
  * summary on desktop. Validation is done with a manual Zod-free resolver that
@@ -169,23 +174,28 @@ function serverFieldToFormField(
  * runs server-side in the action.
  *
  * Flow:
- *  1. "Place order" → `createOrderAction`. On success, clear the cart and
- *     navigate to the confirmation page.
+ *  1. "Place order" → `createOrderAction`.
+ *  2. COD: clear the cart and navigate to the confirmation page.
+ *     STRIPE: redirect to the hosted Stripe Checkout page — the cart and saved
+ *     form are kept so a customer who cancels at Stripe can retry instantly;
+ *     they're cleared on the confirmation page after payment.
  */
 export function CheckoutForm({
   shippingConfig,
   defaultCountry,
   enabledCountries,
+  stripeEnabled,
 }: {
   shippingConfig: ShippingConfig
   defaultCountry: CountryCode
   enabledCountries: CountryCode[]
+  stripeEnabled: boolean
 }) {
   const t = useTranslations("checkout")
   const tCoupon = useTranslations("checkout.coupon")
   const locale = useLocale() as Locale
   const router = useRouter()
-  const { setCountry } = useCurrency()
+  const { setCountry, currency } = useCurrency()
 
   const items = useCartStore(selectItems)
   const hasHydrated = useCartStore(selectHasHydrated)
@@ -193,6 +203,26 @@ export function CheckoutForm({
   const clear = useCartStore((s) => s.clear)
 
   const [submitting, setSubmitting] = useState(false)
+  // Default to online card payment when it's available, otherwise COD.
+  const [paymentMethod, setPaymentMethod] = useState<CheckoutPaymentMethod>(
+    stripeEnabled ? "STRIPE" : "COD",
+  )
+
+  // Returning from Stripe's "back" link (?payment=cancelled&order=...): tell
+  // the customer their cart is intact and release the reserved stock by
+  // expiring the Checkout Session (best-effort — expiry/cron backstop it),
+  // then strip the params so a reload doesn't repeat the toast.
+  const cancelledHandled = useRef(false)
+  useEffect(() => {
+    if (cancelledHandled.current) return
+    cancelledHandled.current = true
+    const params = new URLSearchParams(window.location.search)
+    if (params.get("payment") !== "cancelled") return
+    const orderNumber = params.get("order")
+    if (orderNumber) void cancelPendingPaymentAction(orderNumber)
+    toast.error(t("payment_cancelled"))
+    router.replace(window.location.pathname)
+  }, [router, t])
 
   // GA4 begin_checkout → dataLayer, once the cart has hydrated and is non-empty.
   // Guarded so it fires a single time per checkout-page mount, not on every
@@ -446,6 +476,9 @@ export function CheckoutForm({
     }
 
     setSubmitting(true)
+    // Keeps the button in its loading state through a Stripe redirect (the
+    // `finally` below must not re-enable it while the browser navigates away).
+    let redirecting = false
     try {
       const values = getValues()
       const result = await createOrderAction({
@@ -462,6 +495,7 @@ export function CheckoutForm({
         couponCode: couponCode ?? undefined,
         locale,
         turnstileToken: turnstileRef.current?.getToken(),
+        paymentMethod: stripeEnabled ? paymentMethod : "COD",
         items: cartPayload(),
       })
       // Turnstile token is single-use — reset after the action.
@@ -490,7 +524,17 @@ export function CheckoutForm({
         return
       }
 
-      // Success — clear cart + saved form and navigate to confirmation.
+      // STRIPE — hand off to the hosted payment page. Cart + saved form are
+      // deliberately kept: the customer may cancel at Stripe and come back.
+      // The confirmation page clears them once payment succeeds.
+      if (result.redirectUrl) {
+        redirecting = true
+        addBreadcrumb(`checkout:stripe_redirect order=${result.orderNumber}`)
+        window.location.assign(result.redirectUrl)
+        return
+      }
+
+      // COD success — clear cart + saved form and navigate to confirmation.
       clear()
       try {
         sessionStorage.removeItem(FORM_STORAGE_KEY)
@@ -501,7 +545,7 @@ export function CheckoutForm({
     } catch {
       toast.error(t("error_generic"))
     } finally {
-      setSubmitting(false)
+      if (!redirecting) setSubmitting(false)
     }
   }
 
@@ -762,36 +806,43 @@ export function CheckoutForm({
               </span>
             </label>
 
-            {/* Payment method. COD is the only live option; online payment is
-                shown as "coming soon" so customers know it's planned. Display
-                only — every order is COD today, so there's nothing to submit. */}
+            {/* Payment method. COD is always available; online card payment
+                (hosted Stripe Checkout) is offered when admin-enabled, and
+                shown as "coming soon" otherwise. */}
             <fieldset className="space-y-3">
               <legend className="font-heading text-lg tracking-wide text-foreground">
                 {t("payment_heading")}
               </legend>
-              <div className="flex items-center gap-3 rounded-lg border border-primary bg-primary/5 p-4">
-                <span
-                  aria-hidden="true"
-                  className="flex size-5 shrink-0 items-center justify-center rounded-full border-2 border-primary"
-                >
-                  <span className="size-2.5 rounded-full bg-primary" />
-                </span>
-                <span className="flex-1 font-medium text-foreground">
-                  {t("payment_cod")}
-                </span>
-              </div>
-              <div className="flex items-center gap-3 rounded-lg border border-border p-4 opacity-60">
-                <span
-                  aria-hidden="true"
-                  className="size-5 shrink-0 rounded-full border-2 border-muted-foreground/40"
+              <PaymentOption
+                selected={paymentMethod === "COD"}
+                onSelect={() => setPaymentMethod("COD")}
+                label={t("payment_cod")}
+              />
+              {stripeEnabled ? (
+                <PaymentOption
+                  selected={paymentMethod === "STRIPE"}
+                  onSelect={() => setPaymentMethod("STRIPE")}
+                  label={t("payment_online")}
+                  hint={
+                    currency === "AED"
+                      ? t("payment_online_hint")
+                      : `${t("payment_online_hint")} ${t("payment_charged_in_aed")}`
+                  }
                 />
-                <span className="flex-1 text-muted-foreground">
-                  {t("payment_online")}
-                </span>
-                <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                  {t("payment_online_soon")}
-                </span>
-              </div>
+              ) : (
+                <div className="flex items-center gap-3 rounded-lg border border-border p-4 opacity-60">
+                  <span
+                    aria-hidden="true"
+                    className="size-5 shrink-0 rounded-full border-2 border-muted-foreground/40"
+                  />
+                  <span className="flex-1 text-muted-foreground">
+                    {t("payment_online")}
+                  </span>
+                  <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                    {t("payment_online_soon")}
+                  </span>
+                </div>
+              )}
             </fieldset>
 
             {/* Invisible/managed bot challenge. Renders nothing when Turnstile
@@ -828,6 +879,55 @@ export function CheckoutForm({
         </div>
       </div>
     </div>
+  )
+}
+
+/** A selectable payment-method radio row (accessible native radio input). */
+function PaymentOption({
+  selected,
+  onSelect,
+  label,
+  hint,
+}: {
+  selected: boolean
+  onSelect: () => void
+  label: string
+  hint?: string
+}) {
+  return (
+    <label
+      className={`flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors ${
+        selected ? "border-primary bg-primary/5" : "border-border"
+      }`}
+    >
+      <input
+        type="radio"
+        name="payment-method"
+        checked={selected}
+        onChange={onSelect}
+        className="sr-only"
+      />
+      <span
+        aria-hidden="true"
+        className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border-2 ${
+          selected ? "border-primary" : "border-muted-foreground/40"
+        }`}
+      >
+        {selected ? <span className="size-2.5 rounded-full bg-primary" /> : null}
+      </span>
+      <span className="flex-1">
+        <span
+          className={`block font-medium ${selected ? "text-foreground" : "text-muted-foreground"}`}
+        >
+          {label}
+        </span>
+        {hint ? (
+          <span className="mt-1 block text-xs text-muted-foreground">
+            {hint}
+          </span>
+        ) : null}
+      </span>
+    </label>
   )
 }
 

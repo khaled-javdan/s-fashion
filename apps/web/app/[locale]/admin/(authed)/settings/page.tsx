@@ -12,6 +12,7 @@ import { DEFAULT_AI_MODEL_ID } from "@/components/admin/ai/types"
 import { AiModelForm } from "@/components/admin/settings/ai-model-form"
 import { AntiAbuseForm } from "@/components/admin/settings/anti-abuse-form"
 import { MarketingForm } from "@/components/admin/settings/marketing-form"
+import { PaymentsForm } from "@/components/admin/settings/payments-form"
 import { CompanyForm } from "@/components/admin/settings/company-form"
 import { ContactForm } from "@/components/admin/settings/contact-form"
 import { GridForm } from "@/components/admin/settings/grid-form"
@@ -142,6 +143,8 @@ export default async function AdminSettingsPage() {
   )
   const aiModel = read(all, "ai.model", DEFAULT_AI_MODEL_ID)
   const whatsappEnabled = (all["marketing.whatsapp_enabled"] as boolean | undefined) ?? true
+  const stripeEnabled = read(all, "payments.stripe_enabled", false)
+  const stripeConfigured = Boolean(process.env.STRIPE_SECRET_KEY)
   const welcomeDiscountPercent = read(all, "marketing.welcome_discount_percent", 10)
   const hero = parseHeroConfig(all["home.hero"])
   const grid = parseGridConfig(read(all, "home.grid", DEFAULT_GRID))
@@ -185,6 +188,7 @@ export default async function AdminSettingsPage() {
           </TabsTrigger>
           <TabsTrigger value="returns">{t("tabs.returns")}</TabsTrigger>
           <TabsTrigger value="limits">{t("tabs.limits")}</TabsTrigger>
+          <TabsTrigger value="payments">{t("tabs.payments")}</TabsTrigger>
           <TabsTrigger value="marketing">{t("tabs.marketing")}</TabsTrigger>
           <TabsTrigger value="ai">{t("tabs.ai")}</TabsTrigger>
         </TabsList>
@@ -315,6 +319,18 @@ export default async function AdminSettingsPage() {
             <AntiAbuseForm
               maxItems={maxItems}
               maxQtyPerVariant={maxQtyPerVariant}
+            />
+          </SettingsCard>
+        </TabsContent>
+
+        <TabsContent value="payments" className="pt-4">
+          <SettingsCard
+            title={t("payments.card_title")}
+            description={t("payments.card_description")}
+          >
+            <PaymentsForm
+              stripeEnabled={stripeEnabled}
+              stripeConfigured={stripeConfigured}
             />
           </SettingsCard>
         </TabsContent>

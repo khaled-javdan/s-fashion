@@ -1,5 +1,5 @@
 /**
- * Retry cron for order notifications.
+ * Retry cron for order notifications + stale-Stripe-order sweep.
  *
  * Re-runs `dispatchOrderNotifications` for any recent, verified order still
  * missing a delivery stamp (Telegram owner alert and/or customer email). This
@@ -7,6 +7,11 @@
  * transient Telegram/Resend failure is recovered on the next run instead of
  * being silently lost. The dispatcher is idempotent — already-stamped channels
  * are skipped — so re-running is safe.
+ *
+ * Also backstops missed Stripe webhooks: any order stuck AWAITING_PAYMENT
+ * well past the 1-hour Checkout Session expiry is reconciled against Stripe —
+ * marked paid if the completed webhook was lost, otherwise cancelled and its
+ * reserved stock re-credited.
  *
  * Scheduled daily in vercel.json (`0 3 * * *`) — the Vercel Hobby plan only
  * permits once-per-day crons. If sub-daily recovery is needed, either upgrade
@@ -19,12 +24,22 @@
  */
 import { NextResponse } from "next/server";
 
+import { OrderStatus } from "@workspace/db";
+
 import { reportError } from "@/lib/errors";
 import { dispatchOrderNotifications } from "@/lib/services/order-notifications";
-import { listOrderIdsAwaitingNotification } from "@/lib/repos/orders.repo";
+import {
+  cancelExpiredStripeOrder,
+  listOrderIdsAwaitingNotification,
+  listStaleAwaitingPaymentOrders,
+  markOrderPaidBySession,
+  updateOrderStatus,
+} from "@/lib/repos/orders.repo";
+import { getStripe, isStripeConfigured } from "@/lib/services/stripe";
 
 // Always run dynamically — never cache the cron response.
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 export async function GET(request: Request): Promise<Response> {
   const secret = process.env.CRON_SECRET;
@@ -55,5 +70,61 @@ export async function GET(request: Request): Promise<Response> {
     }
   }
 
-  return NextResponse.json({ ok: true, found: ids.length, processed });
+  // Stripe backstop: reconcile orders whose completed/expired webhook was
+  // missed. Ask Stripe FIRST so a paid order whose webhook was lost is never
+  // cancelled + restocked by mistake.
+  let stripeReconciled = 0;
+  let stripeCancelled = 0;
+  if (isStripeConfigured()) {
+    let stale: { id: string; stripeSessionId: string | null }[] = [];
+    try {
+      stale = await listStaleAwaitingPaymentOrders(2);
+    } catch (err) {
+      reportError("cron.stripe-sweep.query", err);
+    }
+    for (const order of stale) {
+      try {
+        if (!order.stripeSessionId) {
+          // Session creation failed mid-checkout and the cleanup cancel also
+          // failed — nothing to reconcile against; release the stock.
+          await updateOrderStatus(
+            order.id,
+            OrderStatus.CANCELLED,
+            null,
+            "payment_expired",
+          );
+          stripeCancelled++;
+          continue;
+        }
+        const session = await getStripe().checkout.sessions.retrieve(
+          order.stripeSessionId,
+        );
+        if (session.payment_status === "paid") {
+          const result = await markOrderPaidBySession(
+            session.id,
+            typeof session.payment_intent === "string"
+              ? session.payment_intent
+              : (session.payment_intent?.id ?? null),
+          );
+          if (result.outcome === "paid") {
+            await dispatchOrderNotifications(result.orderId);
+            stripeReconciled++;
+          }
+        } else {
+          const result = await cancelExpiredStripeOrder(order.stripeSessionId);
+          if (result.cancelled) stripeCancelled++;
+        }
+      } catch (err) {
+        reportError("cron.stripe-sweep.order", err, { orderId: order.id });
+      }
+    }
+  }
+
+  return NextResponse.json({
+    ok: true,
+    found: ids.length,
+    processed,
+    stripeReconciled,
+    stripeCancelled,
+  });
 }

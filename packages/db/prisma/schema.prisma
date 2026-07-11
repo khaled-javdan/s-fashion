@@ -161,6 +161,14 @@ model Order {
   // record the currency the customer saw and the AED→currency rate at order time.
   displayCurrency String     @default("AED")
   fxRate          Float      @default(1)
+  // Payment. COD orders keep paymentStatus null; Stripe orders start PENDING
+  // (order status AWAITING_PAYMENT, stock reserved) and become PAID via the
+  // Stripe webhook / return-page reconcile. Stripe always charges base AED.
+  paymentMethod         PaymentMethod @default(COD)
+  paymentStatus         PaymentStatus?
+  stripeSessionId       String?       @unique
+  stripePaymentIntentId String?
+  paidAt                DateTime?
   locale        String // "ar" or "en"
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
@@ -351,12 +359,24 @@ enum AdminRole {
 
 enum OrderStatus {
   PENDING_VERIFICATION
+  AWAITING_PAYMENT
   NEW
   CONFIRMED
   SHIPPED
   DELIVERED
   REFUSED
   CANCELLED
+}
+
+enum PaymentMethod {
+  COD
+  STRIPE
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  REFUNDED
 }
 
 enum CouponType {

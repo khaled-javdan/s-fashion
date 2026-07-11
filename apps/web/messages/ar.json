@@ -218,6 +218,9 @@
     "payment_cod": "الدفع عند الاستلام",
     "payment_online": "الدفع الإلكتروني",
     "payment_online_soon": "قريبًا",
+    "payment_online_hint": "سيتم تحويلك إلى صفحة دفع آمنة.",
+    "payment_charged_in_aed": "سيتم الخصم من بطاقتك بالدرهم الإماراتي.",
+    "payment_cancelled": "تم إلغاء الدفع — سلتك كما هي.",
     "subtotal": "المجموع الفرعي",
     "shipping_fee": "رسوم التوصيل",
     "shipping_free": "مجاني",
@@ -275,6 +278,12 @@
   "order": {
     "success_heading": "تم استلام طلبك",
     "success_subtitle": "شكراً لك! سنؤكد طلبك قريباً.",
+    "awaiting_payment_heading": "بانتظار الدفع",
+    "awaiting_payment_subtitle": "طلبك محجوز لكن لم يتم الدفع بعد. إذا ألغيت الدفع يمكنك إعادة الطلب من سلتك.",
+    "payment_method_label": "طريقة الدفع",
+    "payment_method_cod": "الدفع عند الاستلام",
+    "payment_method_card": "بطاقة (أونلاين) — بانتظار الدفع",
+    "payment_method_card_paid": "مدفوع أونلاين (بطاقة)",
     "order_number": "رقم الطلب",
     "customer": "العميلة",
     "items_heading": "تفاصيل الطلب",
@@ -321,6 +330,7 @@
     "step_shipped": "تم الشحن",
     "step_delivered": "تم التوصيل",
     "awaiting_verification_note": "ما زلنا بانتظار تأكيد رقم هاتفك لهذا الطلب.",
+    "awaiting_payment_note": "هذا الطلب بانتظار الدفع الإلكتروني وسيتم تأكيده فور إتمام الدفع.",
     "view_details": "عرض تفاصيل الطلب كاملة",
     "home_heading": "هل أتممتِ طلباً؟",
     "home_subheading": "تابعي حالة طلبك في أي وقت.",
@@ -614,6 +624,7 @@
       "pending_orders": "طلبات قيد المراجعة",
       "low_stock": "مخزون منخفض",
       "tab_orders": "تحليلات الطلبات",
+      "tab_products": "أداء المنتجات",
       "tab_visitors": "تحليلات الزوار",
       "tab_ads": "إعلانات ميتا"
     },
@@ -636,7 +647,25 @@
       "top_products": "أكثر المنتجات مبيعاً",
       "revenue": "الإيرادات",
       "units_short": "{count, plural, zero {# مبيعاً} one {# مبيعاً} two {# مبيعاً} few {# مبيعاً} many {# مبيعاً} other {# مبيعاً}}",
-      "no_sales": "لا توجد مبيعات في هذه الفترة بعد."
+      "no_sales": "لا توجد مبيعات في هذه الفترة بعد.",
+      "payment_methods": "طرق الدفع",
+      "payment_cod": "الدفع عند الاستلام",
+      "payment_card": "بطاقة (أونلاين)",
+      "payment_orders": "{count, plural, zero {# طلب} one {# طلب} two {# طلبان} few {# طلبات} many {# طلباً} other {# طلب}}",
+      "payment_share": "{percent}٪ من المبيعات",
+      "product_performance": "أداء المنتجات",
+      "product": "المنتج",
+      "variant": "الخيارات",
+      "products_sold": "منتجات مُباعة",
+      "variants_sold": "خيارات مُباعة",
+      "ranked_by_units": "مرتّبة حسب القطع المُباعة لكل منتج",
+      "product_inactive": "مخفي",
+      "zero_sales": "بلا مبيعات هذه الفترة",
+      "zero_sales_hint": "منتجات معروضة لم يُبَع منها أي خيار في الفترة المحددة.",
+      "zero_sales_count": "{count, plural, zero {# منتج} one {# منتج} two {# منتجان} few {# منتجات} many {# منتجاً} other {# منتج}}",
+      "zero_sales_variant_count": "{count, plural, zero {# خيار} one {# خيار} two {# خياران} few {# خيارات} many {# خياراً} other {# خيار}}",
+      "zero_sales_more": "+{count} أخرى",
+      "zero_sales_none": "بيع من كل منتج معروض قطعة واحدة على الأقل في هذه الفترة."
     },
     "orders": {
       "list": {
@@ -665,6 +694,9 @@
         "phone": "الهاتف",
         "emirate": "الإمارة",
         "total": "الإجمالي",
+        "payment": "الدفع",
+        "payment_card": "بطاقة",
+        "payment_cod": "عند الاستلام",
         "status": "الحالة",
         "created": "تاريخ الإنشاء",
         "item": "المنتج",
@@ -682,6 +714,15 @@
         "shipping": "الشحن",
         "free": "مجاني",
         "total_cod": "الإجمالي (الدفع عند الاستلام)",
+        "total_online": "الإجمالي (دفع إلكتروني)",
+        "payment_method": "طريقة الدفع",
+        "payment_method_card": "بطاقة (Stripe)",
+        "payment_method_cod": "الدفع عند الاستلام",
+        "payment_status": "حالة الدفع",
+        "payment_paid": "مدفوع",
+        "payment_pending": "قيد الانتظار",
+        "payment_refunded": "مسترد",
+        "paid_at": "تاريخ الدفع",
         "whatsapp_message": "مرحباً {name}، بخصوص طلبك رقم {orderNumber}"
       },
       "customer": {
@@ -729,6 +770,7 @@
       },
       "status": {
         "PENDING_VERIFICATION": "غير مؤكَّد",
+        "AWAITING_PAYMENT": "بانتظار الدفع",
         "NEW": "جديد",
         "CONFIRMED": "مؤكَّد",
         "SHIPPED": "تم الشحن",
@@ -888,7 +930,8 @@
         "currency": "العملات",
         "shop_by": "تسوّقي حسب",
         "home_sections": "الأقسام",
-        "marketing": "التسويق"
+        "marketing": "التسويق",
+        "payments": "المدفوعات"
       },
       "home_sections": {
         "card_title": "أقسام الصفحة الرئيسية",
@@ -1075,6 +1118,17 @@
         "discount_help": "نسبة الخصم الممنوحة كقسيمة للطلب الأول للمشتركين الجدد عبر واتساب.",
         "discount_range_error": "يجب أن تكون نسبة الخصم بين 1 و100.",
         "discount_saved_toast": "تم حفظ خصم الترحيب."
+      },
+      "payments": {
+        "card_title": "الدفع الإلكتروني",
+        "card_description": "استقبال الدفع بالبطاقة عند إتمام الطلب عبر صفحة الدفع الآمنة من Stripe.",
+        "enabled_label": "الدفع بالبطاقة مفعّل",
+        "disabled_label": "الدفع بالبطاقة معطّل",
+        "enabled_description": "يمكن للعملاء الدفع بالبطاقة عند إتمام الطلب، إضافةً إلى الدفع عند الاستلام.",
+        "disabled_description": "يمكن للعملاء الدفع عند الاستلام فقط.",
+        "saved_toast": "تم حفظ إعدادات الدفع",
+        "not_configured_warning": "لم يتم ضبط STRIPE_SECRET_KEY على الخادم — سيبقى خيار الدفع الإلكتروني مخفيًا في صفحة إتمام الطلب حتى مع تفعيل هذا الخيار.",
+        "refund_note": "تُنفَّذ عمليات الاسترداد من لوحة تحكم Stripe، وبعد الاسترداد حدِّث حالة الطلب هنا."
       },
       "ai_model": {
         "card_title": "نموذج الذكاء الاصطناعي",

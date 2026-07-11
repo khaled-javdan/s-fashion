@@ -1,17 +1,7 @@
-export type TrafficPoint = {
-  key: string // YYYY-MM-DD
-  pageviews: number
-  visitors: number
-}
+import type { TrafficPoint, TrafficRange, TrafficStats } from "./traffic-types"
+import { resolveTrafficRange } from "./traffic-types"
 
-export type TrafficStats = {
-  pageviews: number
-  visitors: number
-  data: TrafficPoint[]
-  from: string
-  to: string
-  granularity: "1d"
-}
+export type { TrafficPoint, TrafficStats } from "./traffic-types"
 
 // ---------------------------------------------------------------------------
 // OAuth2 refresh-token → short-lived access token
@@ -97,31 +87,14 @@ async function runReport(
 // Public API used by the dashboard
 // ---------------------------------------------------------------------------
 
-export async function getTrafficStats(
-  range: { days: number } | { from: string; to: string }
-): Promise<TrafficStats | null> {
+export async function getTrafficStats(range: TrafficRange): Promise<TrafficStats | null> {
   const propertyId = process.env.GA4_PROPERTY_ID
   if (!propertyId) return null
 
   const accessToken = await getAccessToken()
   if (!accessToken) return null
 
-  const now = new Date()
-  let from: string, to: string
-
-  if ("days" in range) {
-    to = now.toISOString().slice(0, 10)
-    if (range.days <= 1) {
-      from = to
-    } else {
-      const d = new Date(now)
-      d.setDate(d.getDate() - range.days)
-      from = d.toISOString().slice(0, 10)
-    }
-  } else {
-    from = range.from
-    to = range.to
-  }
+  const { from, to } = resolveTrafficRange(range)
 
   const report = await runReport(propertyId, accessToken, from, to)
   if (!report) return null

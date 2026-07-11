@@ -1,8 +1,9 @@
-import { Printer } from "lucide-react"
+import { ExternalLink, Printer } from "lucide-react"
 import { getTranslations } from "next-intl/server"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 
+import { PaymentMethod, PaymentStatus } from "@workspace/db"
 import { Button } from "@workspace/ui/components/button"
 
 import { CustomerBlock } from "@/components/admin/orders/customer-block"
@@ -119,11 +120,72 @@ export default async function AdminOrderDetailPage({
                 </dd>
               </div>
               <div className="flex items-center justify-between border-t pt-2 font-medium">
-                <dt>{t("detail.total_cod")}</dt>
+                <dt>
+                  {order.paymentMethod === PaymentMethod.STRIPE
+                    ? t("detail.total_online")
+                    : t("detail.total_cod")}
+                </dt>
                 <dd className="tabular-nums">
                   {formatAed(order.totalFils, "en")}
                 </dd>
               </div>
+              <div className="flex items-center justify-between border-t pt-2">
+                <dt className="text-muted-foreground">
+                  {t("detail.payment_method")}
+                </dt>
+                <dd>
+                  {order.paymentMethod === PaymentMethod.STRIPE
+                    ? t("detail.payment_method_card")
+                    : t("detail.payment_method_cod")}
+                </dd>
+              </div>
+              {order.paymentMethod === PaymentMethod.STRIPE ? (
+                <div className="flex items-center justify-between">
+                  <dt className="text-muted-foreground">
+                    {t("detail.payment_status")}
+                  </dt>
+                  <dd className="flex items-center gap-2">
+                    <span
+                      className={
+                        order.paymentStatus === PaymentStatus.PAID
+                          ? "rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800"
+                          : order.paymentStatus === PaymentStatus.REFUNDED
+                            ? "rounded-full bg-zinc-200 px-2 py-0.5 text-xs font-medium text-zinc-700"
+                            : "rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-800"
+                      }
+                    >
+                      {order.paymentStatus === PaymentStatus.PAID
+                        ? t("detail.payment_paid")
+                        : order.paymentStatus === PaymentStatus.REFUNDED
+                          ? t("detail.payment_refunded")
+                          : t("detail.payment_pending")}
+                    </span>
+                    {order.stripePaymentIntentId ? (
+                      <a
+                        href={`https://dashboard.stripe.com/payments/${order.stripePaymentIntentId}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-muted-foreground hover:text-foreground"
+                        title="Stripe"
+                      >
+                        <ExternalLink className="size-3.5" aria-hidden="true" />
+                      </a>
+                    ) : null}
+                  </dd>
+                </div>
+              ) : null}
+              {order.paidAt ? (
+                <div className="flex items-center justify-between">
+                  <dt className="text-muted-foreground">
+                    {t("detail.paid_at")}
+                  </dt>
+                  <dd className="tabular-nums text-xs">
+                    {order.paidAt.toLocaleString("en-GB", {
+                      timeZone: "Asia/Dubai",
+                    })}
+                  </dd>
+                </div>
+              ) : null}
             </dl>
           </div>
 

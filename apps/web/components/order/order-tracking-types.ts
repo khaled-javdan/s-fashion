@@ -6,6 +6,7 @@
 
 export type TrackStatus =
   | "PENDING_VERIFICATION"
+  | "AWAITING_PAYMENT"
   | "NEW"
   | "CONFIRMED"
   | "SHIPPED"

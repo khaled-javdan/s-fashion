@@ -3,20 +3,25 @@ import Link from "next/link"
 import { hasLocale } from "next-intl"
 import { getTranslations, setRequestLocale } from "next-intl/server"
 import { notFound } from "next/navigation"
-import { CheckCircle2, MessageCircle } from "lucide-react"
+import { CheckCircle2, Clock, MessageCircle } from "lucide-react"
 
+import { PaymentMethod, PaymentStatus } from "@workspace/db"
 import { Button } from "@workspace/ui/components/button"
 import { Separator } from "@workspace/ui/components/separator"
 
 import { AdminEditBar } from "@/components/admin-bar/admin-edit-bar"
 import { PurchaseTracker } from "./purchase-tracker"
+import { StripeReturnCleanup } from "./stripe-return-cleanup"
 import { OrderStatusTracker } from "@/components/order/order-status-tracker"
 import type { TrackStatus } from "@/components/order/order-tracking-types"
 import { Money } from "@/components/currency/money"
 import { isCurrencyCode } from "@/lib/currency"
+import { reportError } from "@/lib/errors"
 import { LOCALES, type Locale } from "@/lib/locale"
-import { getOrderByNumber } from "@/lib/repos/orders.repo"
+import { getOrderByNumber, markOrderPaidBySession } from "@/lib/repos/orders.repo"
 import { getSetting } from "@/lib/repos/settings.repo"
+import { dispatchOrderNotifications } from "@/lib/services/order-notifications"
+import { getStripe, isStripeConfigured } from "@/lib/services/stripe"
 
 export async function generateMetadata({
   params,
@@ -34,22 +39,70 @@ export async function generateMetadata({
  * `notFound()` when missing. Shows the order number, customer, items, totals,
  * delivery copy, a WhatsApp question button, and a continue-shopping link.
  *
- * COD only — no payment/card info is rendered.
+ * Stripe orders land here from the Checkout success redirect with
+ * `?session_id=...`. If the webhook hasn't marked the order paid yet, the
+ * session is reconciled against Stripe inline (same idempotent repo path), so
+ * the customer virtually never sees a stale "processing" state.
  */
 export default async function OrderConfirmationPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string; orderNumber: string }>
+  searchParams: Promise<{ session_id?: string }>
 }) {
   const { locale: rawLocale, orderNumber } = await params
+  const { session_id: sessionId } = await searchParams
   if (!hasLocale(LOCALES, rawLocale)) notFound()
   const locale = rawLocale as Locale
   setRequestLocale(locale)
 
-  const order = await getOrderByNumber(orderNumber)
+  let order = await getOrderByNumber(orderNumber)
   if (!order) notFound()
 
+  // Webhook-lag reconcile: back from Stripe with the session id, order still
+  // PENDING → ask Stripe directly and mark paid through the same idempotent
+  // path the webhook uses. Failure here is non-fatal (webhook/cron backstop).
+  if (
+    order.paymentMethod === PaymentMethod.STRIPE &&
+    order.paymentStatus === PaymentStatus.PENDING &&
+    sessionId &&
+    sessionId === order.stripeSessionId &&
+    isStripeConfigured()
+  ) {
+    try {
+      const session = await getStripe().checkout.sessions.retrieve(sessionId)
+      if (session.payment_status === "paid") {
+        const result = await markOrderPaidBySession(
+          sessionId,
+          typeof session.payment_intent === "string"
+            ? session.payment_intent
+            : (session.payment_intent?.id ?? null),
+        )
+        if (result.outcome === "paid") {
+          void dispatchOrderNotifications(result.orderId).catch((err) =>
+            reportError("orderConfirmation.dispatchNotifications", err, {
+              orderId: result.orderId,
+            }),
+          )
+        }
+        order = (await getOrderByNumber(orderNumber)) ?? order
+      }
+    } catch (err) {
+      reportError("orderConfirmation.stripeReconcile", err, {
+        orderNumber,
+      })
+    }
+  }
+
   const t = await getTranslations("order")
+
+  const isStripe = order.paymentMethod === PaymentMethod.STRIPE
+  const isPaid = order.paymentStatus === PaymentStatus.PAID
+  // Awaiting payment = Stripe order not yet paid and not cancelled/expired.
+  const awaitingPayment = isStripe && !isPaid && order.status === "AWAITING_PAYMENT"
+  // Conversion + cart cleanup only once the money is actually in (or COD).
+  const confirmed = !isStripe || isPaid
 
   // Render in the currency captured at order time (display-only snapshot).
   const currency = isCurrencyCode(order.displayCurrency)
@@ -75,30 +128,55 @@ export default async function OrderConfirmationPage({
 
   return (
     <section className="mx-auto w-full max-w-2xl px-4 py-12 sm:px-6">
-      <PurchaseTracker
-        orderNumber={order.orderNumber}
-        totalFils={order.totalFils}
-        shippingFils={order.shippingFils}
-        lines={order.items.map((item) => ({
-          variantId: item.variantId,
-          nameEn: item.productNameEn,
-          unitPriceFils: item.unitPriceFils,
-          quantity: item.quantity,
-        }))}
-      />
+      {confirmed ? (
+        // GA4 purchase — never for an unpaid/abandoned Stripe order (a visit
+        // to this permalink must not count a conversion that didn't happen).
+        <PurchaseTracker
+          orderNumber={order.orderNumber}
+          totalFils={order.totalFils}
+          shippingFils={order.shippingFils}
+          lines={order.items.map((item) => ({
+            variantId: item.variantId,
+            nameEn: item.productNameEn,
+            unitPriceFils: item.unitPriceFils,
+            quantity: item.quantity,
+          }))}
+        />
+      ) : null}
+      {isStripe && isPaid && sessionId === order.stripeSessionId ? (
+        // Back from Stripe with payment in: clear the cart + saved checkout
+        // form that were deliberately kept through the redirect.
+        <StripeReturnCleanup orderNumber={order.orderNumber} />
+      ) : null}
       <AdminEditBar
         dashboardHref={`/${locale}/admin`}
         editHref={`/${locale}/admin/orders/${order.id}`}
         editLabel="View order"
       />
       <div className="flex flex-col items-center gap-3 text-center">
-        <div className="flex size-14 items-center justify-center rounded-full bg-primary/10 text-primary">
-          <CheckCircle2 className="size-8" aria-hidden="true" />
-        </div>
-        <h1 className="font-heading text-2xl tracking-wide text-foreground sm:text-3xl">
-          {t("success_heading")}
-        </h1>
-        <p className="text-sm text-muted-foreground">{t("success_subtitle")}</p>
+        {awaitingPayment ? (
+          <>
+            <div className="flex size-14 items-center justify-center rounded-full bg-muted text-muted-foreground">
+              <Clock className="size-8" aria-hidden="true" />
+            </div>
+            <h1 className="font-heading text-2xl tracking-wide text-foreground sm:text-3xl">
+              {t("awaiting_payment_heading")}
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              {t("awaiting_payment_subtitle")}
+            </p>
+          </>
+        ) : (
+          <>
+            <div className="flex size-14 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <CheckCircle2 className="size-8" aria-hidden="true" />
+            </div>
+            <h1 className="font-heading text-2xl tracking-wide text-foreground sm:text-3xl">
+              {t("success_heading")}
+            </h1>
+            <p className="text-sm text-muted-foreground">{t("success_subtitle")}</p>
+          </>
+        )}
       </div>
 
       <div className="mt-8 rounded-lg border border-border bg-card p-6">
@@ -202,6 +280,18 @@ export default async function OrderConfirmationPage({
             <span>{t("total")}</span>
             <span className="tabular-nums">
               <Money fils={order.totalFils} locale={locale} currency={currency} rate={rate} />
+            </span>
+          </div>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">
+              {t("payment_method_label")}
+            </span>
+            <span className="text-foreground">
+              {isStripe
+                ? isPaid
+                  ? t("payment_method_card_paid")
+                  : t("payment_method_card")
+                : t("payment_method_cod")}
             </span>
           </div>
         </div>

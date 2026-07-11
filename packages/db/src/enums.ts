@@ -21,6 +21,8 @@ export const Emirate = browser.Emirate as unknown as Enums["Emirate"]
 export const AdminRole = browser.AdminRole as unknown as Enums["AdminRole"]
 export const OrderStatus = browser.OrderStatus as unknown as Enums["OrderStatus"]
 export const CouponType = browser.CouponType as unknown as Enums["CouponType"]
+export const PaymentMethod = browser.PaymentMethod as unknown as Enums["PaymentMethod"]
+export const PaymentStatus = browser.PaymentStatus as unknown as Enums["PaymentStatus"]
 
 // All generated types (model interfaces, enum-as-type unions, the `Prisma`
 // namespace types). Type-only, so nothing is emitted into the bundle.

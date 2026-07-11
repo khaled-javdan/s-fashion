@@ -12,6 +12,7 @@ import { Tabs, TabsList, TabsTrigger } from "@workspace/ui/components/tabs"
  */
 const TAB_VALUES = [
   "all",
+  "AWAITING_PAYMENT",
   "NEW",
   "CONFIRMED",
   "SHIPPED",

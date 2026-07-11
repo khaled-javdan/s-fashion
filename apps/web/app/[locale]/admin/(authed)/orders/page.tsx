@@ -20,6 +20,7 @@ const FETCH_WINDOW = 500
 
 /** All statuses surfaced by the tabs (PENDING_VERIFICATION hidden by default). */
 const TAB_STATUSES = new Set<string>([
+  OrderStatus.AWAITING_PAYMENT,
   OrderStatus.NEW,
   OrderStatus.CONFIRMED,
   OrderStatus.SHIPPED,

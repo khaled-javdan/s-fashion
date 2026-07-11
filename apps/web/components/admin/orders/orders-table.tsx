@@ -1,6 +1,8 @@
 import { getTranslations } from "next-intl/server"
 import Link from "next/link"
 
+import { PaymentMethod } from "@workspace/db"
+
 import type { OrderWithItems } from "@/lib/repos/orders.repo"
 import { formatAed } from "@/lib/money"
 import type { Locale } from "@/lib/locale"
@@ -46,6 +48,7 @@ export async function OrdersTable({
             <TableHead>{t("table.phone")}</TableHead>
             <TableHead>{t("table.emirate")}</TableHead>
             <TableHead className="text-end">{t("table.total")}</TableHead>
+            <TableHead>{t("table.payment")}</TableHead>
             <TableHead>{t("table.status")}</TableHead>
             <TableHead className="text-end">{t("table.created")}</TableHead>
           </TableRow>
@@ -70,6 +73,13 @@ export async function OrdersTable({
               </TableCell>
               <TableCell className="text-end tabular-nums">
                 {formatAed(order.totalFils, "en")}
+              </TableCell>
+              <TableCell>
+                <span className="text-muted-foreground text-xs">
+                  {order.paymentMethod === PaymentMethod.STRIPE
+                    ? t("table.payment_card")
+                    : t("table.payment_cod")}
+                </span>
               </TableCell>
               <TableCell>
                 <OrderStatusBadge status={order.status} />

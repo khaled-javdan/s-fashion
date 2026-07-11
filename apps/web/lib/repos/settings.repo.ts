@@ -90,6 +90,11 @@ export type KnownSettings = {
    * subscribers. Defaults to 10 when unset.
    */
   "marketing.welcome_discount_percent": number;
+  /**
+   * Whether Stripe online card payment is offered at checkout. Defaults to
+   * false when unset; also requires STRIPE_SECRET_KEY to be configured.
+   */
+  "payments.stripe_enabled": boolean;
 };
 
 /**

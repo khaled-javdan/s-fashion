@@ -99,6 +99,7 @@ const settingValidators: Record<SettingKey, z.ZodTypeAny> = {
   }),
   "marketing.whatsapp_enabled": z.boolean(),
   "marketing.welcome_discount_percent": z.number().int().min(1).max(100),
+  "payments.stripe_enabled": z.boolean(),
 }
 
 function isSettingKey(key: string): key is SettingKey {
@@ -146,7 +147,8 @@ export async function updateSettingsAction(input: {
       input.key === "market.mode" ||
       input.key === "returns.window_days" ||
       input.key === "marketing.whatsapp_enabled" ||
-      input.key === "marketing.welcome_discount_percent"
+      input.key === "marketing.welcome_discount_percent" ||
+      input.key === "payments.stripe_enabled"
     ) {
       revalidatePath("/[locale]", "page")
     }
@@ -221,6 +223,7 @@ async function persist(
       await setSetting(key, value as KnownSettings["product.shipping_return"])
       return
     case "marketing.whatsapp_enabled":
+    case "payments.stripe_enabled":
       await setSetting(key, value as boolean)
       return
     case "marketing.welcome_discount_percent":

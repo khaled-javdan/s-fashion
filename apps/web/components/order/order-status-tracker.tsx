@@ -19,6 +19,7 @@ type Props = {
 const STATUS_STEP: Record<Exclude<TrackStatus, "CANCELLED" | "REFUSED">, number> =
   {
     PENDING_VERIFICATION: 0,
+    AWAITING_PAYMENT: 0,
     NEW: 0,
     CONFIRMED: 1,
     SHIPPED: 2,
@@ -85,10 +86,14 @@ export function OrderStatusTracker({
 
   return (
     <div className="space-y-1">
-      {status === "PENDING_VERIFICATION" ? (
+      {status === "PENDING_VERIFICATION" || status === "AWAITING_PAYMENT" ? (
         <div className="mb-3 flex items-start gap-2 rounded-md border border-border bg-muted/40 p-3 text-sm text-muted-foreground">
           <Clock className="mt-0.5 size-4 shrink-0" aria-hidden />
-          <span>{t("awaiting_verification_note")}</span>
+          <span>
+            {status === "AWAITING_PAYMENT"
+              ? t("awaiting_payment_note")
+              : t("awaiting_verification_note")}
+          </span>
         </div>
       ) : null}
 

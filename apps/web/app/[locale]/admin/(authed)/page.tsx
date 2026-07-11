@@ -3,6 +3,8 @@ import { getTranslations } from "next-intl/server"
 
 import { AnalyticsRangeControls } from "@/components/admin/analytics/analytics-range-controls"
 import { MetaCampaignsTable } from "@/components/admin/analytics/meta-campaigns-table"
+import { ProductPerformanceTable } from "@/components/admin/analytics/product-performance-table"
+import { ZeroSalesProducts } from "@/components/admin/analytics/zero-sales-products"
 import { SalesAreaChart } from "@/components/admin/analytics/sales-area-chart"
 import { TopProductsChart } from "@/components/admin/analytics/top-products-chart"
 import { TrafficAreaChart } from "@/components/admin/analytics/traffic-area-chart"
@@ -12,10 +14,11 @@ import { filsToAed, formatAed } from "@/lib/money"
 import { getMetaAdsStats } from "@/lib/meta-ads"
 import {
   getDashboardOrderStats,
+  getProductPerformance,
   getSalesAnalytics,
 } from "@/lib/repos/orders.repo"
 import { countLowStockVariants } from "@/lib/repos/products.repo"
-import { getTrafficStats } from "@/lib/ga4-analytics"
+import { getTrafficStats } from "@/lib/traffic-analytics"
 
 const PRESETS = [7, 30, 90] as const
 const TRAFFIC_PRESETS = [1, 7, 30] as const
@@ -37,6 +40,9 @@ export default async function AdminDashboardPage({
     mrange?: string
     mfrom?: string
     mto?: string
+    prange?: string
+    pfrom?: string
+    pto?: string
   }>
 }) {
   const { locale: localeParam } = await params
@@ -44,7 +50,13 @@ export default async function AdminDashboardPage({
   const sp = await searchParams
 
   const activeTab =
-    sp.tab === "visitors" ? "visitors" : sp.tab === "ads" ? "ads" : "orders"
+    sp.tab === "visitors"
+      ? "visitors"
+      : sp.tab === "ads"
+        ? "ads"
+        : sp.tab === "products"
+          ? "products"
+          : "orders"
 
   const dateRe = /^\d{4}-\d{2}-\d{2}$/
 
@@ -81,6 +93,20 @@ export default async function AdminDashboardPage({
     ? { from: sp.mfrom!, to: sp.mto! }
     : { days: adsPresetDays }
 
+  // Product-performance analytics window (own param keys so it doesn't collide
+  // with the orders-tab range).
+  const isProductsCustom = !!(
+    sp.pfrom && dateRe.test(sp.pfrom) && sp.pto && dateRe.test(sp.pto)
+  )
+  const productsPresetDays = PRESETS.includes(
+    Number(sp.prange) as (typeof PRESETS)[number]
+  )
+    ? Number(sp.prange)
+    : 30
+  const productsRange = isProductsCustom
+    ? { from: sp.pfrom!, to: sp.pto! }
+    : { days: productsPresetDays }
+
   const session = await auth()
   const name = session?.user?.name ?? "Admin"
   const t = await getTranslations("admin.dashboard")
@@ -95,8 +121,11 @@ export default async function AdminDashboardPage({
   ])
 
   const analytics = activeTab === "orders" ? await getSalesAnalytics(range) : null
+  const trafficProvider = process.env.TRAFFIC_ANALYTICS_PROVIDER === "ga4" ? "ga4" : "vercel"
   const traffic = activeTab === "visitors" ? await getTrafficStats(trafficRange) : null
   const metaAds = activeTab === "ads" ? await getMetaAdsStats(adsRange) : null
+  const productPerf =
+    activeTab === "products" ? await getProductPerformance(productsRange) : null
 
   const cards = [
     {
@@ -134,6 +163,31 @@ export default async function AdminDashboardPage({
         { label: tA("avg_order_value"), value: formatAed(analytics.aovFils, locale) },
         { label: tA("units_sold"), value: String(analytics.units) },
       ]
+    : []
+
+  const paymentBreakdown = analytics
+    ? (() => {
+        const { cod, card } = analytics.payment
+        const total = cod.salesFils + card.salesFils
+        const share = (fils: number) =>
+          total > 0 ? Math.round((fils / total) * 100) : 0
+        return [
+          {
+            key: "cod" as const,
+            label: tA("payment_cod"),
+            value: formatAed(cod.salesFils, locale),
+            orders: tA("payment_orders", { count: cod.orders }),
+            share: tA("payment_share", { percent: share(cod.salesFils) }),
+          },
+          {
+            key: "card" as const,
+            label: tA("payment_card"),
+            value: formatAed(card.salesFils, locale),
+            orders: tA("payment_orders", { count: card.orders }),
+            share: tA("payment_share", { percent: share(card.salesFils) }),
+          },
+        ]
+      })()
     : []
 
   const salesData = analytics
@@ -175,9 +229,29 @@ export default async function AdminDashboardPage({
 
   const tabs = [
     { key: "orders", label: t("tab_orders") },
+    { key: "products", label: t("tab_products") },
     { key: "visitors", label: t("tab_visitors") },
-    { key: "ads", label: t("tab_ads") },
+    // Meta Ads tab hidden until META_ADS_ACCESS_TOKEN is configured.
+    // { key: "ads", label: t("tab_ads") },
   ] as const
+
+  const productKpis = productPerf
+    ? [
+        { label: tA("units_sold"), value: String(productPerf.totalUnits) },
+        {
+          label: tA("variants_sold"),
+          value: String(productPerf.variantsSold),
+        },
+        {
+          label: tA("revenue"),
+          value: formatAed(productPerf.totalRevenueFils, locale),
+        },
+        {
+          label: tA("gross_profit"),
+          value: formatAed(productPerf.totalProfitFils, locale),
+        },
+      ]
+    : []
 
   return (
     <div className="space-y-10">
@@ -260,6 +334,35 @@ export default async function AdminDashboardPage({
             ))}
           </div>
 
+          <div className="bg-card text-card-foreground rounded-md border p-5">
+            <h3 className="mb-4 text-sm font-medium">
+              {tA("payment_methods")}
+            </h3>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {paymentBreakdown.map((row) => (
+                <div
+                  key={row.key}
+                  className="flex items-baseline justify-between gap-3 rounded-md border p-4"
+                >
+                  <div>
+                    <div className="text-muted-foreground text-[10px] font-semibold uppercase tracking-widest">
+                      {row.label}
+                    </div>
+                    <div className="mt-2 text-2xl font-semibold tabular-nums">
+                      {row.value}
+                    </div>
+                    <div className="text-muted-foreground mt-1 text-xs">
+                      {row.orders}
+                    </div>
+                  </div>
+                  <div className="text-muted-foreground shrink-0 text-sm font-medium tabular-nums">
+                    {row.share}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
           <div className="grid gap-4 lg:grid-cols-3">
             <div className="bg-card text-card-foreground rounded-md border p-5 lg:col-span-2">
               <h3 className="mb-4 text-sm font-medium">{tA("sales_over_time")}</h3>
@@ -281,6 +384,70 @@ export default async function AdminDashboardPage({
                 }}
               />
             </div>
+          </div>
+        </section>
+      )}
+
+      {/* Product performance tab */}
+      {activeTab === "products" && productPerf && (
+        <section className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="font-heading text-xl">{tA("product_performance")}</h2>
+            <AnalyticsRangeControls
+              presets={PRESETS.map((days) => ({
+                days,
+                label: tA("n_days", { days }),
+              }))}
+              activeDays={isProductsCustom ? null : productsPresetDays}
+              from={productPerf.from}
+              to={productPerf.to}
+              labels={{ apply: tA("apply"), from: tA("from"), to: tA("to") }}
+              paramKeys={{ range: "prange", from: "pfrom", to: "pto" }}
+            />
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {productKpis.map((kpi) => (
+              <div
+                key={kpi.label}
+                className="bg-card text-card-foreground rounded-md border p-5"
+              >
+                <div className="text-muted-foreground text-[10px] font-semibold uppercase tracking-widest">
+                  {kpi.label}
+                </div>
+                <div className="mt-3 text-2xl font-semibold tabular-nums">
+                  {kpi.value}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="bg-card text-card-foreground rounded-md border p-5">
+            <h3 className="mb-4 text-sm font-medium">
+              {tA("ranked_by_units")}
+            </h3>
+            <ProductPerformanceTable rows={productPerf.rows} locale={locale} />
+          </div>
+
+          <div className="bg-card text-card-foreground rounded-md border p-5">
+            <div className="mb-4 flex items-baseline justify-between gap-3">
+              <h3 className="text-sm font-medium">{tA("zero_sales")}</h3>
+              {productPerf.zeroSalesCount > 0 ? (
+                <span className="text-muted-foreground text-xs tabular-nums">
+                  {tA("zero_sales_count", {
+                    count: productPerf.zeroSalesCount,
+                  })}
+                </span>
+              ) : null}
+            </div>
+            <p className="text-muted-foreground mb-4 text-xs">
+              {tA("zero_sales_hint")}
+            </p>
+            <ZeroSalesProducts
+              products={productPerf.zeroSales}
+              total={productPerf.zeroSalesCount}
+              locale={locale}
+            />
           </div>
         </section>
       )}
@@ -336,8 +503,22 @@ export default async function AdminDashboardPage({
 
       {activeTab === "visitors" && !traffic && (
         <p className="text-muted-foreground text-sm">
-          Visitor analytics requires <code>VERCEL_API_TOKEN</code> and{" "}
-          <code>VERCEL_PROJECT_ID</code> to be configured.
+          {trafficProvider === "ga4" ? (
+            <>
+              Visitor analytics (GA4) requires <code>GA4_PROPERTY_ID</code>,{" "}
+              <code>GOOGLE_CLIENT_ID</code>, <code>GOOGLE_CLIENT_SECRET</code>, and{" "}
+              <code>GOOGLE_REFRESH_TOKEN</code> to be configured (see{" "}
+              <code>.env.example</code>).
+            </>
+          ) : (
+            <>
+              Visitor analytics (Vercel Web Analytics) requires{" "}
+              <code>VERCEL_API_TOKEN</code> and <code>VERCEL_PROJECT_ID</code> to be
+              configured, and Web Analytics enabled on the project (see{" "}
+              <code>.env.example</code>). Set <code>TRAFFIC_ANALYTICS_PROVIDER=ga4</code>{" "}
+              to use Google Analytics instead.
+            </>
+          )}
         </p>
       )}
 

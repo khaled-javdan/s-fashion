@@ -17,30 +17,13 @@
  */
 import { prisma } from "@workspace/db";
 
+import { appBaseUrl } from "@/lib/base-url";
 import type { Locale } from "@/lib/locale";
 import { getSetting } from "@/lib/repos/settings.repo";
 import { sendOrderConfirmationEmail } from "@/lib/services/resend";
 import { sendOrderConfirmationSms } from "@/lib/services/order-sms";
 import { sendOrderNotification } from "@/lib/services/telegram";
 import { parseShippingConfig, resolveShipping } from "@/lib/shipping-config";
-
-function appBaseUrl(): string {
-  // `||` (not `??`) so an env var set to an empty string falls through instead
-  // of yielding "" — that produced relative admin links (`/ar/admin/orders/…`)
-  // in the Telegram alert. Vercel auto-sets VERCEL_PROJECT_PRODUCTION_URL (host
-  // only, no scheme) on deployments; the production domain is the last resort
-  // so the link is always absolute even with no env configured.
-  const base =
-    process.env.NEXT_PUBLIC_APP_URL ||
-    process.env.NEXTAUTH_URL ||
-    (process.env.VERCEL_PROJECT_PRODUCTION_URL
-      ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
-      : "") ||
-    (process.env.NODE_ENV === "production"
-      ? "https://s-fashions.com"
-      : "http://localhost:3000");
-  return base.replace(/\/$/, "");
-}
 
 function absoluteAdminOrderUrl(locale: Locale, orderId: string): string {
   return `${appBaseUrl()}/${locale}/admin/orders/${orderId}`;

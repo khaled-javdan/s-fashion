@@ -1,4 +1,4 @@
-import { prisma, OrderStatus, Prisma } from "@workspace/db";
+import { prisma, OrderStatus, PaymentMethod, PaymentStatus, Prisma } from "@workspace/db";
 import type { Order, OrderItem, OrderEvent } from "@workspace/db";
 import { generateOrderNumber } from "@/lib/order-number";
 import { upsertCustomerForOrder } from "@/lib/repos/customers.repo";
@@ -54,6 +54,15 @@ export type CreateOrderInput = Omit<OrderCreateInput, "items" | "couponCode"> & 
   /** Currency the customer saw + the AED→currency rate at order time. */
   displayCurrency: string;
   fxRate: number;
+  /**
+   * Initial status. Defaults to NEW (COD). Stripe orders are born
+   * AWAITING_PAYMENT with stock reserved and promoted to NEW on payment.
+   */
+  status?: OrderStatus;
+  /** Defaults to COD. */
+  paymentMethod?: PaymentMethod;
+  /** null for COD; PENDING for Stripe orders awaiting payment. */
+  paymentStatus?: PaymentStatus | null;
 };
 
 /**
@@ -127,10 +136,13 @@ export async function createOrder(
         const orderNumber = await generateOrderNumber(tx);
 
         // 4. Insert the order with snapshot items.
+        const initialStatus = input.status ?? OrderStatus.NEW;
         const order = await tx.order.create({
           data: {
             orderNumber,
-            status: OrderStatus.NEW,
+            status: initialStatus,
+            paymentMethod: input.paymentMethod ?? PaymentMethod.COD,
+            paymentStatus: input.paymentStatus ?? null,
             customer: { connect: { id: customerId } },
             customerName: input.customerName,
             phone: input.phone,
@@ -169,7 +181,7 @@ export async function createOrder(
             events: {
               create: {
                 type: "status_change",
-                payload: { to: OrderStatus.NEW },
+                payload: { to: initialStatus },
                 actorId: null,
               },
             },
@@ -292,7 +304,12 @@ export async function getDashboardOrderStats(): Promise<DashboardOrderStats> {
     prisma.order.count({
       where: {
         createdAt: { gte: since },
-        status: { not: OrderStatus.PENDING_VERIFICATION },
+        status: {
+          notIn: [
+            OrderStatus.PENDING_VERIFICATION,
+            OrderStatus.AWAITING_PAYMENT,
+          ],
+        },
       },
     }),
     prisma.order.count({ where: { status: OrderStatus.NEW } }),
@@ -337,6 +354,11 @@ export type TopProduct = {
   units: number;
   revenueFils: number;
 };
+/** Gross sales + order count for one payment method over the window. */
+export type PaymentMethodTotals = {
+  salesFils: number;
+  orders: number;
+};
 export type SalesAnalytics = {
   /** Gross sales: sum of order totals (incl. shipping) for placed orders. */
   totalSalesFils: number;
@@ -351,6 +373,15 @@ export type SalesAnalytics = {
   orders: number;
   aovFils: number;
   units: number;
+  /**
+   * Gross-sales split by how the customer paid. Card totals are money already
+   * captured (Stripe orders only enter the sales window once PAID); COD totals
+   * are still owed until the order is DELIVERED.
+   */
+  payment: {
+    cod: PaymentMethodTotals;
+    card: PaymentMethodTotals;
+  };
   daily: SalesDaily[];
   topProducts: TopProduct[];
   /** Resolved window (UAE calendar dates, inclusive), echoed back for labels. */
@@ -367,16 +398,20 @@ function isoToDayKey(iso: string): number {
 }
 
 /**
- * Store analytics over a window — either the last `range.days` (UAE calendar
- * days, default 30) or an explicit `range.from`/`range.to` (`YYYY-MM-DD`):
- * gross sales, net revenue (excl. shipping), collected (delivered) revenue,
- * order count, AOV, units sold, a daily timeseries (sales vs collected,
- * zero-filled), and the top products by revenue. Counts only real sales
- * (excludes unverified / cancelled / refused). One DB read.
+ * Resolve an {@link AnalyticsRange} to a concrete UAE-calendar window: either
+ * an explicit `from`/`to` (capped to 365 days, never beyond today) or the last
+ * `days` (default 30). Returns the day-bucket bounds, the half-open UTC instant
+ * range `[since, until)` for querying, and the inclusive ISO dates to echo back
+ * for labels. Shared by every windowed analytics reader.
  */
-export async function getSalesAnalytics(
-  range: AnalyticsRange = {},
-): Promise<SalesAnalytics> {
+function resolveAnalyticsWindow(range: AnalyticsRange): {
+  startKey: number;
+  endKey: number;
+  since: Date;
+  until: Date;
+  fromIso: string;
+  toIso: string;
+} {
   const todayKey = uaeDayKey(new Date());
   let startKey: number;
   let endKey: number;
@@ -393,8 +428,28 @@ export async function getSalesAnalytics(
   }
   if (startKey > endKey) startKey = endKey;
 
-  const since = new Date(startKey * 86_400_000 - UAE_OFFSET_MS);
-  const until = new Date((endKey + 1) * 86_400_000 - UAE_OFFSET_MS); // exclusive
+  return {
+    startKey,
+    endKey,
+    since: new Date(startKey * 86_400_000 - UAE_OFFSET_MS),
+    until: new Date((endKey + 1) * 86_400_000 - UAE_OFFSET_MS), // exclusive
+    fromIso: dayKeyToIso(startKey),
+    toIso: dayKeyToIso(endKey),
+  };
+}
+
+/**
+ * Store analytics over a window — either the last `range.days` (UAE calendar
+ * days, default 30) or an explicit `range.from`/`range.to` (`YYYY-MM-DD`):
+ * gross sales, net revenue (excl. shipping), collected (delivered) revenue,
+ * order count, AOV, units sold, a daily timeseries (sales vs collected,
+ * zero-filled), and the top products by revenue. Counts only real sales
+ * (excludes unverified / cancelled / refused). One DB read.
+ */
+export async function getSalesAnalytics(
+  range: AnalyticsRange = {},
+): Promise<SalesAnalytics> {
+  const { startKey, endKey, since, until } = resolveAnalyticsWindow(range);
 
   const orders = await prisma.order.findMany({
     where: {
@@ -406,6 +461,7 @@ export async function getSalesAnalytics(
       status: true,
       totalFils: true,
       subtotalFils: true,
+      paymentMethod: true,
       items: {
         select: {
           quantity: true,
@@ -434,12 +490,21 @@ export async function getSalesAnalytics(
   let collectedFils = 0;
   let totalCostFils = 0;
   let units = 0;
+  const payment = {
+    cod: { salesFils: 0, orders: 0 },
+    card: { salesFils: 0, orders: 0 },
+  };
 
   for (const order of orders) {
     const delivered = order.status === OrderStatus.DELIVERED;
     totalSalesFils += order.totalFils;
     netRevenueFils += order.subtotalFils;
     if (delivered) collectedFils += order.totalFils;
+
+    const byMethod =
+      order.paymentMethod === PaymentMethod.STRIPE ? payment.card : payment.cod;
+    byMethod.salesFils += order.totalFils;
+    byMethod.orders += 1;
 
     const bucket = dailyMap.get(uaeDayKey(order.createdAt));
     if (bucket) {
@@ -491,10 +556,301 @@ export async function getSalesAnalytics(
     orders: orders.length,
     aovFils: orders.length > 0 ? Math.round(totalSalesFils / orders.length) : 0,
     units,
+    payment,
     daily,
     topProducts,
     from: dayKeyToIso(startKey),
     to: dayKeyToIso(endKey),
+  };
+}
+
+/** One colour + size sold within a product's performance row. */
+export type ProductPerformanceVariant = {
+  variantId: string;
+  colorNameEn: string | null;
+  colorNameAr: string | null;
+  colorHex: string | null;
+  size: string;
+  /** Units sold (sum of quantities) for this variant specifically. */
+  units: number;
+};
+
+/**
+ * A product's sales performance over the window — one row per product,
+ * pooling every colour + size sold under it (see `variants`).
+ */
+export type ProductPerformanceRow = {
+  productId: string | null;
+  nameEn: string;
+  nameAr: string;
+  /** Thumbnail URL (product's first image) when it still exists; else null. */
+  imageUrl: string | null;
+  /** Product slug present only when the product still exists. */
+  slug: string | null;
+  /** Whether the product is still live (active, per the catalogue). */
+  isActive: boolean;
+  /** Units sold across all variants (sum of quantities). */
+  units: number;
+  /** Distinct orders that included any variant of this product. */
+  orders: number;
+  /** Revenue (unit price × qty, excludes shipping), base AED fils. */
+  revenueFils: number;
+  /** Cost of goods sold for these units (base AED fils). */
+  costFils: number;
+  /** Gross profit = revenue − cost (base AED fils). */
+  profitFils: number;
+  /** Colour + size breakdown, sorted by units sold (descending). */
+  variants: ProductPerformanceVariant[];
+};
+
+/** A live catalogue product that sold nothing in the window. */
+export type ZeroSaleProduct = {
+  productId: string;
+  nameEn: string;
+  nameAr: string;
+  imageUrl: string | null;
+  slug: string;
+  /** Number of live (non-archived) variants under this product. */
+  variantCount: number;
+};
+
+export type ProductPerformance = {
+  rows: ProductPerformanceRow[];
+  /**
+   * Active products with zero sales in the window (dead stock for the period) —
+   * not one of their variants sold. Rolled up to the product so a large
+   * catalogue stays scannable. Capped to `zeroSalesLimit`; `zeroSalesCount` is
+   * the true total.
+   */
+  zeroSales: ZeroSaleProduct[];
+  zeroSalesCount: number;
+  /** Totals across all variants in the window (for KPI cards). */
+  totalUnits: number;
+  totalRevenueFils: number;
+  totalProfitFils: number;
+  /** Number of distinct variants that sold at least one unit. */
+  variantsSold: number;
+  /** Resolved window (UAE calendar dates, inclusive), echoed for labels. */
+  from: string;
+  to: string;
+};
+
+/**
+ * Per-product sales performance over a window — units sold, distinct orders,
+ * revenue (excl. shipping), cost of goods, and gross profit per product, with
+ * its colour + size variants pooled underneath (`variants`). Ordered by units
+ * sold (descending). Counts only real sales (SALES_STATUSES: excludes
+ * unverified / awaiting-payment / cancelled / refused), so an unpaid Stripe
+ * order never inflates a product's numbers. Name/colour/size come from the
+ * order-item snapshot (survive archival); image/slug/colourHex/active flag
+ * are enriched from the live catalogue.
+ */
+export async function getProductPerformance(
+  range: AnalyticsRange = {},
+  limit = 100,
+  zeroSalesLimit = 60,
+): Promise<ProductPerformance> {
+  const { since, until, fromIso, toIso } = resolveAnalyticsWindow(range);
+
+  const items = await prisma.orderItem.findMany({
+    where: {
+      order: {
+        status: { in: SALES_STATUSES },
+        createdAt: { gte: since, lt: until },
+      },
+    },
+    select: {
+      orderId: true,
+      variantId: true,
+      quantity: true,
+      unitPriceFils: true,
+      unitCostFils: true,
+      productNameEn: true,
+      productNameAr: true,
+      colorNameEn: true,
+      colorNameAr: true,
+      size: true,
+    },
+  });
+
+  // Accumulate per variant first — `orderIds` tracks which orders included
+  // this variant, needed later to dedupe orders at the product level.
+  type VariantAcc = {
+    variantId: string;
+    nameEn: string;
+    nameAr: string;
+    colorNameEn: string | null;
+    colorNameAr: string | null;
+    size: string;
+    units: number;
+    revenueFils: number;
+    costFils: number;
+    orderIds: Set<string>;
+  };
+  const byVariant = new Map<string, VariantAcc>();
+  let totalUnits = 0;
+  let totalRevenueFils = 0;
+  let totalCostFils = 0;
+
+  for (const item of items) {
+    const revenue = item.unitPriceFils * item.quantity;
+    const cost = item.unitCostFils * item.quantity;
+    totalUnits += item.quantity;
+    totalRevenueFils += revenue;
+    totalCostFils += cost;
+
+    const acc =
+      byVariant.get(item.variantId) ??
+      {
+        variantId: item.variantId,
+        nameEn: item.productNameEn,
+        nameAr: item.productNameAr,
+        colorNameEn: item.colorNameEn,
+        colorNameAr: item.colorNameAr,
+        size: item.size,
+        units: 0,
+        revenueFils: 0,
+        costFils: 0,
+        orderIds: new Set<string>(),
+      };
+    acc.units += item.quantity;
+    acc.revenueFils += revenue;
+    acc.costFils += cost;
+    acc.orderIds.add(item.orderId);
+    byVariant.set(item.variantId, acc);
+  }
+
+  // Enrich every sold variant with colourHex, thumbnail, slug, and product id
+  // from the catalogue (archived/deleted variants keep their order-item
+  // snapshot but get nulls) — needed up front so variants can be grouped by
+  // product before ranking.
+  const liveVariants = await prisma.productVariant.findMany({
+    where: { id: { in: [...byVariant.keys()] } },
+    select: {
+      id: true,
+      colorHex: true,
+      product: {
+        select: {
+          id: true,
+          slug: true,
+          isActive: true,
+          images: { orderBy: { position: "asc" }, take: 1, select: { url: true } },
+        },
+      },
+    },
+  });
+  const liveById = new Map(liveVariants.map((v) => [v.id, v]));
+
+  // Group variants under their product — a deleted variant's product id is
+  // unknown, so it falls back to its own name-keyed group.
+  type ProductAcc = {
+    productId: string | null;
+    nameEn: string;
+    nameAr: string;
+    imageUrl: string | null;
+    slug: string | null;
+    isActive: boolean;
+    units: number;
+    revenueFils: number;
+    costFils: number;
+    orderIds: Set<string>;
+    variants: ProductPerformanceVariant[];
+  };
+  const byProduct = new Map<string, ProductAcc>();
+
+  for (const acc of byVariant.values()) {
+    const live = liveById.get(acc.variantId);
+    const key = live?.product.id ?? `deleted:${acc.nameEn}:${acc.nameAr}`;
+    const product = byProduct.get(key) ?? {
+      productId: live?.product.id ?? null,
+      nameEn: acc.nameEn,
+      nameAr: acc.nameAr,
+      imageUrl: live?.product.images[0]?.url ?? null,
+      slug: live?.product.slug ?? null,
+      isActive: live?.product.isActive ?? false,
+      units: 0,
+      revenueFils: 0,
+      costFils: 0,
+      orderIds: new Set<string>(),
+      variants: [],
+    };
+    product.units += acc.units;
+    product.revenueFils += acc.revenueFils;
+    product.costFils += acc.costFils;
+    for (const orderId of acc.orderIds) product.orderIds.add(orderId);
+    product.variants.push({
+      variantId: acc.variantId,
+      colorNameEn: acc.colorNameEn,
+      colorNameAr: acc.colorNameAr,
+      colorHex: live?.colorHex ?? null,
+      size: acc.size,
+      units: acc.units,
+    });
+    byProduct.set(key, product);
+  }
+
+  const rows: ProductPerformanceRow[] = [...byProduct.values()]
+    .sort((a, b) => b.units - a.units)
+    .slice(0, limit)
+    .map((product) => ({
+      productId: product.productId,
+      nameEn: product.nameEn,
+      nameAr: product.nameAr,
+      imageUrl: product.imageUrl,
+      slug: product.slug,
+      isActive: product.isActive,
+      units: product.units,
+      orders: product.orderIds.size,
+      revenueFils: product.revenueFils,
+      costFils: product.costFils,
+      profitFils: product.revenueFils - product.costFils,
+      variants: product.variants.sort((a, b) => b.units - a.units),
+    }));
+
+  // Zero-sellers for the period, rolled up to the PRODUCT: active products
+  // where not a single variant sold in the window (true dead stock, and far
+  // shorter than a per-variant list for a large catalogue). `notIn: []`
+  // (nothing sold) correctly yields every active product. Newest first, so
+  // recently-added non-sellers surface. One count + one bounded page.
+  const soldProductIds = [...byProduct.values()]
+    .map((p) => p.productId)
+    .filter((id): id is string => id !== null);
+  const zeroWhere = { isActive: true, id: { notIn: soldProductIds } };
+  const [zeroSalesCount, zeroSaleProducts] = await Promise.all([
+    prisma.product.count({ where: zeroWhere }),
+    prisma.product.findMany({
+      where: zeroWhere,
+      orderBy: { createdAt: "desc" },
+      take: zeroSalesLimit,
+      select: {
+        id: true,
+        slug: true,
+        nameEn: true,
+        nameAr: true,
+        images: { orderBy: { position: "asc" }, take: 1, select: { url: true } },
+        _count: { select: { variants: { where: { isArchived: false } } } },
+      },
+    }),
+  ]);
+  const zeroSales: ZeroSaleProduct[] = zeroSaleProducts.map((p) => ({
+    productId: p.id,
+    nameEn: p.nameEn,
+    nameAr: p.nameAr,
+    imageUrl: p.images[0]?.url ?? null,
+    slug: p.slug,
+    variantCount: p._count.variants,
+  }));
+
+  return {
+    rows,
+    zeroSales,
+    zeroSalesCount,
+    totalUnits,
+    totalRevenueFils,
+    totalProfitFils: totalRevenueFils - totalCostFils,
+    variantsSold: byVariant.size,
+    from: fromIso,
+    to: toIso,
   };
 }
 
@@ -503,7 +859,9 @@ export async function getSalesAnalytics(
  * Telegram owner alert is unstamped, or the customer has an email but the
  * confirmation is unstamped. Scoped to real (verified) orders placed within the
  * lookback window so the retry cron never resurrects ancient or abandoned
- * (PENDING_VERIFICATION) orders. Newest first, capped to `take`.
+ * (PENDING_VERIFICATION) orders. Online orders are only eligible once PAID —
+ * an unpaid or payment-expired Stripe order must never be notified, even
+ * after it moves to CANCELLED. Newest first, capped to `take`.
  */
 export async function listOrderIdsAwaitingNotification(
   lookbackHours = 24,
@@ -512,8 +870,21 @@ export async function listOrderIdsAwaitingNotification(
   const since = new Date(Date.now() - lookbackHours * 60 * 60 * 1000);
   const rows = await prisma.order.findMany({
     where: {
-      status: { not: OrderStatus.PENDING_VERIFICATION },
+      status: {
+        notIn: [
+          OrderStatus.PENDING_VERIFICATION,
+          OrderStatus.AWAITING_PAYMENT,
+        ],
+      },
       createdAt: { gte: since },
+      AND: [
+        {
+          OR: [
+            { paymentMethod: PaymentMethod.COD },
+            { paymentStatus: PaymentStatus.PAID },
+          ],
+        },
+      ],
       OR: [
         { adminNotifiedAt: null },
         { AND: [{ email: { not: null } }, { customerEmailedAt: null }] },
@@ -663,5 +1034,223 @@ export async function updateOrderStatus(
     }
 
     return updated;
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Stripe payment lifecycle
+// ---------------------------------------------------------------------------
+
+/** Attach the Stripe Checkout Session id right after the session is created. */
+export async function setOrderStripeSession(
+  orderId: string,
+  sessionId: string,
+): Promise<void> {
+  await prisma.order.update({
+    where: { id: orderId },
+    data: { stripeSessionId: sessionId },
+  });
+}
+
+export type MarkPaidResult =
+  | { outcome: "paid"; orderId: string; orderNumber: string }
+  | { outcome: "already_paid"; orderId: string; orderNumber: string }
+  /**
+   * Payment landed after the order had been expired-cancelled AND its stock
+   * has been resold in the meantime. Payment is recorded but the order stays
+   * CANCELLED — the caller must alert the admin to refund in Stripe.
+   */
+  | { outcome: "paid_but_cancelled"; orderId: string; orderNumber: string }
+  | { outcome: "not_found" };
+
+/**
+ * Record a successful Stripe payment. Idempotent — callable from the webhook,
+ * the return-page reconcile, and the cron backstop in any order:
+ * - Looks the order up by Checkout Session id, falling back to
+ *   `fallbackOrderId` (webhook metadata) for the tiny window where the
+ *   session id hasn't been persisted yet.
+ * - Already PAID → no-op.
+ * - AWAITING_PAYMENT → PAID + promoted to NEW (status_change event).
+ * - CANCELLED (paid-after-expiry race; stock was re-credited) → re-reserves
+ *   stock and promotes to NEW; if anything sold out in the meantime the
+ *   payment is still recorded but the order stays CANCELLED
+ *   (`paid_but_cancelled`).
+ */
+export async function markOrderPaidBySession(
+  sessionId: string,
+  paymentIntentId: string | null,
+  fallbackOrderId?: string,
+): Promise<MarkPaidResult> {
+  return prisma.$transaction(async (tx) => {
+    let order = await tx.order.findUnique({
+      where: { stripeSessionId: sessionId },
+      include: { items: true },
+    });
+    if (!order && fallbackOrderId) {
+      order = await tx.order.findUnique({
+        where: { id: fallbackOrderId },
+        include: { items: true },
+      });
+      // Never cross-apply a payment to an order tied to a different session.
+      if (order?.stripeSessionId && order.stripeSessionId !== sessionId) {
+        order = null;
+      }
+    }
+    if (!order) return { outcome: "not_found" };
+    const ref = { orderId: order.id, orderNumber: order.orderNumber };
+
+    if (order.paymentStatus === PaymentStatus.PAID) {
+      return { outcome: "already_paid", ...ref };
+    }
+
+    const paidData: Prisma.OrderUpdateInput = {
+      paymentStatus: PaymentStatus.PAID,
+      paidAt: new Date(),
+      stripePaymentIntentId: paymentIntentId,
+      // Backfill for the fallback-lookup path.
+      stripeSessionId: sessionId,
+    };
+
+    // Paid-after-expiry: the expiry path re-credited stock, so pull it back
+    // off the shelf before reviving the order. decrementVariantStock uses a
+    // conditional update (no DB error), so a failure is catchable in-tx; the
+    // partial decrements are manually reverted to keep stock consistent.
+    if (order.status === OrderStatus.CANCELLED) {
+      const reserved: { variantId: string; quantity: number }[] = [];
+      try {
+        for (const item of order.items) {
+          await decrementVariantStock(item.variantId, item.quantity, tx);
+          reserved.push({ variantId: item.variantId, quantity: item.quantity });
+        }
+      } catch (err) {
+        if (!(err instanceof InsufficientStockError)) throw err;
+        for (const r of reserved) {
+          await tx.productVariant.update({
+            where: { id: r.variantId },
+            data: { stock: { increment: r.quantity } },
+          });
+        }
+        await tx.order.update({ where: { id: order.id }, data: paidData });
+        await tx.orderEvent.create({
+          data: {
+            orderId: order.id,
+            type: "system",
+            payload: {
+              event: "stripe_paid_after_expiry",
+              detail: "stock unavailable; order stays cancelled — refund in Stripe",
+            },
+            actorId: null,
+          },
+        });
+        return { outcome: "paid_but_cancelled", ...ref };
+      }
+    }
+
+    const promote =
+      order.status === OrderStatus.AWAITING_PAYMENT ||
+      order.status === OrderStatus.CANCELLED;
+    await tx.order.update({
+      where: { id: order.id },
+      data: {
+        ...paidData,
+        ...(promote
+          ? { status: OrderStatus.NEW, cancelledAt: null, cancelReason: null }
+          : {}),
+      },
+    });
+    if (promote) {
+      await tx.orderEvent.create({
+        data: {
+          orderId: order.id,
+          type: "status_change",
+          payload: {
+            from: order.status,
+            to: OrderStatus.NEW,
+            reason: "stripe_paid",
+          },
+          actorId: null,
+        },
+      });
+    }
+    return { outcome: "paid", ...ref };
+  });
+}
+
+/**
+ * Cancel an unpaid Stripe order whose Checkout Session expired (webhook or
+ * cron backstop). Delegates to {@link updateOrderStatus}, so crossing into
+ * CANCELLED re-credits the reserved stock. No-op unless the order is still
+ * AWAITING_PAYMENT and unpaid — safe against completed/expired races and
+ * webhook replays.
+ */
+export async function cancelExpiredStripeOrder(
+  sessionId: string,
+): Promise<{ cancelled: boolean; orderId?: string }> {
+  const order = await prisma.order.findUnique({
+    where: { stripeSessionId: sessionId },
+    select: { id: true, status: true, paymentStatus: true },
+  });
+  if (
+    !order ||
+    order.status !== OrderStatus.AWAITING_PAYMENT ||
+    order.paymentStatus === PaymentStatus.PAID
+  ) {
+    return { cancelled: false, orderId: order?.id };
+  }
+  await updateOrderStatus(order.id, OrderStatus.CANCELLED, null, "payment_expired");
+  return { cancelled: true, orderId: order.id };
+}
+
+/**
+ * Record a full Stripe refund (from the `charge.refunded` webhook). Payment
+ * bookkeeping only — order status and stock are left for the admin to manage.
+ */
+export async function markOrderRefundedByPaymentIntent(
+  paymentIntentId: string,
+): Promise<{ found: boolean; orderId?: string }> {
+  const order = await prisma.order.findFirst({
+    where: { stripePaymentIntentId: paymentIntentId },
+    select: { id: true, paymentStatus: true },
+  });
+  if (!order) return { found: false };
+  if (order.paymentStatus === PaymentStatus.REFUNDED) {
+    return { found: true, orderId: order.id };
+  }
+  await prisma.$transaction([
+    prisma.order.update({
+      where: { id: order.id },
+      data: { paymentStatus: PaymentStatus.REFUNDED },
+    }),
+    prisma.orderEvent.create({
+      data: {
+        orderId: order.id,
+        type: "system",
+        payload: { event: "charge.refunded" },
+        actorId: null,
+      },
+    }),
+  ]);
+  return { found: true, orderId: order.id };
+}
+
+/**
+ * Stripe orders still AWAITING_PAYMENT well past the 1-hour session expiry —
+ * their expiry (or completed) webhook was missed. The cron backstop
+ * reconciles each against Stripe before cancelling.
+ */
+export async function listStaleAwaitingPaymentOrders(
+  olderThanHours = 2,
+  take = 50,
+): Promise<{ id: string; stripeSessionId: string | null }[]> {
+  const cutoff = new Date(Date.now() - olderThanHours * 60 * 60 * 1000);
+  return prisma.order.findMany({
+    where: {
+      status: OrderStatus.AWAITING_PAYMENT,
+      paymentMethod: PaymentMethod.STRIPE,
+      createdAt: { lt: cutoff },
+    },
+    orderBy: { createdAt: "asc" },
+    take,
+    select: { id: true, stripeSessionId: true },
   });
 }

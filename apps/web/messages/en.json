@@ -218,6 +218,9 @@
     "payment_cod": "Cash on delivery",
     "payment_online": "Online payment",
     "payment_online_soon": "Coming soon",
+    "payment_online_hint": "You'll be redirected to a secure payment page.",
+    "payment_charged_in_aed": "Your card is charged in AED (UAE dirham).",
+    "payment_cancelled": "Payment was cancelled — your cart is untouched.",
     "subtotal": "Subtotal",
     "shipping_fee": "Shipping",
     "shipping_free": "Free",
@@ -275,6 +278,12 @@
   "order": {
     "success_heading": "We've received your order",
     "success_subtitle": "Thank you! We'll confirm your order shortly.",
+    "awaiting_payment_heading": "Awaiting payment",
+    "awaiting_payment_subtitle": "Your order is reserved but not yet paid. If you cancelled the payment, you can place the order again from your cart.",
+    "payment_method_label": "Payment method",
+    "payment_method_cod": "Cash on delivery",
+    "payment_method_card": "Card (online) — pending",
+    "payment_method_card_paid": "Paid online (card)",
     "order_number": "Order number",
     "customer": "Customer",
     "items_heading": "Order details",
@@ -321,6 +330,7 @@
     "step_shipped": "Shipped",
     "step_delivered": "Delivered",
     "awaiting_verification_note": "We're still awaiting confirmation of your phone number for this order.",
+    "awaiting_payment_note": "This order is awaiting online payment and will be confirmed once payment is completed.",
     "view_details": "View full order details",
     "home_heading": "Already ordered?",
     "home_subheading": "Check the status of your order any time.",
@@ -614,6 +624,7 @@
       "pending_orders": "Pending orders",
       "low_stock": "Low stock",
       "tab_orders": "Order Analytics",
+      "tab_products": "Product Performance",
       "tab_visitors": "Visitor Analytics",
       "tab_ads": "Meta Ads"
     },
@@ -636,7 +647,25 @@
       "top_products": "Top products",
       "revenue": "Revenue",
       "units_short": "{count, plural, one {# sold} other {# sold}}",
-      "no_sales": "No sales in this period yet."
+      "no_sales": "No sales in this period yet.",
+      "payment_methods": "Payment methods",
+      "payment_cod": "Cash on delivery",
+      "payment_card": "Card (online)",
+      "payment_orders": "{count, plural, one {# order} other {# orders}}",
+      "payment_share": "{percent}% of sales",
+      "product_performance": "Product performance",
+      "product": "Product",
+      "variant": "Variants",
+      "products_sold": "Products sold",
+      "variants_sold": "Variants sold",
+      "ranked_by_units": "Ranked by units sold, per product",
+      "product_inactive": "Hidden",
+      "zero_sales": "No sales this period",
+      "zero_sales_hint": "Active products where not a single variant sold in the selected period.",
+      "zero_sales_count": "{count, plural, one {# product} other {# products}}",
+      "zero_sales_variant_count": "{count, plural, one {# variant} other {# variants}}",
+      "zero_sales_more": "+{count} more",
+      "zero_sales_none": "Every active product sold at least one unit in this period."
     },
     "orders": {
       "list": {
@@ -665,6 +694,9 @@
         "phone": "Phone",
         "emirate": "Emirate",
         "total": "Total",
+        "payment": "Payment",
+        "payment_card": "Card",
+        "payment_cod": "COD",
         "status": "Status",
         "created": "Created",
         "item": "Item",
@@ -682,6 +714,15 @@
         "shipping": "Shipping",
         "free": "Free",
         "total_cod": "Total (COD)",
+        "total_online": "Total (online payment)",
+        "payment_method": "Payment method",
+        "payment_method_card": "Card (Stripe)",
+        "payment_method_cod": "Cash on delivery",
+        "payment_status": "Payment status",
+        "payment_paid": "Paid",
+        "payment_pending": "Pending",
+        "payment_refunded": "Refunded",
+        "paid_at": "Paid at",
         "whatsapp_message": "Hi {name}, regarding your order {orderNumber}"
       },
       "customer": {
@@ -729,6 +770,7 @@
       },
       "status": {
         "PENDING_VERIFICATION": "Unverified",
+        "AWAITING_PAYMENT": "Awaiting payment",
         "NEW": "New",
         "CONFIRMED": "Confirmed",
         "SHIPPED": "Shipped",
@@ -888,7 +930,8 @@
         "currency": "Currency",
         "shop_by": "Shop by",
         "home_sections": "Sections",
-        "marketing": "Marketing"
+        "marketing": "Marketing",
+        "payments": "Payments"
       },
       "home_sections": {
         "card_title": "Home sections",
@@ -1075,6 +1118,17 @@
         "discount_help": "Percentage discount issued as a first-order coupon to new WhatsApp subscribers.",
         "discount_range_error": "Discount must be between 1 and 100.",
         "discount_saved_toast": "Welcome discount saved."
+      },
+      "payments": {
+        "card_title": "Online payments",
+        "card_description": "Accept card payments at checkout via Stripe's hosted payment page.",
+        "enabled_label": "Online card payment is enabled",
+        "disabled_label": "Online card payment is disabled",
+        "enabled_description": "Customers can choose to pay by card at checkout, in addition to cash on delivery.",
+        "disabled_description": "Customers can only pay cash on delivery.",
+        "saved_toast": "Payment settings saved",
+        "not_configured_warning": "STRIPE_SECRET_KEY is not configured on the server — the online payment option stays hidden at checkout even while this toggle is on.",
+        "refund_note": "Refunds are issued from the Stripe dashboard. After refunding, update the order status here."
       },
       "ai_model": {
         "card_title": "AI model",

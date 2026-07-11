@@ -91,6 +91,7 @@ export type ClientErrorSeverity = "drop" | "warn" | "error" | "critical"
 const NOISE_PATTERNS: RegExp[] = [
   /webkit\.messageHandlers/i, // iOS webview native bridge
   /sendDataToNative|sendPageHideMessage/i, // Meta/IG in-app-browser injected handlers
+  /iabjs:\/\//i, // Android in-app-browser (Instagram/Facebook) injected navigation logger
   /\bResizeObserver loop\b/i, // benign browser layout notice, never user-visible
   /-extension:\/\//i, // chrome-/moz-/safari-web-extension stacks (user add-ons)
 ]

@@ -8,6 +8,8 @@ import { cn } from "@workspace/ui/lib/utils"
 const STATUS_CLASS: Record<OrderStatus, string> = {
   [OrderStatus.PENDING_VERIFICATION]:
     "border-transparent bg-muted text-muted-foreground",
+  [OrderStatus.AWAITING_PAYMENT]:
+    "border-transparent bg-purple-100 text-purple-800",
   [OrderStatus.NEW]: "border-transparent bg-blue-100 text-blue-800",
   [OrderStatus.CONFIRMED]: "border-transparent bg-amber-100 text-amber-900",
   [OrderStatus.SHIPPED]: "border-transparent bg-indigo-100 text-indigo-800",
