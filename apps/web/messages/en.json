@@ -218,6 +218,8 @@
     "payment_cod": "Cash on delivery",
     "payment_online": "Online payment",
     "payment_online_soon": "Coming soon",
+    "payment_cod_uae_only": "Cash on delivery is available for orders inside the UAE only. International orders are paid online.",
+    "payment_unavailable_country": "We can't take online payments for this country yet. Please choose the UAE or try again later.",
     "payment_online_hint": "You'll be redirected to a secure payment page.",
     "payment_charged_in_aed": "Your card is charged in AED (UAE dirham).",
     "payment_cancelled": "Payment was cancelled — your cart is untouched.",

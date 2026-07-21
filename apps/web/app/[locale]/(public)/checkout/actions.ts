@@ -287,6 +287,13 @@ export async function createOrderAction(input: {
     }
   }
 
+  // Cash on delivery is UAE-only — we can't collect cash through the
+  // international couriers. The client hides the option abroad; this is the
+  // authoritative check.
+  if (!payingOnline && data.country !== "AE") {
+    return { ok: false, error: "cod_unavailable" }
+  }
+
   // 2. Bot challenge (Cloudflare Turnstile). No-op when not configured.
   const ip = await getClientIp()
   const human = await verifyTurnstile(data.turnstileToken, ip)

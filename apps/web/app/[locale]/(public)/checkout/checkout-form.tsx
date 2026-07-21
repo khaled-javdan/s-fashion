@@ -404,6 +404,17 @@ export function CheckoutForm({
   const hasEmirates = countryHasEmirates(country)
   const marketingConsent = watch("marketingConsent")
 
+  // Cash on delivery is UAE-only (the international couriers can't collect
+  // cash), so abroad the only way to pay is online. When online payment is
+  // also off, there's no payable method and checkout is blocked.
+  const codAvailable = country === "AE"
+  const canCheckout = codAvailable || stripeEnabled
+  const effectivePaymentMethod: CheckoutPaymentMethod = !codAvailable
+    ? "STRIPE"
+    : stripeEnabled
+      ? paymentMethod
+      : "COD"
+
   // `phone` is driven by the controlled <PhoneField> (via setValue), but still
   // register it so RHF tracks the field for the resolver + error mapping.
   useEffect(() => {
@@ -495,7 +506,7 @@ export function CheckoutForm({
         couponCode: couponCode ?? undefined,
         locale,
         turnstileToken: turnstileRef.current?.getToken(),
-        paymentMethod: stripeEnabled ? paymentMethod : "COD",
+        paymentMethod: effectivePaymentMethod,
         items: cartPayload(),
       })
       // Turnstile token is single-use — reset after the action.
@@ -509,6 +520,8 @@ export function CheckoutForm({
           toast.error(tCoupon("error.coupon_unavailable"))
         } else if (result.error === "verification_failed") {
           toast.error(t("error_verification"))
+        } else if (result.error === "cod_unavailable") {
+          toast.error(t("payment_cod_uae_only"))
         } else if (result.field) {
           const formField = serverFieldToFormField(result.field)
           if (formField) {
@@ -806,21 +819,23 @@ export function CheckoutForm({
               </span>
             </label>
 
-            {/* Payment method. COD is always available; online card payment
-                (hosted Stripe Checkout) is offered when admin-enabled, and
-                shown as "coming soon" otherwise. */}
+            {/* Payment method. COD is offered for UAE destinations only;
+                online card payment (hosted Stripe Checkout) is offered when
+                admin-enabled, and shown as "coming soon" otherwise. */}
             <fieldset className="space-y-3">
               <legend className="font-heading text-lg tracking-wide text-foreground">
                 {t("payment_heading")}
               </legend>
-              <PaymentOption
-                selected={paymentMethod === "COD"}
-                onSelect={() => setPaymentMethod("COD")}
-                label={t("payment_cod")}
-              />
+              {codAvailable && (
+                <PaymentOption
+                  selected={effectivePaymentMethod === "COD"}
+                  onSelect={() => setPaymentMethod("COD")}
+                  label={t("payment_cod")}
+                />
+              )}
               {stripeEnabled ? (
                 <PaymentOption
-                  selected={paymentMethod === "STRIPE"}
+                  selected={effectivePaymentMethod === "STRIPE"}
                   onSelect={() => setPaymentMethod("STRIPE")}
                   label={t("payment_online")}
                   hint={
@@ -843,13 +858,24 @@ export function CheckoutForm({
                   </span>
                 </div>
               )}
+              {!codAvailable && (
+                <p className="text-sm text-muted-foreground">
+                  {canCheckout
+                    ? t("payment_cod_uae_only")
+                    : t("payment_unavailable_country")}
+                </p>
+              )}
             </fieldset>
 
             {/* Invisible/managed bot challenge. Renders nothing when Turnstile
                 is not configured. */}
             <TurnstileWidget ref={turnstileRef} />
 
-            <Button type="submit" className="w-full" disabled={submitting}>
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={submitting || !canCheckout}
+            >
               {submitting ? (
                 <>
                   <Loader2 className="size-4 animate-spin" aria-hidden="true" />
