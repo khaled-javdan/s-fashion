@@ -22,15 +22,25 @@ export async function ValueProps({ locale }: { locale: Locale }) {
   const shippingConfig = parseShippingConfig(
     await getSetting("shipping.countries"),
   )
-  const { freeThresholdFils } = resolveShipping(shippingConfig, country, 0)
+  const { freeThresholdFils, freeShippingEnabled } = resolveShipping(
+    shippingConfig,
+    country,
+    0,
+  )
   const amount = formatMoney(freeThresholdFils, { locale, currency, rate })
 
   const items = [
-    {
-      Icon: Truck,
-      title: t("trust_free_shipping_title"),
-      desc: t("trust_free_shipping_desc", { amount }),
-    },
+    // Only advertise free shipping when the promo is actually offered for the
+    // shopper's country; otherwise drop the badge rather than promise it.
+    ...(freeShippingEnabled
+      ? [
+          {
+            Icon: Truck,
+            title: t("trust_free_shipping_title"),
+            desc: t("trust_free_shipping_desc", { amount }),
+          },
+        ]
+      : []),
     {
       Icon: Wallet,
       title: t("trust_cod_title"),

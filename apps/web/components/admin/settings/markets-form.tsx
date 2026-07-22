@@ -17,6 +17,7 @@ import type { CountryShipping, ShippingConfig } from "@/lib/shipping-config"
 type Row = {
   country: CountryShipping["country"]
   enabled: boolean
+  freeShippingEnabled: boolean
   flat: string
   threshold: string
   /** Per-kilogram surcharge, in AED. */
@@ -31,6 +32,7 @@ function toRows(config: ShippingConfig): Row[] {
   return config.countries.map((c) => ({
     country: c.country,
     enabled: c.enabled,
+    freeShippingEnabled: c.freeShippingEnabled,
     flat: String(filsToAed(c.flatFils)),
     threshold: String(filsToAed(c.freeThresholdFils)),
     perKg: String(filsToAed(c.perKgFils)),
@@ -91,6 +93,7 @@ export function MarketsForm({ initial }: { initial: ShippingConfig }) {
       countries: rows.map((r) => ({
         country: r.country,
         enabled: r.enabled,
+        freeShippingEnabled: r.freeShippingEnabled,
         flatFils: aedToFils(Number(r.flat)),
         freeThresholdFils: aedToFils(Number(r.threshold)),
         perKgFils: aedToFils(Number(r.perKg)),
@@ -155,12 +158,24 @@ export function MarketsForm({ initial }: { initial: ShippingConfig }) {
             </div>
             <div className="grid gap-1">
               <Label>{t("markets.threshold_label")}</Label>
+              <label className="flex items-center gap-2 py-1">
+                <Checkbox
+                  checked={r.freeShippingEnabled}
+                  disabled={!r.enabled}
+                  onCheckedChange={(v) =>
+                    update(i, { freeShippingEnabled: v === true })
+                  }
+                />
+                <span className="text-muted-foreground text-xs">
+                  {t("markets.free_shipping_enabled_label")}
+                </span>
+              </label>
               <Input
                 type="number"
                 min={0}
                 step="0.01"
                 value={r.threshold}
-                disabled={!r.enabled}
+                disabled={!r.enabled || !r.freeShippingEnabled}
                 onChange={(e) => update(i, { threshold: e.target.value })}
               />
             </div>

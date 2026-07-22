@@ -16,6 +16,12 @@ import {
 export type CountryShipping = {
   country: CountryCode
   enabled: boolean
+  /**
+   * Whether the free-shipping promo is offered at all. When `false`, the flat
+   * fee (plus any weight surcharge) always applies and `freeThresholdFils` is
+   * ignored — no order ever ships free, regardless of subtotal.
+   */
+  freeShippingEnabled: boolean
   /** Flat shipping fee in base AED fils. */
   flatFils: number
   /** Subtotal (base AED fils) at/above which shipping is free. */
@@ -48,6 +54,11 @@ const countryCode = z.enum(
 export const countryShippingSchema = z.object({
   country: countryCode,
   enabled: z.boolean().default(true),
+  /**
+   * Optional in the stored shape so rows written before the toggle existed
+   * still parse; they default to `true` (promo on), preserving prior behaviour.
+   */
+  freeShippingEnabled: z.boolean().default(true),
   flatFils: z.number().int().min(0),
   freeThresholdFils: z.number().int().min(0),
   /**
@@ -76,6 +87,7 @@ export const DEFAULT_SHIPPING_CONFIG: ShippingConfig = {
     {
       country: "AE",
       enabled: true,
+      freeShippingEnabled: true,
       flatFils: 2500,
       freeThresholdFils: 60000,
       perKgFils: 0,
@@ -86,6 +98,7 @@ export const DEFAULT_SHIPPING_CONFIG: ShippingConfig = {
     {
       country: "SA",
       enabled: true,
+      freeShippingEnabled: true,
       flatFils: 5000,
       freeThresholdFils: 75000,
       perKgFils: 0,
@@ -96,6 +109,7 @@ export const DEFAULT_SHIPPING_CONFIG: ShippingConfig = {
     {
       country: "KW",
       enabled: true,
+      freeShippingEnabled: true,
       flatFils: 6000,
       freeThresholdFils: 75000,
       perKgFils: 0,
@@ -106,6 +120,7 @@ export const DEFAULT_SHIPPING_CONFIG: ShippingConfig = {
     {
       country: "QA",
       enabled: true,
+      freeShippingEnabled: true,
       flatFils: 6000,
       freeThresholdFils: 75000,
       perKgFils: 0,
@@ -116,6 +131,7 @@ export const DEFAULT_SHIPPING_CONFIG: ShippingConfig = {
     {
       country: "BH",
       enabled: true,
+      freeShippingEnabled: true,
       flatFils: 6000,
       freeThresholdFils: 75000,
       perKgFils: 0,
@@ -126,6 +142,7 @@ export const DEFAULT_SHIPPING_CONFIG: ShippingConfig = {
     {
       country: "OM",
       enabled: true,
+      freeShippingEnabled: true,
       flatFils: 6000,
       freeThresholdFils: 75000,
       perKgFils: 0,
@@ -175,6 +192,12 @@ export type ResolvedShipping = {
    */
   weightSurchargeFils: number
   freeThresholdFils: number
+  /**
+   * Whether the free-shipping promo is offered for the resolved country. When
+   * `false`, callers should hide all free-shipping messaging and never treat
+   * `freeThresholdFils` as reachable.
+   */
+  freeShippingEnabled: boolean
   /** Estimated delivery window for the resolved country, in business days. */
   minDays: number
   maxDays: number
@@ -207,12 +230,15 @@ export function resolveShipping(
     config.countries.find((c) => c.country === DEFAULT_COUNTRY) ??
     fallback
   const { flatFils, freeThresholdFils } = row
-  const free = subtotalFils >= freeThresholdFils
+  // Rows stored before the toggle existed lack the field; treat missing as on.
+  const freeShippingEnabled = row.freeShippingEnabled ?? true
+  const free = freeShippingEnabled && subtotalFils >= freeThresholdFils
   const surchargeFils = weightSurcharge(row, totalWeightGrams)
   return {
     shippingFils: free ? 0 : flatFils + surchargeFils,
     weightSurchargeFils: free ? 0 : surchargeFils,
     freeThresholdFils,
+    freeShippingEnabled,
     minDays: row.minDays ?? fallback.minDays,
     maxDays: row.maxDays ?? fallback.maxDays,
   }

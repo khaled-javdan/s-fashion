@@ -65,7 +65,13 @@ export function OrderSummary({
   const savingsFils = useCartStore(selectSavingsFils)
   const totalWeightGrams = useCartStore(selectTotalWeightGrams)
 
-  const { shippingFils, freeThresholdFils, minDays, maxDays } = resolveShipping(
+  const {
+    shippingFils,
+    freeThresholdFils,
+    freeShippingEnabled,
+    minDays,
+    maxDays,
+  } = resolveShipping(
     shippingConfig,
     country,
     subtotalFils,
@@ -257,7 +263,7 @@ export function OrderSummary({
         <Separator />
         <FreeShippingProgress
           subtotalFils={subtotalFils}
-          thresholdFils={freeThresholdFils}
+          thresholdFils={freeShippingEnabled ? freeThresholdFils : 0}
         />
         {couponBlock ? (
           <>

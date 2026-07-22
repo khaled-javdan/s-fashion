@@ -44,11 +44,13 @@ export default async function ShippingPage({
   const shippingConfig = parseShippingConfig(
     await getSetting("shipping.countries"),
   )
-  const { shippingFils, freeThresholdFils, minDays, maxDays } = resolveShipping(
-    shippingConfig,
-    country,
-    0,
-  )
+  const {
+    shippingFils,
+    freeThresholdFils,
+    freeShippingEnabled,
+    minDays,
+    maxDays,
+  } = resolveShipping(shippingConfig, country, 0)
 
   const flat = formatMoney(shippingFils, { locale, currency, rate })
   const threshold = formatMoney(freeThresholdFils, { locale, currency, rate })
@@ -68,9 +70,11 @@ export default async function ShippingPage({
           <div className="space-y-1 text-sm">
             <p className="font-medium text-foreground">{t("fees_heading")}</p>
             <p className="text-muted-foreground">{t("fees_flat", { flat })}</p>
-            <p className="text-muted-foreground">
-              {t("fees_free", { threshold })}
-            </p>
+            {freeShippingEnabled ? (
+              <p className="text-muted-foreground">
+                {t("fees_free", { threshold })}
+              </p>
+            ) : null}
             <p className="text-muted-foreground">
               {t("fees_delivery_window", { minDays, maxDays })}
             </p>
