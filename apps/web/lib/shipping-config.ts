@@ -27,14 +27,17 @@ export type CountryShipping = {
   /** Subtotal (base AED fils) at/above which shipping is free. */
   freeThresholdFils: number
   /**
-   * Per-kilogram surcharge in base AED fils, applied to parcel weight ABOVE
-   * `weightThresholdGrams`. `0` (the default) disables weight-based pricing.
+   * Price per kilogram in base AED fils, charged once parcel weight passes
+   * `weightThresholdGrams`. Past that point it REPLACES the flat fee rather
+   * than adding to it — see `chargeableShipping`. `0` (the default) disables
+   * weight-based pricing, leaving the flat fee to apply at any weight.
    */
   perKgFils: number
   /**
-   * Free weight allowance in grams. Parcel weight up to this is covered by the
-   * flat fee; only the excess is billed at `perKgFils`. `0` means every gram is
-   * charged once `perKgFils` is set.
+   * Weight in grams that the flat fee covers. At or below this the parcel ships
+   * for `flatFils`; above it the order switches to per-kilogram pricing. `0`
+   * means weight pricing kicks in as soon as the parcel has any weight at all
+   * (only relevant once `perKgFils` is set).
    */
   weightThresholdGrams: number
   /** Lower bound of the estimated delivery window, in business days. */
@@ -185,12 +188,17 @@ export function enabledCountries(config: ShippingConfig): CountryCode[] {
 export type ResolvedShipping = {
   shippingFils: number
   /**
-   * The weight portion of `shippingFils` (base AED fils) — what the parcel's
-   * excess weight added on top of the flat fee. `0` when under the free-weight
-   * threshold or when the order ships free. Exposed for an optional breakdown
+   * How much of `shippingFils` (base AED fils) the parcel's weight added on top
+   * of the flat fee. `0` when the parcel is within the flat fee's weight
+   * allowance or when the order ships free. Exposed for an optional breakdown
    * line; `shippingFils` is the authoritative amount charged.
    */
   weightSurchargeFils: number
+  /**
+   * Whole kilograms billed at `perKgFils` for this parcel, or `0` when the flat
+   * fee applied. Lets callers show "3 kg × 40 AED" style breakdowns.
+   */
+  billableWeightKg: number
   freeThresholdFils: number
   /**
    * Whether the free-shipping promo is offered for the resolved country. When
@@ -203,20 +211,45 @@ export type ResolvedShipping = {
   maxDays: number
 }
 
-/** Per-kg surcharge for weight above the country's free allowance, in fils. */
-function weightSurcharge(row: CountryShipping, totalWeightGrams: number): number {
+/**
+ * Whole kilograms to bill at `perKgFils`, or `0` when the flat fee stands.
+ *
+ * Couriers price a started kilo as a full one, so weight rounds UP to the next
+ * kilogram: a 2.01 kg parcel bills as 3 kg.
+ */
+function billableKg(row: CountryShipping, totalWeightGrams: number): number {
   if (row.perKgFils <= 0) return 0
-  const overweightGrams = Math.max(0, totalWeightGrams - row.weightThresholdGrams)
-  if (overweightGrams <= 0) return 0
-  return Math.round((overweightGrams / 1000) * row.perKgFils)
+  if (totalWeightGrams <= row.weightThresholdGrams) return 0
+  return Math.ceil(totalWeightGrams / 1000)
 }
 
 /**
- * Resolve shipping for a country + subtotal + total parcel weight. The fee is
- * the flat rate plus a per-kg surcharge on weight above the country's free
- * allowance; the whole fee is waived once `subtotal >= freeThreshold` (the
- * free-shipping promo covers heavy parcels too). Falls back to the default
- * country's row when the requested country is missing/disabled.
+ * Shipping charge before the free-shipping promo, in base AED fils.
+ *
+ * Up to the country's weight allowance the flat fee stands on its own. Past it
+ * the flat fee is REPLACED by pure per-kilogram pricing rather than topped up:
+ * with a 90 AED flat fee and 40 AED/kg above 2 kg, a 2.01 kg parcel costs
+ * 3 × 40 = 120 AED, not 90 + something.
+ *
+ * The flat fee still acts as a floor, so a per-kg rate set too low can never
+ * make a heavy parcel cheaper to ship than a light one.
+ */
+function chargeableShipping(
+  row: CountryShipping,
+  totalWeightGrams: number,
+): number {
+  const kg = billableKg(row, totalWeightGrams)
+  if (kg === 0) return row.flatFils
+  return Math.max(row.flatFils, kg * row.perKgFils)
+}
+
+/**
+ * Resolve shipping for a country + subtotal + total parcel weight. Light
+ * parcels pay the flat rate; once weight passes the country's allowance the
+ * per-kg price takes over entirely (see `chargeableShipping`). The whole fee is
+ * waived once `subtotal >= freeThreshold` — the free-shipping promo covers
+ * heavy parcels too. Falls back to the default country's row when the requested
+ * country is missing/disabled.
  */
 export function resolveShipping(
   config: ShippingConfig,
@@ -233,10 +266,11 @@ export function resolveShipping(
   // Rows stored before the toggle existed lack the field; treat missing as on.
   const freeShippingEnabled = row.freeShippingEnabled ?? true
   const free = freeShippingEnabled && subtotalFils >= freeThresholdFils
-  const surchargeFils = weightSurcharge(row, totalWeightGrams)
+  const chargeableFils = chargeableShipping(row, totalWeightGrams)
   return {
-    shippingFils: free ? 0 : flatFils + surchargeFils,
-    weightSurchargeFils: free ? 0 : surchargeFils,
+    shippingFils: free ? 0 : chargeableFils,
+    weightSurchargeFils: free ? 0 : Math.max(0, chargeableFils - flatFils),
+    billableWeightKg: free ? 0 : billableKg(row, totalWeightGrams),
     freeThresholdFils,
     freeShippingEnabled,
     minDays: row.minDays ?? fallback.minDays,
