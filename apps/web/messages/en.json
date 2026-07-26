@@ -1167,7 +1167,7 @@
         "weight_threshold_label": "Flat fee covers up to (kg)",
         "min_days_label": "Delivery — min days",
         "max_days_label": "Delivery — max days",
-        "help": "Fees are stored in AED and shown to customers in their own currency. Uncheck “Offer free shipping” to always charge the flat fee for a country. Parcels within the flat fee's weight allowance pay the flat fee; heavier parcels are priced purely per kg instead, rounded up to the next whole kg — e.g. a 90 AED flat fee with 40 AED/kg above 2 kg charges 120 AED for a 2.01 kg parcel (3 kg × 40). Set price per kg to 0 to disable weight pricing. Delivery days are business days.",
+        "help": "Fees are stored in AED and shown to customers in their own currency. Uncheck “Offer free shipping” to always charge the flat fee for a country. Parcels within the flat fee's weight allowance pay just the flat fee; every started kilogram above it adds the per-kg price on top — e.g. a 90 AED flat fee with 40 AED/kg above 1 kg charges 130 AED for a 1.1 kg parcel and 170 AED for a 2.1 kg one. Set price per kg to 0 to disable weight pricing. Delivery days are business days.",
         "invalid": "Please enter valid amounts and a delivery window where max is not below min.",
         "saved_toast": "Shipping settings saved."
       },
