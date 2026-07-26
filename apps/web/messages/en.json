@@ -935,6 +935,12 @@
         "marketing": "Marketing",
         "payments": "Payments"
       },
+      "tab_groups": {
+        "storefront": "Storefront",
+        "markets": "Markets & payments",
+        "policies": "Product & policies",
+        "business": "Business"
+      },
       "home_sections": {
         "card_title": "Home sections",
         "card_description": "Reorder and show/hide the sections on the storefront home page, and add your own product rows. The hero banner is always shown at the top.",

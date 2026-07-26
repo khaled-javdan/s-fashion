@@ -14,6 +14,11 @@ function Tabs({
   return (
     <TabsPrimitive.Root
       data-slot="tabs"
+      // Forwarded to Radix as well as mirrored onto the element: the data
+      // attribute drives the layout variants below, while the primitive needs
+      // the prop itself so roving focus follows the right arrow keys
+      // (up/down when vertical instead of left/right).
+      orientation={orientation}
       data-orientation={orientation}
       className={cn(
         "group/tabs flex gap-2 data-horizontal:flex-col",

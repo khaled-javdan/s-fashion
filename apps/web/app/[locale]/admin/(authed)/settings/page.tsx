@@ -1,10 +1,12 @@
 import { getTranslations } from "next-intl/server"
+import { Fragment } from "react"
 
 import {
   TabsContent,
   TabsList,
   TabsTrigger,
 } from "@workspace/ui/components/tabs"
+import { cn } from "@workspace/ui/lib/utils"
 
 import { SettingsTabs } from "@/components/admin/settings/settings-tabs"
 
@@ -46,6 +48,22 @@ import {
 } from "@/lib/repos/settings.repo"
 
 type ShopByTranslator = Awaited<ReturnType<typeof getTranslations>>
+
+/**
+ * Sidebar nav, grouped. Fifteen settings panels overflowed the old top tab
+ * strip, so they live in a vertical inner sidebar instead — grouped by what
+ * they affect so the column stays scannable. `tab` is the `?tab=` value and the
+ * `tabs.*` translation key (dashes → underscores).
+ */
+const NAV_GROUPS = [
+  { group: "storefront", tabs: ["hero", "home-sections", "grid", "shop-by"] },
+  { group: "markets", tabs: ["markets", "currency", "payments"] },
+  {
+    group: "policies",
+    tabs: ["size-chart", "shipping-return", "returns", "limits"],
+  },
+  { group: "business", tabs: ["contact", "company", "marketing", "ai"] },
+] as const
 
 /**
  * Build the shop-by target presets with both English and Arabic labels: six
@@ -170,30 +188,36 @@ export default async function AdminSettingsPage() {
         </p>
       </div>
 
-      <SettingsTabs defaultValue="hero">
-        <TabsList className="max-w-full justify-start overflow-x-auto [&::-webkit-scrollbar]:hidden [&>*]:shrink-0 [scrollbar-width:none]">
-          <TabsTrigger value="hero">{t("tabs.hero")}</TabsTrigger>
-          <TabsTrigger value="home-sections">
-            {t("tabs.home_sections")}
-          </TabsTrigger>
-          <TabsTrigger value="markets">{t("tabs.markets")}</TabsTrigger>
-          <TabsTrigger value="currency">{t("tabs.currency")}</TabsTrigger>
-          <TabsTrigger value="contact">{t("tabs.contact")}</TabsTrigger>
-          <TabsTrigger value="company">{t("tabs.company")}</TabsTrigger>
-          <TabsTrigger value="grid">{t("tabs.grid")}</TabsTrigger>
-          <TabsTrigger value="shop-by">{t("tabs.shop_by")}</TabsTrigger>
-          <TabsTrigger value="size-chart">{t("tabs.size_chart")}</TabsTrigger>
-          <TabsTrigger value="shipping-return">
-            {t("tabs.shipping_return")}
-          </TabsTrigger>
-          <TabsTrigger value="returns">{t("tabs.returns")}</TabsTrigger>
-          <TabsTrigger value="limits">{t("tabs.limits")}</TabsTrigger>
-          <TabsTrigger value="payments">{t("tabs.payments")}</TabsTrigger>
-          <TabsTrigger value="marketing">{t("tabs.marketing")}</TabsTrigger>
-          <TabsTrigger value="ai">{t("tabs.ai")}</TabsTrigger>
+      <SettingsTabs
+        defaultValue="hero"
+        orientation="vertical"
+        className="gap-4 max-lg:flex-col lg:gap-6"
+      >
+        {/* Below `lg` the sidebar can't earn its width, so it flattens back
+            into the horizontally scrolling strip phones can handle. On `lg`,
+            `top`/`max-h` clear the fixed h-14 admin topbar and keep a tall nav
+            scrollable rather than stranding its last items off-screen. */}
+        <TabsList className="justify-start rounded-md max-lg:max-w-full max-lg:flex-row! max-lg:overflow-x-auto max-lg:[&::-webkit-scrollbar]:hidden max-lg:[&>*]:w-fit! max-lg:[&>*]:shrink-0 max-lg:[scrollbar-width:none] lg:sticky lg:top-[4.5rem] lg:h-fit lg:max-h-[calc(100vh-6rem)] lg:w-56 lg:shrink-0 lg:items-stretch lg:self-start lg:overflow-y-auto">
+          {NAV_GROUPS.map(({ group, tabs }, index) => (
+            <Fragment key={group}>
+              <p
+                className={cn(
+                  "text-muted-foreground px-4 pb-1 text-[0.68rem] font-semibold tracking-wider uppercase max-lg:hidden",
+                  index === 0 ? "pt-1" : "pt-3",
+                )}
+              >
+                {t(`tab_groups.${group}`)}
+              </p>
+              {tabs.map((tab) => (
+                <TabsTrigger key={tab} value={tab}>
+                  {t(`tabs.${tab.replace(/-/g, "_")}`)}
+                </TabsTrigger>
+              ))}
+            </Fragment>
+          ))}
         </TabsList>
 
-        <TabsContent value="hero" className="pt-4">
+        <TabsContent value="hero">
           <SettingsCard
             title={t("hero.card_title")}
             description={t("hero.card_description")}
@@ -202,7 +226,7 @@ export default async function AdminSettingsPage() {
           </SettingsCard>
         </TabsContent>
 
-        <TabsContent value="home-sections" className="pt-4">
+        <TabsContent value="home-sections">
           <SettingsCard
             title={t("home_sections.card_title")}
             description={t("home_sections.card_description")}
@@ -211,7 +235,7 @@ export default async function AdminSettingsPage() {
           </SettingsCard>
         </TabsContent>
 
-        <TabsContent value="markets" className="pt-4 space-y-4">
+        <TabsContent value="markets" className="space-y-4">
           <SettingsCard
             title={t("market_mode.card_title")}
             description={t("market_mode.card_description")}
@@ -226,7 +250,7 @@ export default async function AdminSettingsPage() {
           </SettingsCard>
         </TabsContent>
 
-        <TabsContent value="currency" className="pt-4">
+        <TabsContent value="currency">
           <SettingsCard
             title={t("currency.card_title")}
             description={t("currency.card_description")}
@@ -235,7 +259,7 @@ export default async function AdminSettingsPage() {
           </SettingsCard>
         </TabsContent>
 
-        <TabsContent value="contact" className="pt-4">
+        <TabsContent value="contact">
           <SettingsCard
             title={t("contact.card_title")}
             description={t("contact.card_description")}
@@ -250,7 +274,7 @@ export default async function AdminSettingsPage() {
           </SettingsCard>
         </TabsContent>
 
-        <TabsContent value="company" className="pt-4">
+        <TabsContent value="company">
           <SettingsCard
             title={t("company.card_title")}
             description={t("company.card_description")}
@@ -263,7 +287,7 @@ export default async function AdminSettingsPage() {
           </SettingsCard>
         </TabsContent>
 
-        <TabsContent value="grid" className="pt-4">
+        <TabsContent value="grid">
           <SettingsCard
             title={t("grid.card_title")}
             description={t("grid.card_description")}
@@ -272,7 +296,7 @@ export default async function AdminSettingsPage() {
           </SettingsCard>
         </TabsContent>
 
-        <TabsContent value="shop-by" className="pt-4">
+        <TabsContent value="shop-by">
           <SettingsCard
             title={t("shop_by.card_title")}
             description={t("shop_by.card_description")}
@@ -281,7 +305,7 @@ export default async function AdminSettingsPage() {
           </SettingsCard>
         </TabsContent>
 
-        <TabsContent value="size-chart" className="pt-4">
+        <TabsContent value="size-chart">
           <SettingsCard
             title={t("size_chart.card_title")}
             description={t("size_chart.card_description")}
@@ -290,7 +314,7 @@ export default async function AdminSettingsPage() {
           </SettingsCard>
         </TabsContent>
 
-        <TabsContent value="shipping-return" className="pt-4">
+        <TabsContent value="shipping-return">
           <SettingsCard
             title={t("shipping_return.card_title")}
             description={t("shipping_return.card_description")}
@@ -302,7 +326,7 @@ export default async function AdminSettingsPage() {
           </SettingsCard>
         </TabsContent>
 
-        <TabsContent value="returns" className="pt-4">
+        <TabsContent value="returns">
           <SettingsCard
             title={t("returns.card_title")}
             description={t("returns.card_description")}
@@ -311,7 +335,7 @@ export default async function AdminSettingsPage() {
           </SettingsCard>
         </TabsContent>
 
-        <TabsContent value="limits" className="pt-4">
+        <TabsContent value="limits">
           <SettingsCard
             title={t("limits.card_title")}
             description={t("limits.card_description")}
@@ -323,7 +347,7 @@ export default async function AdminSettingsPage() {
           </SettingsCard>
         </TabsContent>
 
-        <TabsContent value="payments" className="pt-4">
+        <TabsContent value="payments">
           <SettingsCard
             title={t("payments.card_title")}
             description={t("payments.card_description")}
@@ -335,7 +359,7 @@ export default async function AdminSettingsPage() {
           </SettingsCard>
         </TabsContent>
 
-        <TabsContent value="marketing" className="pt-4">
+        <TabsContent value="marketing">
           <SettingsCard
             title={t("marketing.card_title")}
             description={t("marketing.card_description")}
@@ -347,7 +371,7 @@ export default async function AdminSettingsPage() {
           </SettingsCard>
         </TabsContent>
 
-        <TabsContent value="ai" className="pt-4">
+        <TabsContent value="ai">
           <SettingsCard
             title={t("ai_model.card_title")}
             description={t("ai_model.card_description")}

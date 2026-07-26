@@ -18,10 +18,14 @@ import { Tabs } from "@workspace/ui/components/tabs"
 export function SettingsTabs({
   defaultValue,
   paramKey = "tab",
+  className,
+  orientation,
   children,
 }: {
   defaultValue: string
   paramKey?: string
+  className?: string
+  orientation?: "horizontal" | "vertical"
   children: ReactNode
 }) {
   const searchParams = useSearchParams()
@@ -48,7 +52,13 @@ export function SettingsTabs({
   )
 
   return (
-    <Tabs dir={dir} value={value} onValueChange={handleChange}>
+    <Tabs
+      dir={dir}
+      orientation={orientation}
+      className={className}
+      value={value}
+      onValueChange={handleChange}
+    >
       {children}
     </Tabs>
   )
