@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl"
 import {
   AsYouType,
   getCountryCallingCode,
+  isSupportedCountry as isKnownPhoneCountry,
   parsePhoneNumberFromString,
 } from "libphonenumber-js"
 // SVG flag components keyed by ISO country code (data only — no chrome). We
@@ -19,6 +20,7 @@ import {
 } from "@workspace/ui/components/select"
 import { cn } from "@workspace/ui/lib/utils"
 
+import { addBreadcrumb } from "@/lib/client/report-client-error"
 import type { CountryCode } from "@/lib/geo"
 
 import "./phone-field.css"
@@ -54,6 +56,17 @@ const FLAGS = flags as Record<
  */
 function nationalDigits(raw: string): string {
   return raw.replace(/\D/g, "").replace(/^0+/, "")
+}
+
+/**
+ * Every libphonenumber call below (`getCountryCallingCode`, `AsYouType`) throws
+ * `Unknown country: …` on anything that isn't a real ISO code — including the
+ * empty string. Callers can hand us a blank `defaultCountry` (the checkout form
+ * watches a field that starts out ""), so funnel it through here and fall back
+ * to the UAE rather than crashing the render.
+ */
+function safeCountry(value: string | undefined, fallback: CountryCode): CountryCode {
+  return value && isKnownPhoneCountry(value) ? (value as CountryCode) : fallback
 }
 
 function CountryFlag({
@@ -93,7 +106,9 @@ export function PhoneField({
   autoComplete = "tel",
 }: PhoneFieldProps) {
   const t = useTranslations("country")
-  const [country, setCountry] = React.useState<CountryCode>(defaultCountry)
+  const [country, setCountry] = React.useState<CountryCode>(() =>
+    safeCountry(defaultCountry, "AE"),
+  )
   const [national, setNational] = React.useState("")
   // Tracks the controlled `value` we've reconciled with. Updated whenever we
   // emit (so our own change echoing back is a no-op) and during render below
@@ -112,7 +127,21 @@ export function PhoneField({
     }
   }
 
-  const list = countries && countries.length > 0 ? countries : [defaultCountry]
+  // Follow the parent's country (the checkout address country) while the number
+  // is still empty — otherwise the picker keeps the mount-time country and shows
+  // e.g. +971 next to a Qatari address. A typed number owns the country from
+  // then on, either through the branch above or the user's own pick.
+  const [lastDefault, setLastDefault] = React.useState(defaultCountry)
+  if (defaultCountry !== lastDefault) {
+    setLastDefault(defaultCountry)
+    if (!value && isKnownPhoneCountry(defaultCountry)) {
+      setCountry(defaultCountry)
+    }
+  }
+
+  const list = (
+    countries && countries.length > 0 ? countries : [defaultCountry]
+  ).filter((code): code is CountryCode => isKnownPhoneCountry(code))
 
   function emit(nextCountry: CountryCode, nationalText: string) {
     const digits = nationalText.replace(/\D/g, "")
@@ -128,6 +157,16 @@ export function PhoneField({
   }
 
   function handleCountry(next: CountryCode) {
+    // Radix Select's hidden native <select> emits a spurious onValueChange with
+    // an empty value during hydration + form-restore (the same phantom event the
+    // checkout emirate/city selects already ignore). Accepting it here used to
+    // put `""` into state and crash the very next render on
+    // `getCountryCallingCode("")` — reproducible by returning to checkout from
+    // Stripe, where the restored form triggers exactly that sequence.
+    if (!isKnownPhoneCountry(next)) {
+      addBreadcrumb(`phone_field:country ignored value=${next || "(empty)"}`)
+      return
+    }
     setCountry(next)
     onCountryChange?.(next)
     // Re-key the existing digits to the new country's national format.
