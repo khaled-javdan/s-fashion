@@ -67,9 +67,10 @@ export type CreateOrderInput = Omit<OrderCreateInput, "items" | "couponCode"> & 
 
 /**
  * Whether an error is a unique-constraint violation on `Order.orderNumber`.
- * `generateOrderNumber` derives the suffix from a count, so two concurrent
+ * `generateOrderNumber` reads the current max suffix, so two concurrent
  * checkouts can race to the same number under READ COMMITTED; the @unique index
- * is the authoritative guard and we retry the transaction when it fires.
+ * is the authoritative guard and we retry the transaction when it fires. The
+ * retry re-reads the max with the winner now committed, so it moves forward.
  */
 function isOrderNumberCollision(err: unknown): boolean {
   if (
@@ -96,14 +97,14 @@ function isOrderNumberCollision(err: unknown): boolean {
  *   4. Insert order + snapshot items + initial status_change event.
  *
  * Throws `InsufficientStockError` if any variant has insufficient stock; the
- * entire transaction is rolled back in that case. Retries up to 3× on an
+ * entire transaction is rolled back in that case. Retries up to 5× on an
  * order-number collision.
  */
 export async function createOrder(
   input: CreateOrderInput,
   items: ResolvedOrderItem[],
 ): Promise<{ id: string; orderNumber: string }> {
-  const MAX_ATTEMPTS = 3;
+  const MAX_ATTEMPTS = 5;
   let lastErr: unknown;
 
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
