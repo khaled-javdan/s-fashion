@@ -3,8 +3,8 @@
 import { useEffect, useRef } from "react"
 
 /**
- * Call `onExitIntent` once, the first time the visitor looks like they're
- * leaving the page. Three signals, because "leaving" looks different per device:
+ * Call `onExitIntent` once, the first time the visitor makes a deliberate move
+ * to leave the page. Two signals, because leaving looks different per device:
  *
  *  - **Desktop**: the pointer exits through the top of the viewport — heading
  *    for the tab bar, the address bar or the close button. Only bound for fine
@@ -12,9 +12,10 @@ import { useEffect, useRef } from "react"
  *  - **Back gesture** (mostly mobile): we park one extra history entry so the
  *    first back press lands here instead of navigating away. A second press
  *    leaves for real — the guard is consumed, never re-pushed.
- *  - **Tab return**: they switched away and came back. Not a departure as such,
- *    but the same moment of hesitation, and it's the only signal available when
- *    someone leaves by closing the tab or switching apps.
+ *
+ * Both are actions the visitor took to go somewhere else. Merely switching
+ * apps and coming back is NOT one of them: it fires constantly in normal use,
+ * which makes the callback look like it triggers on its own.
  *
  * Fires at most once per mount, and nothing is bound at all while `enabled` is
  * false — so a page that has nothing to offer never touches history.
@@ -59,11 +60,6 @@ export function useExitIntent(enabled: boolean, onExitIntent: () => void) {
       fire()
     }
 
-    // 3. Coming back to the tab.
-    function handleVisibility() {
-      if (document.visibilityState === "visible") fire()
-    }
-
     if (finePointer) {
       document.addEventListener("mouseout", handleMouseOut)
     }
@@ -72,14 +68,12 @@ export function useExitIntent(enabled: boolean, onExitIntent: () => void) {
       window.history.pushState({ exitIntentGuard: true }, "")
     }
     window.addEventListener("popstate", handlePopState)
-    document.addEventListener("visibilitychange", handleVisibility)
 
     return () => {
       if (finePointer) {
         document.removeEventListener("mouseout", handleMouseOut)
       }
       window.removeEventListener("popstate", handlePopState)
-      document.removeEventListener("visibilitychange", handleVisibility)
     }
   }, [enabled])
 }

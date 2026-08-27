@@ -109,7 +109,10 @@ export type KnownSettings = {
     percent: number;
     /** How long the minted coupon stays valid, in minutes. */
     minutes: number;
-    /** Don't offer below this subtotal (0 = always offer). */
+    /**
+     * Minimum basket value that earns the offer (0 = every basket does).
+     * Below it nothing is shown at all — the popup has nothing else to say.
+     */
     minSubtotalFils: number;
   };
   /**
@@ -125,8 +128,30 @@ export type KnownSettings = {
     delayMinutes: number;
     /** How long the emailed code stays valid, in hours. */
     couponHours: number;
+    /**
+     * Minimum basket value that earns the discount (0 = every basket does).
+     * Below it the reminder still goes out — just without a code, so a small
+     * basket is still recovered without being discounted.
+     */
+    minSubtotalFils: number;
   };
 };
+
+/**
+ * Read a stored object setting over its defaults.
+ *
+ * Settings are JSON blobs, so a row saved before a field existed is missing it
+ * — and the readers would then compare against `undefined` (silently wrong) or
+ * hand `undefined` to a formatter (a crash). Merging over the defaults means an
+ * older row keeps working and simply gets the default for anything new.
+ */
+export function withDefaults<T extends object>(
+  stored: unknown,
+  defaults: T,
+): T {
+  if (!stored || typeof stored !== "object") return { ...defaults };
+  return { ...defaults, ...(stored as Partial<T>) };
+}
 
 /** Fallback for `checkout.exit_offer` when the setting has never been saved. */
 export const DEFAULT_EXIT_OFFER = {
@@ -146,6 +171,7 @@ export const DEFAULT_ABANDONED_EMAIL = {
   percent: 10,
   delayMinutes: 60,
   couponHours: 24,
+  minSubtotalFils: 0,
 } as const;
 
 /**

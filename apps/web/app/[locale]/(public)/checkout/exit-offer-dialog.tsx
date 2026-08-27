@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useTranslations } from "next-intl"
-import { Loader2, Tag } from "lucide-react"
+import { Tag } from "lucide-react"
 
 import { Button } from "@workspace/ui/components/button"
 import {
@@ -23,19 +23,16 @@ export type ExitOffer = {
 }
 
 /** mm:ss left until `targetMs`, or null once it's in the past. */
-function useCountdown(targetMs: number | null): string | null {
-  const [remaining, setRemaining] = useState(() =>
-    targetMs === null ? 0 : targetMs - Date.now(),
-  )
+function useCountdown(targetMs: number): string | null {
+  const [remaining, setRemaining] = useState(() => targetMs - Date.now())
 
   useEffect(() => {
-    if (targetMs === null) return
     setRemaining(targetMs - Date.now())
     const id = setInterval(() => setRemaining(targetMs - Date.now()), 1000)
     return () => clearInterval(id)
   }, [targetMs])
 
-  if (targetMs === null || remaining <= 0) return null
+  if (remaining <= 0) return null
   const totalSeconds = Math.floor(remaining / 1000)
   const minutes = Math.floor(totalSeconds / 60)
   const seconds = totalSeconds % 60
@@ -46,24 +43,26 @@ function useCountdown(targetMs: number | null): string | null {
  * Last-chance discount, shown once when the shopper looks like they're leaving
  * the checkout page. The countdown is the coupon's real expiry — accepting
  * applies it to the order in one tap, so there's nothing to copy or retype.
+ *
+ * Only ever rendered with a code already in hand: the caller claims first and
+ * mounts this second, so a basket that doesn't qualify (below the shop's
+ * threshold, or the offer switched off) simply never sees a dialog rather than
+ * one that appears and vanishes.
  */
 export function ExitOfferDialog({
   offer,
-  loading,
   open,
   onOpenChange,
   onAccept,
 }: {
-  /** The minted offer, or null while it's still being claimed. */
-  offer: ExitOffer | null
-  loading: boolean
+  offer: ExitOffer
   open: boolean
   onOpenChange: (open: boolean) => void
   onAccept: (offer: ExitOffer) => void
 }) {
   const t = useTranslations("checkout.exit_offer")
-  const countdown = useCountdown(offer?.expiresAtMs ?? null)
-  const expired = offer !== null && countdown === null
+  const countdown = useCountdown(offer.expiresAtMs)
+  const expired = countdown === null
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -71,40 +70,29 @@ export function ExitOfferDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Tag className="size-5 shrink-0 text-primary" aria-hidden="true" />
-            {offer ? t("title", { percent: offer.percent }) : t("title_generic")}
+            {t("title", { percent: offer.percent })}
           </DialogTitle>
           <DialogDescription>
-            {offer && !expired
-              ? t("description", { percent: offer.percent })
-              : null}
+            {expired ? null : t("description", { percent: offer.percent })}
           </DialogDescription>
         </DialogHeader>
 
-        {loading || !offer ? (
-          <div className="flex justify-center py-6">
-            <Loader2
-              className="size-5 animate-spin text-muted-foreground"
-              aria-hidden="true"
-            />
-          </div>
-        ) : (
-          <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-3 text-center">
-            <p
-              className="font-mono text-lg font-semibold tracking-widest text-foreground"
-              dir="ltr"
-            >
-              {offer.code}
-            </p>
-            <p
-              className={`mt-1 text-sm font-medium tabular-nums ${
-                expired ? "text-muted-foreground" : "text-destructive"
-              }`}
-              aria-live="polite"
-            >
-              {countdown ? t("expires_in", { time: countdown }) : t("expired")}
-            </p>
-          </div>
-        )}
+        <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-3 text-center">
+          <p
+            className="font-mono text-lg font-semibold tracking-widest text-foreground"
+            dir="ltr"
+          >
+            {offer.code}
+          </p>
+          <p
+            className={`mt-1 text-sm font-medium tabular-nums ${
+              expired ? "text-muted-foreground" : "text-destructive"
+            }`}
+            aria-live="polite"
+          >
+            {countdown ? t("expires_in", { time: countdown }) : t("expired")}
+          </p>
+        </div>
 
         <p className="text-center text-xs text-muted-foreground">
           {t("excludes_shipping")}
@@ -120,10 +108,10 @@ export function ExitOfferDialog({
           </Button>
           <Button
             type="button"
-            disabled={!offer || expired || loading}
-            onClick={() => offer && onAccept(offer)}
+            disabled={expired}
+            onClick={() => onAccept(offer)}
           >
-            {offer ? t("accept", { percent: offer.percent }) : t("accept_generic")}
+            {t("accept", { percent: offer.percent })}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -295,7 +295,6 @@ export function CheckoutForm({
   // countdown the customer sees are the coupon's real ones.
   const [exitOfferOpen, setExitOfferOpen] = useState(false)
   const [exitOffer, setExitOffer] = useState<ExitOffer | null>(null)
-  const [exitOfferLoading, setExitOfferLoading] = useState(false)
 
   const exitOfferEligible =
     hasHydrated && items.length > 0 && !couponCode && !submitting
@@ -303,24 +302,23 @@ export function CheckoutForm({
   useExitIntent(exitOfferEligible, () => {
     if (exitOfferSeen()) return
     markExitOfferSeen()
-    setExitOfferOpen(true)
-    setExitOfferLoading(true)
+    // Claim first, show second. The server decides whether this basket earns an
+    // offer at all — it may be below the shop's threshold, the offer may be
+    // switched off, or the rate limit may have tripped — and a dialog that
+    // appears only to vanish is worse than one that never appears.
     void claimExitOfferAction({ items: cartPayload() })
       .then((result) => {
-        if (!result.ok) {
-          // Nothing to offer (disabled, cart no longer qualifies, rate limited)
-          // — close again rather than show an empty box.
-          setExitOfferOpen(false)
-          return
-        }
+        if (!result.ok) return
         setExitOffer({
           code: result.code,
           percent: result.percent,
           expiresAtMs: new Date(result.expiresAt).getTime(),
         })
+        setExitOfferOpen(true)
       })
-      .catch(() => setExitOfferOpen(false))
-      .finally(() => setExitOfferLoading(false))
+      .catch(() => {
+        // Offer lost to a network blip; the checkout itself is unaffected.
+      })
   })
 
   /**
@@ -989,13 +987,14 @@ export function CheckoutForm({
           </form>
       </div>
 
-      <ExitOfferDialog
-        offer={exitOffer}
-        loading={exitOfferLoading}
-        open={exitOfferOpen}
-        onOpenChange={setExitOfferOpen}
-        onAccept={acceptExitOffer}
-      />
+      {exitOffer ? (
+        <ExitOfferDialog
+          offer={exitOffer}
+          open={exitOfferOpen}
+          onOpenChange={setExitOfferOpen}
+          onAccept={acceptExitOffer}
+        />
+      ) : null}
 
       {unavailable ? (
         <UnavailableItemsDialog

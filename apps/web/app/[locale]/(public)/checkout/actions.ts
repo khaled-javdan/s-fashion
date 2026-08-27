@@ -33,7 +33,11 @@ import {
   parseShippingConfig,
   resolveShipping,
 } from "@/lib/shipping-config"
-import { DEFAULT_EXIT_OFFER, getSetting } from "@/lib/repos/settings.repo"
+import {
+  DEFAULT_EXIT_OFFER,
+  getSetting,
+  withDefaults,
+} from "@/lib/repos/settings.repo"
 import {
   ABSOLUTE_MAX_QTY_PER_VARIANT,
   DEFAULT_MAX_QTY_PER_VARIANT,
@@ -317,7 +321,10 @@ export async function claimExitOfferAction(input: {
   if (!parsed.success) return { ok: false, reason: "unavailable" }
 
   try {
-    const config = (await getSetting("checkout.exit_offer")) ?? DEFAULT_EXIT_OFFER
+    const config = withDefaults(
+      await getSetting("checkout.exit_offer"),
+      DEFAULT_EXIT_OFFER,
+    )
     if (!config.enabled || config.percent <= 0 || config.minutes <= 0) {
       return { ok: false, reason: "unavailable" }
     }

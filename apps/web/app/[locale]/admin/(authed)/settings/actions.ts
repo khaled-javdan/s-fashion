@@ -112,6 +112,7 @@ const settingValidators: Record<SettingKey, z.ZodTypeAny> = {
     percent: z.number().int().min(0).max(100),
     delayMinutes: z.number().int().min(5).max(10080),
     couponHours: z.number().int().min(1).max(720),
+    minSubtotalFils: z.number().int().min(0),
   }),
 }
 

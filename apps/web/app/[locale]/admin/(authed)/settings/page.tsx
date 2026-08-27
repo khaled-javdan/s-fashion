@@ -47,6 +47,7 @@ import {
   DEFAULT_ABANDONED_EMAIL,
   DEFAULT_EXIT_OFFER,
   getAllSettings,
+  withDefaults,
   type KnownSettings,
 } from "@/lib/repos/settings.repo"
 
@@ -170,10 +171,11 @@ export default async function AdminSettingsPage() {
   const stripeEnabled = read(all, "payments.stripe_enabled", false)
   const stripeConfigured = Boolean(process.env.STRIPE_SECRET_KEY)
   const welcomeDiscountPercent = read(all, "marketing.welcome_discount_percent", 10)
-  const exitOffer = read(all, "checkout.exit_offer", DEFAULT_EXIT_OFFER)
-  const abandonedEmail = read(
-    all,
-    "checkout.abandoned_email",
+  // Merged over defaults, not read raw: a row saved before a field existed
+  // would otherwise hand the form an `undefined` amount and crash this page.
+  const exitOffer = withDefaults(all["checkout.exit_offer"], DEFAULT_EXIT_OFFER)
+  const abandonedEmail = withDefaults(
+    all["checkout.abandoned_email"],
     DEFAULT_ABANDONED_EMAIL,
   )
   const hero = parseHeroConfig(all["home.hero"])

@@ -24,6 +24,7 @@ import {
 import {
   DEFAULT_ABANDONED_EMAIL,
   getSetting,
+  withDefaults,
 } from "@/lib/repos/settings.repo";
 import { sendAbandonedCheckoutEmail } from "@/lib/services/resend";
 
@@ -69,14 +70,26 @@ async function mintRecoveryCoupon(
   return { code, percent, expiresAt };
 }
 
-/** Send the recovery email for one abandoned checkout. Never throws. */
+/**
+ * Send the recovery email for one abandoned checkout. Never throws.
+ *
+ * A basket below `minSubtotalFils` still gets the reminder — it just doesn't
+ * earn a code. Recovering a small order is still worth an email; discounting
+ * one isn't necessarily.
+ */
 async function recoverOne(
   order: AbandonedCheckout,
-  percent: number,
-  couponHours: number,
+  config: {
+    percent: number;
+    couponHours: number;
+    minSubtotalFils: number;
+  },
 ): Promise<boolean> {
   const locale = toLocale(order.locale);
-  const coupon = await mintRecoveryCoupon(percent, couponHours);
+  const earnsDiscount = order.subtotalFils >= config.minSubtotalFils;
+  const coupon = earnsDiscount
+    ? await mintRecoveryCoupon(config.percent, config.couponHours)
+    : null;
 
   const result = await sendAbandonedCheckoutEmail({
     to: order.email,
@@ -126,15 +139,22 @@ export type RecoverySweepResult = {
  * most once. One failure never aborts the batch.
  */
 export async function sweepAbandonedCheckouts(): Promise<RecoverySweepResult> {
-  const config =
-    (await getSetting("checkout.abandoned_email")) ?? DEFAULT_ABANDONED_EMAIL;
+  const config = withDefaults(
+    await getSetting("checkout.abandoned_email"),
+    DEFAULT_ABANDONED_EMAIL,
+  );
   if (!config.enabled) return { enabled: false, found: 0, sent: 0 };
 
   const orders = await listAbandonedCheckouts(config.delayMinutes);
   let sent = 0;
   for (const order of orders) {
     try {
-      if (await recoverOne(order, config.percent, config.couponHours)) sent++;
+      const delivered = await recoverOne(order, {
+        percent: config.percent,
+        couponHours: config.couponHours,
+        minSubtotalFils: config.minSubtotalFils,
+      });
+      if (delivered) sent++;
     } catch (err) {
       reportError("abandonedCheckout.order", err, { orderId: order.id });
     }

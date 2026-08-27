@@ -259,19 +259,17 @@
     "country_placeholder": "Select a country",
     "exit_offer": {
       "title": "Wait — here's {percent}% off",
-      "title_generic": "Wait — here's a discount",
       "description": "Finish your order now and take {percent}% off your items. This code is yours alone and it won't be re-issued.",
       "expires_in": "Expires in {time}",
       "expired": "This offer has expired.",
       "excludes_shipping": "Applies to items only — shipping is not discounted.",
       "accept": "Apply {percent}% & continue",
-      "accept_generic": "Apply & continue",
       "decline": "No thanks",
       "applied": "{percent}% off applied to your order."
     },
     "unavailable": {
       "title": "Some items just sold out",
-      "description": "Your order wasn't placed and nothing was charged. These items changed while you were checking out \u2014 update them to continue.",
+      "description": "Your order wasn't placed and nothing was charged. These items changed while you were checking out — update them to continue.",
       "sold_out": "Sold out",
       "discontinued": "No longer available",
       "only_left": "Only {count} left",
@@ -282,7 +280,7 @@
       "apply": "Update cart",
       "done": "Continue",
       "review_cart": "Review cart",
-      "toast_updated": "Cart updated \u2014 you can place your order now."
+      "toast_updated": "Cart updated — you can place your order now."
     },
     "coupon": {
       "label": "Coupon",
@@ -1181,7 +1179,12 @@
         "minutes_range_error": "The code must be valid for 1 to 1440 minutes.",
         "delay_range_error": "The delay must be between 5 minutes and 7 days.",
         "hours_range_error": "The emailed code must be valid for 1 to 720 hours.",
-        "saved_toast": "Cart recovery settings saved."
+        "saved_toast": "Cart recovery settings saved.",
+        "threshold_label": "Minimum order",
+        "offer_threshold_help": "Only offer the discount when the cart is worth at least this. 0 offers it on every cart.",
+        "email_threshold_help": "Only include a code when the abandoned basket was worth at least this. Smaller baskets still get the reminder, without a discount. 0 discounts every basket.",
+        "aed_suffix": "AED",
+        "threshold_range_error": "The minimum order must be 0 or more."
       },
       "payments": {
         "card_title": "Online payments",

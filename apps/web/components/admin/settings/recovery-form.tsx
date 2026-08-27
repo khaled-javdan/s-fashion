@@ -11,6 +11,7 @@ import { Switch } from "@workspace/ui/components/switch"
 
 import { updateSettingsAction } from "@/app/[locale]/admin/(authed)/settings/actions"
 import { useSaveBar } from "@/components/admin/save-bar"
+import { aedToFils, filsToAed } from "@/lib/money"
 
 export type ExitOfferValue = {
   enabled: boolean
@@ -24,6 +25,7 @@ export type AbandonedEmailValue = {
   percent: number
   delayMinutes: number
   couponHours: number
+  minSubtotalFils: number
 }
 
 type Props = {
@@ -48,12 +50,15 @@ export function RecoveryForm({ exitOffer, abandonedEmail }: Props) {
   const [pendingToggle, startToggleTransition] = useTransition()
   const [pendingSave, startSaveTransition] = useTransition()
 
+  // Thresholds are edited in AED and stored in fils, like the coupon form.
   const [saved, setSaved] = useState({
     offerPercent: String(exitOffer.percent),
     offerMinutes: String(exitOffer.minutes),
+    offerMinAed: String(filsToAed(exitOffer.minSubtotalFils)),
     emailPercent: String(abandonedEmail.percent),
     emailDelay: String(abandonedEmail.delayMinutes),
     emailHours: String(abandonedEmail.couponHours),
+    emailMinAed: String(filsToAed(abandonedEmail.minSubtotalFils)),
   })
   const [draft, setDraft] = useState(saved)
 
@@ -74,6 +79,7 @@ export function RecoveryForm({ exitOffer, abandonedEmail }: Props) {
                 ...exitOffer,
                 percent: Number(draft.offerPercent) || exitOffer.percent,
                 minutes: Number(draft.offerMinutes) || exitOffer.minutes,
+                minSubtotalFils: aedToFils(Number(draft.offerMinAed) || 0),
                 enabled: checked,
               },
             })
@@ -86,6 +92,7 @@ export function RecoveryForm({ exitOffer, abandonedEmail }: Props) {
                   Number(draft.emailDelay) || abandonedEmail.delayMinutes,
                 couponHours:
                   Number(draft.emailHours) || abandonedEmail.couponHours,
+                minSubtotalFils: aedToFils(Number(draft.emailMinAed) || 0),
                 enabled: checked,
               },
             })
@@ -105,6 +112,8 @@ export function RecoveryForm({ exitOffer, abandonedEmail }: Props) {
     const emailPercent = Math.floor(Number(draft.emailPercent))
     const emailDelay = Math.floor(Number(draft.emailDelay))
     const emailHours = Math.floor(Number(draft.emailHours))
+    const offerMinAed = Number(draft.offerMinAed)
+    const emailMinAed = Number(draft.emailMinAed)
 
     if (!(offerPercent >= 1 && offerPercent <= 100)) {
       toast.error(t("percent_range_error"))
@@ -126,6 +135,15 @@ export function RecoveryForm({ exitOffer, abandonedEmail }: Props) {
       toast.error(t("hours_range_error"))
       return
     }
+    if (
+      !Number.isFinite(offerMinAed) ||
+      offerMinAed < 0 ||
+      !Number.isFinite(emailMinAed) ||
+      emailMinAed < 0
+    ) {
+      toast.error(t("threshold_range_error"))
+      return
+    }
 
     const snapshot = draft
     startSaveTransition(async () => {
@@ -137,6 +155,7 @@ export function RecoveryForm({ exitOffer, abandonedEmail }: Props) {
             enabled: offerEnabled,
             percent: offerPercent,
             minutes: offerMinutes,
+            minSubtotalFils: aedToFils(offerMinAed),
           },
         }),
         updateSettingsAction({
@@ -146,6 +165,7 @@ export function RecoveryForm({ exitOffer, abandonedEmail }: Props) {
             percent: emailPercent,
             delayMinutes: emailDelay,
             couponHours: emailHours,
+            minSubtotalFils: aedToFils(emailMinAed),
           },
         }),
       ])
@@ -193,7 +213,7 @@ export function RecoveryForm({ exitOffer, abandonedEmail }: Props) {
           </div>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-3">
           <NumberField
             id="exit-offer-percent"
             label={t("offer_percent_label")}
@@ -213,6 +233,16 @@ export function RecoveryForm({ exitOffer, abandonedEmail }: Props) {
             max={1440}
             value={draft.offerMinutes}
             onChange={set("offerMinutes")}
+          />
+          <NumberField
+            id="exit-offer-min"
+            label={t("threshold_label")}
+            help={t("offer_threshold_help")}
+            suffix={t("aed_suffix")}
+            min={0}
+            max={1000000}
+            value={draft.offerMinAed}
+            onChange={set("offerMinAed")}
           />
         </div>
       </section>
@@ -241,7 +271,7 @@ export function RecoveryForm({ exitOffer, abandonedEmail }: Props) {
           </div>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <NumberField
             id="abandoned-email-percent"
             label={t("email_percent_label")}
@@ -271,6 +301,16 @@ export function RecoveryForm({ exitOffer, abandonedEmail }: Props) {
             max={720}
             value={draft.emailHours}
             onChange={set("emailHours")}
+          />
+          <NumberField
+            id="abandoned-email-min"
+            label={t("threshold_label")}
+            help={t("email_threshold_help")}
+            suffix={t("aed_suffix")}
+            min={0}
+            max={1000000}
+            value={draft.emailMinAed}
+            onChange={set("emailMinAed")}
           />
         </div>
       </section>
