@@ -50,7 +50,10 @@ export function CartPageContents() {
 
   return (
     <div className="grid gap-8 lg:grid-cols-[1fr_20rem]">
-      <div className="divide-y divide-border">
+      {/* min-w-0: grid items default to min-width:auto, which would let the
+          longest product name stretch the column past the viewport instead of
+          letting the line item's truncation kick in. */}
+      <div className="min-w-0 divide-y divide-border">
         {items.map((item) => (
           <CartLineItem key={item.variantId} item={item} />
         ))}
