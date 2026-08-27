@@ -36,6 +36,9 @@ export function TrafficAreaChart({ data, locale, granularity, labels }: Props) {
     }).format(date)
   }
 
+  // A single-day window plots one point, which an area/line alone can't draw.
+  const singlePoint = data.length === 1
+
   return (
     <div className="h-[260px] w-full" dir="ltr">
       <ResponsiveContainer width="100%" height="100%">
@@ -112,6 +115,7 @@ export function TrafficAreaChart({ data, locale, granularity, labels }: Props) {
             stroke="var(--chart-3)"
             strokeWidth={2}
             fill="url(#pvFill)"
+            dot={singlePoint}
           />
           <Area
             type="monotone"
@@ -119,6 +123,7 @@ export function TrafficAreaChart({ data, locale, granularity, labels }: Props) {
             stroke="var(--chart-4)"
             strokeWidth={2}
             fill="url(#visFill)"
+            dot={singlePoint}
           />
         </AreaChart>
       </ResponsiveContainer>

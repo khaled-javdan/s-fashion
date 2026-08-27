@@ -15,6 +15,7 @@ import { AiModelForm } from "@/components/admin/settings/ai-model-form"
 import { AntiAbuseForm } from "@/components/admin/settings/anti-abuse-form"
 import { MarketingForm } from "@/components/admin/settings/marketing-form"
 import { PaymentsForm } from "@/components/admin/settings/payments-form"
+import { RecoveryForm } from "@/components/admin/settings/recovery-form"
 import { CompanyForm } from "@/components/admin/settings/company-form"
 import { ContactForm } from "@/components/admin/settings/contact-form"
 import { GridForm } from "@/components/admin/settings/grid-form"
@@ -43,6 +44,8 @@ import {
   type CatalogFacets,
 } from "@/lib/repos/products.repo"
 import {
+  DEFAULT_ABANDONED_EMAIL,
+  DEFAULT_EXIT_OFFER,
   getAllSettings,
   type KnownSettings,
 } from "@/lib/repos/settings.repo"
@@ -62,7 +65,10 @@ const NAV_GROUPS = [
     group: "policies",
     tabs: ["size-chart", "shipping-return", "returns", "limits"],
   },
-  { group: "business", tabs: ["contact", "company", "marketing", "ai"] },
+  {
+    group: "business",
+    tabs: ["contact", "company", "marketing", "recovery", "ai"],
+  },
 ] as const
 
 /**
@@ -164,6 +170,12 @@ export default async function AdminSettingsPage() {
   const stripeEnabled = read(all, "payments.stripe_enabled", false)
   const stripeConfigured = Boolean(process.env.STRIPE_SECRET_KEY)
   const welcomeDiscountPercent = read(all, "marketing.welcome_discount_percent", 10)
+  const exitOffer = read(all, "checkout.exit_offer", DEFAULT_EXIT_OFFER)
+  const abandonedEmail = read(
+    all,
+    "checkout.abandoned_email",
+    DEFAULT_ABANDONED_EMAIL,
+  )
   const hero = parseHeroConfig(all["home.hero"])
   const grid = parseGridConfig(read(all, "home.grid", DEFAULT_GRID))
   const shopBy = parseShopByConfig(all["home.shop_by"])
@@ -367,6 +379,18 @@ export default async function AdminSettingsPage() {
             <MarketingForm
               whatsappEnabled={whatsappEnabled}
               welcomeDiscountPercent={welcomeDiscountPercent}
+            />
+          </SettingsCard>
+        </TabsContent>
+
+        <TabsContent value="recovery">
+          <SettingsCard
+            title={t("recovery.card_title")}
+            description={t("recovery.card_description")}
+          >
+            <RecoveryForm
+              exitOffer={exitOffer}
+              abandonedEmail={abandonedEmail}
             />
           </SettingsCard>
         </TabsContent>

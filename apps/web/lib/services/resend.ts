@@ -613,3 +613,312 @@ function renderOrderText(locale: Locale, order: OrderEmailPayload): string {
   lines.push("", t.help, "", t.signature);
   return lines.join("\n");
 }
+
+// ─── Abandoned-checkout recovery ──────────────────────────────────────
+
+/** One line of the basket we're reminding the customer about. */
+export interface AbandonedEmailItem {
+  productName: string;
+  variantLabel?: string;
+  quantity: number;
+  unitPriceFils: number;
+}
+
+export interface AbandonedEmailPayload {
+  customerName: string;
+  items: AbandonedEmailItem[];
+  subtotalFils: number;
+  /** Link back to the storefront with the basket refilled. */
+  cartUrl: string;
+  logoUrl?: string;
+  /** The recovery discount, or null when the shop sends a plain reminder. */
+  coupon?: { code: string; percent: number; expiresAt: Date } | null;
+  currency?: string;
+  fxRate?: number;
+}
+
+interface AbandonedStrings {
+  subject: string;
+  preview: string;
+  tag: string;
+  greeting: (name: string) => string;
+  intro: string;
+  couponIntro: (percent: number) => string;
+  couponExpiry: (hours: number) => string;
+  itemsHeading: string;
+  qtyLabel: string;
+  subtotalLabel: string;
+  excludesShipping: string;
+  cta: string;
+  stockNote: string;
+  help: string;
+  signature: string;
+}
+
+const ABANDONED_STRINGS: Record<Locale, AbandonedStrings> = {
+  ar: {
+    subject: "سلتك ما زالت بانتظارك",
+    preview: "احتفظنا بقطعك — أكملي طلبك قبل نفادها.",
+    tag: "سلتك محفوظة",
+    greeting: (name) => `مرحباً ${name}،`,
+    intro:
+      "لاحظنا أنك لم تكملي طلبك. احتفظنا بهذه القطع لكِ — لكن الكميات محدودة.",
+    couponIntro: (percent) =>
+      `وهذه هدية صغيرة: خصم ${percent}٪ على قطعك عند إتمام الطلب.`,
+    couponExpiry: (hours) => `الرمز صالح لمدة ${hours} ساعة.`,
+    itemsHeading: "القطع في سلتك",
+    qtyLabel: "الكمية",
+    subtotalLabel: "المجموع الفرعي",
+    excludesShipping: "الخصم على القطع فقط — لا يشمل رسوم التوصيل.",
+    cta: "أكملي طلبك",
+    stockNote: "القطع تُحجز فقط عند إتمام الطلب.",
+    help: "لأي استفسار، تواصلي معنا عبر واتساب وسنسعد بمساعدتك.",
+    signature: "فريق S Fashion",
+  },
+  en: {
+    subject: "Your basket is still waiting",
+    preview: "We've kept your pieces — finish your order before they go.",
+    tag: "Basket saved",
+    greeting: (name) => `Hi ${name},`,
+    intro:
+      "You didn't finish your order. We've kept these pieces for you — but stock is limited.",
+    couponIntro: (percent) =>
+      `Here's a little something: ${percent}% off your items when you complete the order.`,
+    couponExpiry: (hours) => `The code is valid for ${hours} hours.`,
+    itemsHeading: "In your basket",
+    qtyLabel: "Qty",
+    subtotalLabel: "Subtotal",
+    excludesShipping: "Applies to items only — shipping is not discounted.",
+    cta: "Finish your order",
+    stockNote: "Pieces are only reserved once an order is placed.",
+    help: "Any questions? Message us on WhatsApp — we're happy to help.",
+    signature: "The S Fashion team",
+  },
+};
+
+/**
+ * Send the abandoned-checkout recovery email.
+ *
+ * Deliberately a *reminder*, not a receipt: it shows what was left behind, the
+ * optional discount with its real deadline, and one button back to a refilled
+ * basket. It never implies anything is reserved — the pieces genuinely aren't.
+ * Never throws; returns a tagged result like its sibling above.
+ */
+export async function sendAbandonedCheckoutEmail(input: {
+  to: string;
+  locale: Locale;
+  payload: AbandonedEmailPayload;
+}): Promise<SendEmailResult> {
+  try {
+    const client = getClient();
+    const from = getFromAddress();
+    const t = ABANDONED_STRINGS[input.locale];
+
+    const result = await client.emails.send({
+      from,
+      to: input.to,
+      subject: t.subject,
+      html: renderAbandonedHtml(input.locale, input.payload),
+      text: renderAbandonedText(input.locale, input.payload),
+    });
+
+    if (result.error) {
+      const error = result.error.message ?? "Resend returned an error.";
+      console.error("[resend.sendAbandonedCheckoutEmail]", error);
+      return { ok: false, error };
+    }
+    return { ok: true, id: result.data?.id ?? "" };
+  } catch (err) {
+    const message =
+      err instanceof Error ? err.message : "Failed to send email.";
+    console.error("[resend.sendAbandonedCheckoutEmail]", message);
+    return { ok: false, error: message };
+  }
+}
+
+/** Exported for an admin preview — identical to what Resend sends. */
+export function renderAbandonedCheckoutHtml(
+  locale: Locale,
+  payload: AbandonedEmailPayload,
+): string {
+  return renderAbandonedHtml(locale, payload);
+}
+
+/** Whole hours between now and `expiresAt`, floored at 1. */
+function hoursUntil(expiresAt: Date): number {
+  const ms = expiresAt.getTime() - Date.now();
+  return Math.max(1, Math.round(ms / (60 * 60 * 1000)));
+}
+
+function renderAbandonedHtml(
+  locale: Locale,
+  payload: AbandonedEmailPayload,
+): string {
+  const t = ABANDONED_STRINGS[locale];
+  const dir = locale === "ar" ? "rtl" : "ltr";
+  const alignEnd = dir === "rtl" ? "left" : "right";
+  const alignStart = dir === "rtl" ? "right" : "left";
+  const fmt = moneyFormatter(locale, payload.currency, payload.fxRate);
+
+  const logo = payload.logoUrl
+    ? `<img src="${escapeHtml(payload.logoUrl)}" alt="" height="28" style="display:block;height:28px;width:auto;border:0;outline:none;" />`
+    : "";
+
+  const itemRows = payload.items
+    .map((item) => {
+      const variant = item.variantLabel
+        ? `<div style="font-size:12px;line-height:1.4;color:${C.mutedFg};margin-top:3px;">${escapeHtml(item.variantLabel)}</div>`
+        : "";
+      return `
+        <tr>
+          <td valign="top" style="padding:12px 0;">
+            <div style="font-size:14px;line-height:1.4;color:${C.fg};">${escapeHtml(item.productName)}</div>
+            ${variant}
+            <div style="font-size:12px;line-height:1.4;color:${C.mutedFg};margin-top:3px;">${escapeHtml(t.qtyLabel)} × ${item.quantity}</div>
+          </td>
+          <td valign="top" align="${alignEnd}" style="padding:12px 0;white-space:nowrap;font-size:14px;color:${C.fg};">${escapeHtml(fmt(item.unitPriceFils * item.quantity))}</td>
+        </tr>`;
+    })
+    .join("");
+
+  const couponBlock = payload.coupon
+    ? `
+      <tr>
+        <td style="padding:18px 28px 0 28px;">
+          <table role="presentation" dir="${dir}" width="100%" cellpadding="0" cellspacing="0" style="background:${C.secondary};border:1px solid ${C.border};border-radius:12px;">
+            <tr><td align="center" style="padding:18px 20px;">
+              <div style="font-size:14px;line-height:1.6;color:${C.fg};">${escapeHtml(t.couponIntro(payload.coupon.percent))}</div>
+              <div style="font-size:22px;font-weight:700;letter-spacing:4px;color:${C.primary};margin:10px 0 6px 0;" dir="ltr">${escapeHtml(payload.coupon.code)}</div>
+              <div style="font-size:12px;color:${C.mutedFg};">${escapeHtml(t.couponExpiry(hoursUntil(payload.coupon.expiresAt)))}</div>
+              <div style="font-size:11px;color:${C.mutedFg};margin-top:6px;">${escapeHtml(t.excludesShipping)}</div>
+            </td></tr>
+          </table>
+        </td>
+      </tr>`
+    : "";
+
+  return `<!doctype html>
+<html lang="${locale}" dir="${dir}">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="color-scheme" content="light only" />
+    <title>${escapeHtml(t.subject)}</title>
+  </head>
+  <body dir="${dir}" style="margin:0;padding:0;background:${C.bg};font-family:Arial,Helvetica,sans-serif;color:${C.fg};-webkit-text-size-adjust:100%;">
+    <div style="display:none;max-height:0;overflow:hidden;opacity:0;">${escapeHtml(t.preview)}</div>
+    <table role="presentation" dir="${dir}" width="100%" cellpadding="0" cellspacing="0" style="background:${C.bg};padding:24px 12px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" dir="${dir}" width="600" cellpadding="0" cellspacing="0" style="background:${C.card};border-radius:14px;max-width:600px;width:100%;overflow:hidden;border:1px solid ${C.border};">
+
+            <tr>
+              <td style="padding:22px 28px;border-bottom:1px solid ${C.border};">
+                <table role="presentation" dir="${dir}" width="100%" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td align="${alignStart}" valign="middle">
+                      <table role="presentation" dir="${dir}" cellpadding="0" cellspacing="0"><tr>
+                        ${logo ? `<td valign="middle" style="padding-${dir === "rtl" ? "left" : "right"}:10px;">${logo}</td>` : ""}
+                        <td valign="middle"><span style="font-size:20px;font-weight:700;letter-spacing:3px;color:${C.fg};">${BRAND}</span></td>
+                      </tr></table>
+                    </td>
+                    <td align="${alignEnd}" valign="middle" style="font-size:13px;color:${C.mutedFg};">${escapeHtml(t.tag)}</td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="padding:24px 28px 4px 28px;">
+                <p style="margin:0 0 10px 0;font-size:16px;font-weight:700;color:${C.fg};">${escapeHtml(t.greeting(payload.customerName))}</p>
+                <p style="margin:0;font-size:14px;line-height:1.6;color:${C.fg};">${escapeHtml(t.intro)}</p>
+              </td>
+            </tr>
+
+            ${couponBlock}
+
+            <tr>
+              <td align="center" style="padding:22px 28px 4px 28px;">
+                <a href="${escapeHtml(payload.cartUrl)}" style="display:inline-block;background:${C.primary};color:${C.primaryFg};text-decoration:none;font-size:15px;font-weight:700;padding:13px 40px;border-radius:999px;">${escapeHtml(t.cta)}</a>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="padding:14px 28px 0 28px;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid ${C.border};">
+                  <tr><td style="padding:16px 0 4px 0;">
+                    <span style="font-size:15px;font-weight:700;color:${C.fg};">${escapeHtml(t.itemsHeading)}</span>
+                  </td></tr>
+                </table>
+                <table role="presentation" dir="${dir}" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">${itemRows}</table>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="padding:8px 28px 24px 28px;">
+                <table role="presentation" dir="${dir}" width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid ${C.border};">
+                  <tr>
+                    <td align="${alignStart}" style="padding:12px 0 0 0;font-size:14px;color:${C.mutedFg};">${escapeHtml(t.subtotalLabel)}</td>
+                    <td align="${alignEnd}" style="padding:12px 0 0 0;font-size:16px;font-weight:700;color:${C.fg};">${escapeHtml(fmt(payload.subtotalFils))}</td>
+                  </tr>
+                </table>
+                <p style="margin:14px 0 0 0;font-size:12px;line-height:1.6;color:${C.mutedFg};">${escapeHtml(t.stockNote)}</p>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="padding:20px 28px;background:${C.secondary};border-top:1px solid ${C.border};">
+                <p style="margin:0 0 6px 0;font-size:12px;line-height:1.6;color:${C.mutedFg};">${escapeHtml(t.help)}</p>
+                <p style="margin:0;font-size:12px;color:${C.mutedFg};">${escapeHtml(t.signature)}</p>
+              </td>
+            </tr>
+
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+}
+
+function renderAbandonedText(
+  locale: Locale,
+  payload: AbandonedEmailPayload,
+): string {
+  const t = ABANDONED_STRINGS[locale];
+  const fmt = moneyFormatter(locale, payload.currency, payload.fxRate);
+  const lines: string[] = [
+    t.greeting(payload.customerName),
+    "",
+    t.intro,
+    "",
+  ];
+  if (payload.coupon) {
+    lines.push(
+      t.couponIntro(payload.coupon.percent),
+      payload.coupon.code,
+      t.couponExpiry(hoursUntil(payload.coupon.expiresAt)),
+      t.excludesShipping,
+      "",
+    );
+  }
+  lines.push(`${t.itemsHeading}:`);
+  for (const item of payload.items) {
+    const variant = item.variantLabel ? ` (${item.variantLabel})` : "";
+    lines.push(
+      `- ${item.productName}${variant} · ${t.qtyLabel} × ${item.quantity} · ${fmt(item.unitPriceFils * item.quantity)}`,
+    );
+  }
+  lines.push(
+    "",
+    `${t.subtotalLabel}: ${fmt(payload.subtotalFils)}`,
+    "",
+    `${t.cta}: ${payload.cartUrl}`,
+    "",
+    t.stockNote,
+    "",
+    t.help,
+    t.signature,
+  );
+  return lines.join("\n");
+}

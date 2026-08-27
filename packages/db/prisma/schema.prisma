@@ -184,6 +184,9 @@ model Order {
   adminNotifiedAt   DateTime? // Telegram owner alert sent at
   customerEmailedAt DateTime? // Resend confirmation email sent at
   customerSmsedAt   DateTime? // Twilio SMS order confirmation sent at
+  // Abandoned-checkout recovery email sent at (null = never). Set by the
+  // recovery sweep so an abandoned order is only ever chased once.
+  abandonedNotifiedAt DateTime?
   items         OrderItem[]
   events        OrderEvent[]
   redemption    CouponRedemption?

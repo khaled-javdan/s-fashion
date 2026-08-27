@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { getLocale, getTranslations } from "next-intl/server"
 
+import { LogoStacked } from "@/components/layout/logo"
 import type { Locale } from "@/lib/locale"
 import { getSetting } from "@/lib/repos/settings.repo"
 
@@ -64,9 +65,10 @@ export async function Footer() {
         <div className="md:col-span-4">
           <Link
             href={`/${locale}`}
-            className="font-heading text-xl tracking-[0.35em] uppercase text-foreground"
+            aria-label="S Fashion"
+            className="inline-flex text-foreground"
           >
-            S FASHION
+            <LogoStacked brandLine={t("brand_line")} />
           </Link>
           <p className="mt-3 max-w-xs text-sm text-muted-foreground">
             {t("tagline")}

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Image from "next/image"
 import { useLocale, useTranslations } from "next-intl"
 import { ChevronDown, Loader2, X } from "lucide-react"
@@ -22,6 +22,24 @@ import type { Locale } from "@/lib/locale"
 import { resolveShipping, type ShippingConfig } from "@/lib/shipping-config"
 import { Price } from "@/components/currency/price"
 
+/** mm:ss left until `targetMs`, or null when unset / already past. */
+function useCountdown(targetMs: number | null): string | null {
+  const [remaining, setRemaining] = useState(() =>
+    targetMs === null ? 0 : targetMs - Date.now(),
+  )
+
+  useEffect(() => {
+    if (targetMs === null) return
+    setRemaining(targetMs - Date.now())
+    const id = setInterval(() => setRemaining(targetMs - Date.now()), 1000)
+    return () => clearInterval(id)
+  }, [targetMs])
+
+  if (targetMs === null || remaining <= 0) return null
+  const totalSeconds = Math.floor(remaining / 1000)
+  return `${Math.floor(totalSeconds / 60)}:${String(totalSeconds % 60).padStart(2, "0")}`
+}
+
 /**
  * Sticky order summary (desktop) / collapsible summary (mobile).
  *
@@ -41,6 +59,12 @@ export type CouponUi = {
   applying: boolean
   /** A tagged reason the last apply attempt failed, or null. */
   error: string | null
+  /**
+   * Deadline of a time-limited code (the last-chance exit offer), in epoch
+   * millis, or null for an open-ended one. Counted down next to the applied
+   * code so a lapsing discount is never a silent surprise at payment time.
+   */
+  expiresAtMs?: number | null
   onApply: (code: string) => void
   onRemove: () => void
 }
@@ -84,6 +108,8 @@ export function OrderSummary({
     : 0
   const totalFils = subtotalFils - discountFils + shippingFils
 
+  const couponCountdown = useCountdown(coupon?.expiresAtMs ?? null)
+
   const couponBlock = coupon ? (
     <div className="space-y-2">
       {coupon.code ? (
@@ -93,6 +119,14 @@ export function OrderSummary({
             <span className="font-mono uppercase tracking-wide" dir="ltr">
               {coupon.code}
             </span>
+            {couponCountdown ? (
+              <span
+                className="text-xs font-medium tabular-nums text-destructive"
+                aria-live="polite"
+              >
+                {t("exit_offer.expires_in", { time: couponCountdown })}
+              </span>
+            ) : null}
           </span>
           <button
             type="button"

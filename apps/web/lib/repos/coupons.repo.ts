@@ -188,6 +188,36 @@ export async function recordCouponRedemption(
   });
 }
 
+/**
+ * Prefix for the codes minted by the checkout exit offer. Kept here so the
+ * minting action and the housekeeping sweep below can't drift apart.
+ */
+export const EXIT_OFFER_CODE_PREFIX = "STAY";
+
+/**
+ * Delete exit-offer codes that expired unused.
+ *
+ * One code is minted every time the offer is shown, so most are never
+ * redeemed — without this the table would fill with dead rows. Only touches
+ * codes that are past their expiry AND were never redeemed, so nothing an
+ * order references is ever removed. Returns how many were deleted.
+ */
+export async function purgeExpiredExitOfferCoupons(
+  olderThanHours = 24,
+): Promise<number> {
+  const cutoff = new Date(Date.now() - olderThanHours * 60 * 60 * 1000);
+  const { count } = await prisma.coupon.deleteMany({
+    where: {
+      code: { startsWith: `${EXIT_OFFER_CODE_PREFIX}-` },
+      timesRedeemed: 0,
+      expiresAt: { lt: cutoff },
+      redemptions: { none: {} },
+      orders: { none: {} },
+    },
+  });
+  return count;
+}
+
 // ─── Admin helpers ──────────────────────────────────────────────────────────
 
 export type CouponWithCount = Coupon & { _count: { redemptions: number } };

@@ -28,6 +28,7 @@ import {
 } from "@workspace/ui/components/sidebar"
 
 import { useAdminLocale } from "@/components/admin/use-admin-locale"
+import { Logo } from "@/components/layout/logo"
 
 type NavKey =
   | "dashboard"
@@ -101,12 +102,13 @@ export function AdminSidebar() {
       <SidebarHeader className="h-14 flex-row items-center border-b p-0 px-2">
         <Link
           href={root}
-          className="flex items-center px-2 text-sm font-semibold tracking-[0.2em] text-sidebar-foreground uppercase"
+          aria-label="S Fashion"
+          className="flex items-center px-2 text-sidebar-foreground"
         >
-          S
-          <span className="group-data-[collapsible=icon]:hidden">
-            &nbsp;Fashion
-          </span>
+          <Logo
+            markClassName="h-6 shrink-0"
+            wordmarkClassName="text-base group-data-[collapsible=icon]:hidden"
+          />
         </Link>
       </SidebarHeader>
 

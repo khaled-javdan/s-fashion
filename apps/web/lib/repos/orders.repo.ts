@@ -1235,6 +1235,207 @@ export async function markOrderRefundedByPaymentIntent(
   return { found: true, orderId: order.id };
 }
 
+/** An abandoned checkout worth chasing, with everything the email needs. */
+export type AbandonedCheckout = {
+  id: string;
+  orderNumber: string;
+  customerName: string;
+  email: string;
+  phone: string;
+  locale: string;
+  subtotalFils: number;
+  items: {
+    variantId: string;
+    productNameAr: string;
+    productNameEn: string;
+    colorNameAr: string | null;
+    colorNameEn: string | null;
+    size: string;
+    quantity: number;
+    unitPriceFils: number;
+  }[];
+};
+
+/**
+ * Checkouts that were started, never paid for, and are worth one recovery
+ * email. Deliberately narrow — this is outbound mail to real customers:
+ *
+ *  - Stripe orders CANCELLED because the payment window lapsed. A shopper who
+ *    cancelled and immediately reordered leaves `superseded_by_retry` instead,
+ *    and is skipped: they didn't abandon anything.
+ *  - Never emailed before (`abandonedNotifiedAt` is null), and never paid.
+ *  - Older than the configured delay, but younger than `maxAgeHours` — nobody
+ *    wants a nudge about a basket from last month, and it stops a freshly
+ *    deployed sweep from mailing the whole back catalogue at once.
+ *  - The customer has no later order that stuck, checked per phone below, so we
+ *    never chase someone who already bought.
+ */
+export async function listAbandonedCheckouts(
+  delayMinutes: number,
+  maxAgeHours = 72,
+  take = 25,
+): Promise<AbandonedCheckout[]> {
+  const now = Date.now();
+  const sentBefore = new Date(now - delayMinutes * 60 * 1000);
+  const notOlderThan = new Date(now - maxAgeHours * 60 * 60 * 1000);
+
+  const candidates = await prisma.order.findMany({
+    where: {
+      status: OrderStatus.CANCELLED,
+      paymentMethod: PaymentMethod.STRIPE,
+      cancelReason: "payment_expired",
+      abandonedNotifiedAt: null,
+      email: { not: null },
+      createdAt: { lt: sentBefore, gt: notOlderThan },
+      NOT: { paymentStatus: PaymentStatus.PAID },
+    },
+    orderBy: { createdAt: "asc" },
+    take,
+    include: { items: true },
+  });
+  if (candidates.length === 0) return [];
+
+  // One query for every "did they end up buying anyway?" check.
+  const buyers = await prisma.order.groupBy({
+    by: ["phone"],
+    where: {
+      phone: { in: candidates.map((o) => o.phone) },
+      status: { in: SALES_STATUSES },
+    },
+  });
+  const boughtAnyway = new Set(buyers.map((b) => b.phone));
+
+  return candidates
+    .filter((order) => order.email && !boughtAnyway.has(order.phone))
+    .map((order) => ({
+      id: order.id,
+      orderNumber: order.orderNumber,
+      customerName: order.customerName,
+      email: order.email as string,
+      phone: order.phone,
+      locale: order.locale,
+      subtotalFils: order.subtotalFils,
+      items: order.items.map((item) => ({
+        variantId: item.variantId,
+        productNameAr: item.productNameAr,
+        productNameEn: item.productNameEn,
+        colorNameAr: item.colorNameAr,
+        colorNameEn: item.colorNameEn,
+        size: item.size,
+        quantity: item.quantity,
+        unitPriceFils: item.unitPriceFils,
+      })),
+    }));
+}
+
+/** A cart line rebuilt from a past order, ready to drop back into the cart. */
+export type RestorableCartLine = {
+  variantId: string;
+  productId: string;
+  slug: string;
+  nameAr: string;
+  nameEn: string;
+  colorNameAr: string | null;
+  colorNameEn: string | null;
+  colorHex: string | null;
+  size: string;
+  imageUrl: string | null;
+  unitPriceFils: number;
+  compareAtFils: number | null;
+  weightGrams: number;
+  isFinalSale: boolean;
+  quantity: number;
+};
+
+/**
+ * Rebuild an order's lines as cart items, for the "back to your basket" link in
+ * the recovery email.
+ *
+ * Prices, names and images come from the **live** product, not the order's
+ * snapshots — the customer is starting a new basket, so they should see what
+ * things cost today. Lines whose variant has since been archived, deactivated
+ * or sold out are dropped, and the rest are clamped to what's actually on the
+ * shelf, so a restored basket is never one that checkout would reject.
+ */
+export async function listRestorableCartLines(
+  orderNumber: string,
+): Promise<RestorableCartLine[]> {
+  const order = await prisma.order.findUnique({
+    where: { orderNumber },
+    select: {
+      items: {
+        select: {
+          quantity: true,
+          variant: {
+            select: {
+              id: true,
+              size: true,
+              stock: true,
+              isArchived: true,
+              colorHex: true,
+              colorNameAr: true,
+              colorNameEn: true,
+              product: {
+                select: {
+                  id: true,
+                  slug: true,
+                  nameAr: true,
+                  nameEn: true,
+                  priceFils: true,
+                  compareAtFils: true,
+                  weightGrams: true,
+                  isFinalSale: true,
+                  isActive: true,
+                  images: {
+                    orderBy: { position: "asc" },
+                    take: 1,
+                    select: { url: true },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+  if (!order) return [];
+
+  return order.items.flatMap((item) => {
+    const variant = item.variant;
+    if (!variant || variant.isArchived || !variant.product.isActive) return [];
+    const quantity = Math.min(item.quantity, variant.stock);
+    if (quantity < 1) return [];
+    return [
+      {
+        variantId: variant.id,
+        productId: variant.product.id,
+        slug: variant.product.slug,
+        nameAr: variant.product.nameAr,
+        nameEn: variant.product.nameEn,
+        colorNameAr: variant.colorNameAr,
+        colorNameEn: variant.colorNameEn,
+        colorHex: variant.colorHex,
+        size: variant.size,
+        imageUrl: variant.product.images[0]?.url ?? null,
+        unitPriceFils: variant.product.priceFils,
+        compareAtFils: variant.product.compareAtFils,
+        weightGrams: variant.product.weightGrams ?? 0,
+        isFinalSale: variant.product.isFinalSale,
+        quantity,
+      },
+    ];
+  });
+}
+
+/** Stamp an abandoned checkout as chased, so it is never emailed twice. */
+export async function markAbandonedNotified(orderId: string): Promise<void> {
+  await prisma.order.update({
+    where: { id: orderId },
+    data: { abandonedNotifiedAt: new Date() },
+  });
+}
+
 /**
  * Unpaid Stripe orders this customer still has in flight. Each one is holding
  * its lines' stock (Stripe orders reserve on creation), so an abandoned

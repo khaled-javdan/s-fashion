@@ -32,8 +32,13 @@ import { UnavailableItemsDialog } from "@/app/[locale]/(public)/checkout/unavail
 import {
   applyCouponAction,
   cancelPendingPaymentAction,
+  claimExitOfferAction,
   createOrderAction,
 } from "@/app/[locale]/(public)/checkout/actions"
+import {
+  ExitOfferDialog,
+  type ExitOffer,
+} from "@/app/[locale]/(public)/checkout/exit-offer-dialog"
 import { useCurrency } from "@/components/providers/currency-provider"
 import { beginCheckout } from "@/lib/analytics/data-layer"
 import type { UnavailableLine } from "@/lib/cart-availability"
@@ -43,6 +48,7 @@ import {
   selectSubtotalFils,
   useCartStore,
 } from "@/lib/cart-store"
+import { useExitIntent } from "@/hooks/use-exit-intent"
 import { addBreadcrumb } from "@/lib/client/report-client-error"
 import { countryHasEmirates, type CountryCode } from "@/lib/geo"
 import type { Locale } from "@/lib/locale"
@@ -170,6 +176,30 @@ function serverFieldToFormField(
 type CheckoutPaymentMethod = "COD" | "STRIPE"
 
 /**
+ * The last-chance offer is a one-shot: once a shopper has seen it in this tab
+ * we never mint a second code for them, however many times they hover away.
+ * sessionStorage (not localStorage) so a genuinely new visit can be offered
+ * again. Storage can throw in private mode — treat any failure as "not seen".
+ */
+const EXIT_OFFER_STORAGE_KEY = "s-fashion-exit-offer-seen"
+
+function exitOfferSeen(): boolean {
+  try {
+    return sessionStorage.getItem(EXIT_OFFER_STORAGE_KEY) === "1"
+  } catch {
+    return false
+  }
+}
+
+function markExitOfferSeen(): void {
+  try {
+    sessionStorage.setItem(EXIT_OFFER_STORAGE_KEY, "1")
+  } catch {
+    // best-effort
+  }
+}
+
+/**
  * Single-page checkout form (Contact + Delivery sections) with a sticky order
  * summary on desktop. Validation is done with a manual Zod-free resolver that
  * maps directly to translated messages — the authoritative validation still
@@ -196,6 +226,7 @@ export function CheckoutForm({
   const t = useTranslations("checkout")
   const tCoupon = useTranslations("checkout.coupon")
   const tUnavailable = useTranslations("checkout.unavailable")
+  const tExitOffer = useTranslations("checkout.exit_offer")
   const locale = useLocale() as Locale
   const router = useRouter()
   const { setCountry, currency } = useCurrency()
@@ -254,6 +285,59 @@ export function CheckoutForm({
   const [couponDiscountFils, setCouponDiscountFils] = useState(0)
   const [couponApplying, setCouponApplying] = useState(false)
   const [couponError, setCouponError] = useState<string | null>(null)
+  // Deadline of an applied time-limited coupon (the exit offer), so the summary
+  // can count it down instead of letting it lapse silently.
+  const [couponExpiresAtMs, setCouponExpiresAtMs] = useState<number | null>(null)
+
+  // ── Last-chance offer ─────────────────────────────────────────────────────
+  // Shown once, when the shopper looks like they're leaving with a filled cart
+  // and no discount yet. The code is minted on open so both the code and the
+  // countdown the customer sees are the coupon's real ones.
+  const [exitOfferOpen, setExitOfferOpen] = useState(false)
+  const [exitOffer, setExitOffer] = useState<ExitOffer | null>(null)
+  const [exitOfferLoading, setExitOfferLoading] = useState(false)
+
+  const exitOfferEligible =
+    hasHydrated && items.length > 0 && !couponCode && !submitting
+
+  useExitIntent(exitOfferEligible, () => {
+    if (exitOfferSeen()) return
+    markExitOfferSeen()
+    setExitOfferOpen(true)
+    setExitOfferLoading(true)
+    void claimExitOfferAction({ items: cartPayload() })
+      .then((result) => {
+        if (!result.ok) {
+          // Nothing to offer (disabled, cart no longer qualifies, rate limited)
+          // — close again rather than show an empty box.
+          setExitOfferOpen(false)
+          return
+        }
+        setExitOffer({
+          code: result.code,
+          percent: result.percent,
+          expiresAtMs: new Date(result.expiresAt).getTime(),
+        })
+      })
+      .catch(() => setExitOfferOpen(false))
+      .finally(() => setExitOfferLoading(false))
+  })
+
+  /**
+   * Apply the minted offer to this checkout, then close. The confirmation waits
+   * on the server's answer — announcing "5% off applied" next to the summary's
+   * "could not apply this coupon" would be worse than saying nothing.
+   */
+  async function acceptExitOffer(offer: ExitOffer) {
+    setExitOfferOpen(false)
+    setCouponExpiresAtMs(offer.expiresAtMs)
+    const applied = await applyCoupon(offer.code)
+    if (applied) {
+      toast.success(tExitOffer("applied", { percent: offer.percent }))
+    } else {
+      setCouponExpiresAtMs(null)
+    }
+  }
 
   /** Map a validateCoupon reason to its translated message. */
   function couponReasonMessage(reason: string): string {
@@ -445,11 +529,11 @@ export function CheckoutForm({
 
   // Apply a coupon code — DISPLAY preview only. The server re-validates at order
   // time, so an out-of-date preview can never grant an unearned discount.
-  async function applyCoupon(code: string) {
-    if (!code.trim()) return
+  async function applyCoupon(code: string): Promise<boolean> {
+    if (!code.trim()) return false
     if (items.length === 0) {
       setCouponError(couponReasonMessage("invalid_request"))
-      return
+      return false
     }
     setCouponApplying(true)
     setCouponError(null)
@@ -463,13 +547,16 @@ export function CheckoutForm({
       if (result.ok) {
         setCouponCode(result.code)
         setCouponDiscountFils(result.discountFils)
-      } else {
-        setCouponCode(null)
-        setCouponDiscountFils(0)
-        setCouponError(couponReasonMessage(result.reason))
+        return true
       }
+      setCouponCode(null)
+      setCouponDiscountFils(0)
+      setCouponExpiresAtMs(null)
+      setCouponError(couponReasonMessage(result.reason))
+      return false
     } catch {
       setCouponError(couponReasonMessage("invalid_request"))
+      return false
     } finally {
       setCouponApplying(false)
     }
@@ -478,6 +565,7 @@ export function CheckoutForm({
   function removeCoupon() {
     setCouponCode(null)
     setCouponDiscountFils(0)
+    setCouponExpiresAtMs(null)
     setCouponError(null)
   }
 
@@ -901,6 +989,14 @@ export function CheckoutForm({
           </form>
       </div>
 
+      <ExitOfferDialog
+        offer={exitOffer}
+        loading={exitOfferLoading}
+        open={exitOfferOpen}
+        onOpenChange={setExitOfferOpen}
+        onAccept={acceptExitOffer}
+      />
+
       {unavailable ? (
         <UnavailableItemsDialog
           lines={unavailable}
@@ -929,6 +1025,7 @@ export function CheckoutForm({
               discountFils: couponDiscountFils,
               applying: couponApplying,
               error: couponError,
+              expiresAtMs: couponExpiresAtMs,
               onApply: applyCoupon,
               onRemove: removeCoupon,
             }}

@@ -100,6 +100,19 @@ const settingValidators: Record<SettingKey, z.ZodTypeAny> = {
   "marketing.whatsapp_enabled": z.boolean(),
   "marketing.welcome_discount_percent": z.number().int().min(1).max(100),
   "payments.stripe_enabled": z.boolean(),
+  "checkout.exit_offer": z.object({
+    enabled: z.boolean(),
+    percent: z.number().int().min(1).max(100),
+    minutes: z.number().int().min(1).max(1440),
+    minSubtotalFils: z.number().int().min(0),
+  }),
+  "checkout.abandoned_email": z.object({
+    enabled: z.boolean(),
+    // 0 is meaningful here: a reminder with no discount attached.
+    percent: z.number().int().min(0).max(100),
+    delayMinutes: z.number().int().min(5).max(10080),
+    couponHours: z.number().int().min(1).max(720),
+  }),
 }
 
 function isSettingKey(key: string): key is SettingKey {
@@ -225,6 +238,12 @@ async function persist(
     case "marketing.whatsapp_enabled":
     case "payments.stripe_enabled":
       await setSetting(key, value as boolean)
+      return
+    case "checkout.exit_offer":
+      await setSetting(key, value as KnownSettings["checkout.exit_offer"])
+      return
+    case "checkout.abandoned_email":
+      await setSetting(key, value as KnownSettings["checkout.abandoned_email"])
       return
     case "marketing.welcome_discount_percent":
       await setSetting(key, value as number)

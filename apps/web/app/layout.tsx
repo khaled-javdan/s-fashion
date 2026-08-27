@@ -23,7 +23,8 @@ import {
  * Font strategy:
  *
  *   --font-sans     →  IBM Plex Sans Arabic (Arabic), Nunito Sans (Latin)
- *   --font-heading  →  Cairo (Arabic, heavier weights), Cormorant (Latin display)
+ *   --font-heading  →  Cairo (Arabic + Latin headings, heavier weights)
+ *   --font-wordmark →  Cormorant (Latin display serif, brand lockup only)
  *
  * Each `next/font/google` call exposes a single CSS variable. We then chain
  * those variables together via the `--font-sans` / `--font-heading` compound
@@ -95,6 +96,8 @@ export default async function RootLayout({
       "var(--font-ibm-plex-arabic), var(--font-nunito-sans), system-ui, sans-serif",
     "--font-heading":
       "var(--font-cairo), var(--font-cormorant), Georgia, serif",
+    // Latin-only by design: the wordmark reads "S FASHION" in both locales.
+    "--font-wordmark": "var(--font-cormorant), Georgia, serif",
   } as React.CSSProperties
 
   return (

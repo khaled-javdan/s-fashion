@@ -2,6 +2,7 @@ import Link from "next/link"
 import { useLocale, useTranslations } from "next-intl"
 
 import { LocaleSwitcher } from "@/components/layout/locale-switcher"
+import { Logo } from "@/components/layout/logo"
 import { CartButton } from "@/components/layout/cart-button"
 import { MobileSearch } from "@/components/layout/mobile-search"
 import { SearchBox } from "@/components/layout/search-box"
@@ -81,12 +82,12 @@ export function Header() {
 
 function BrandWordmark({ locale }: { locale: Locale }) {
   return (
-    <Link
-      href={`/${locale}`}
-      aria-label="SFashion"
-      className="font-heading text-lg tracking-[0.35em] whitespace-nowrap text-foreground uppercase sm:text-xl"
-    >
-      SFASHION
+    <Link href={`/${locale}`} aria-label="SFashion" className="text-foreground">
+      <Logo
+        priority
+        markClassName="h-7 sm:h-8"
+        wordmarkClassName="text-xl sm:text-2xl"
+      />
     </Link>
   )
 }

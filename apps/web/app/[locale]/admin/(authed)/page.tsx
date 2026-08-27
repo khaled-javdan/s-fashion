@@ -20,9 +20,9 @@ import {
 import { countLowStockVariants } from "@/lib/repos/products.repo"
 import { getTrafficStats } from "@/lib/traffic-analytics"
 
-const PRESETS = [7, 30, 90] as const
+const PRESETS = [1, 7, 30, 90] as const
 const TRAFFIC_PRESETS = [1, 7, 30] as const
-const ADS_PRESETS = [7, 30, 90] as const
+const ADS_PRESETS = [1, 7, 30, 90] as const
 
 export default async function AdminDashboardPage({
   params,
@@ -113,6 +113,12 @@ export default async function AdminDashboardPage({
   const tA = await getTranslations("admin.analytics")
   const tT = await getTranslations("admin.traffic")
   const tM = await getTranslations("admin.ads")
+
+  // "Today" reads better than "1 days" for the single-day preset.
+  const presetLabel = (days: number) =>
+    days === 1 ? tA("today") : tA("n_days", { days })
+  const adsPresetLabel = (days: number) =>
+    days === 1 ? tM("today") : tM("n_days", { days })
 
   // Always fetch summary cards; fetch analytics only for the active tab
   const [orderStats, lowStock] = await Promise.all([
@@ -309,12 +315,12 @@ export default async function AdminDashboardPage({
             <AnalyticsRangeControls
               presets={PRESETS.map((days) => ({
                 days,
-                label: tA("n_days", { days }),
+                label: presetLabel(days),
               }))}
               activeDays={isCustom ? null : presetDays}
               from={analytics.from}
               to={analytics.to}
-              labels={{ apply: tA("apply"), from: tA("from"), to: tA("to") }}
+              labels={{ apply: tA("apply"), pick: tA("date_range") }}
             />
           </div>
 
@@ -396,12 +402,12 @@ export default async function AdminDashboardPage({
             <AnalyticsRangeControls
               presets={PRESETS.map((days) => ({
                 days,
-                label: tA("n_days", { days }),
+                label: presetLabel(days),
               }))}
               activeDays={isProductsCustom ? null : productsPresetDays}
               from={productPerf.from}
               to={productPerf.to}
-              labels={{ apply: tA("apply"), from: tA("from"), to: tA("to") }}
+              labels={{ apply: tA("apply"), pick: tA("date_range") }}
               paramKeys={{ range: "prange", from: "pfrom", to: "pto" }}
             />
           </div>
@@ -465,7 +471,7 @@ export default async function AdminDashboardPage({
               activeDays={isTrafficCustom ? null : trafficPresetDays}
               from={traffic.from}
               to={traffic.to}
-              labels={{ apply: tA("apply"), from: tA("from"), to: tA("to") }}
+              labels={{ apply: tA("apply"), pick: tA("date_range") }}
               paramKeys={{ range: "vrange", from: "vfrom", to: "vto" }}
             />
           </div>
@@ -530,12 +536,12 @@ export default async function AdminDashboardPage({
             <AnalyticsRangeControls
               presets={ADS_PRESETS.map((days) => ({
                 days,
-                label: tM("n_days", { days }),
+                label: adsPresetLabel(days),
               }))}
               activeDays={isAdsCustom ? null : adsPresetDays}
               from={metaAds.from}
               to={metaAds.to}
-              labels={{ apply: tM("apply"), from: tM("from"), to: tM("to") }}
+              labels={{ apply: tM("apply"), pick: tM("date_range") }}
               paramKeys={{ range: "mrange", from: "mfrom", to: "mto" }}
             />
           </div>

@@ -4,7 +4,7 @@ import { headers } from "next/headers"
 import { parsePhoneNumberFromString } from "libphonenumber-js"
 import { z } from "zod"
 
-import { Emirate, OrderStatus, PaymentMethod, PaymentStatus, Size, prisma } from "@workspace/db"
+import { CouponType, Emirate, OrderStatus, PaymentMethod, PaymentStatus, Size, prisma } from "@workspace/db"
 
 import { appBaseUrl } from "@/lib/base-url"
 import type { UnavailableLine } from "@/lib/cart-availability"
@@ -13,6 +13,9 @@ import { parseCurrencyConfig, effectiveRate } from "@/lib/currency-config"
 import { COUNTRY_CODES, currencyForCountry } from "@/lib/geo"
 import type { Locale } from "@/lib/locale"
 import {
+  createCoupon,
+  EXIT_OFFER_CODE_PREFIX,
+  generateUniqueCode,
   validateCoupon,
   type CouponInvalidReason,
 } from "@/lib/repos/coupons.repo"
@@ -30,7 +33,7 @@ import {
   parseShippingConfig,
   resolveShipping,
 } from "@/lib/shipping-config"
-import { getSetting } from "@/lib/repos/settings.repo"
+import { DEFAULT_EXIT_OFFER, getSetting } from "@/lib/repos/settings.repo"
 import {
   ABSOLUTE_MAX_QTY_PER_VARIANT,
   DEFAULT_MAX_QTY_PER_VARIANT,
@@ -41,6 +44,7 @@ import {
 } from "@/lib/schemas/order.schema"
 import { dispatchOrderNotifications } from "@/lib/services/order-notifications"
 import { getStripe, isStripeConfigured } from "@/lib/services/stripe"
+import { tryAcquire } from "@/lib/services/rate-limit"
 import { verifyTurnstile } from "@/lib/services/turnstile"
 
 /** Public field handle used for targeted client-side error mapping. */
@@ -282,6 +286,94 @@ async function releaseSupersededReservations(phone: string): Promise<void> {
         orderId: order.id,
       })
     }
+  }
+}
+
+// ─── claimExitOfferAction ───────────────────────────────────────────────────
+
+/**
+ * Mint the last-chance discount shown when a shopper looks like they're about
+ * to abandon the checkout page.
+ *
+ * The urgency is real, not decoration: each claim gets its **own** single-use
+ * code that genuinely expires after the configured window, so the countdown the
+ * customer sees is the coupon's true deadline. Because it's PERCENT, the
+ * discount lands on the item subtotal only — shipping is added after the
+ * discount in every pricing path, so it is never discounted.
+ *
+ * Called only when the customer accepts the offer (not when it's merely shown),
+ * so we don't litter the coupon table with codes nobody wanted. Rate-limited
+ * per IP on top of that. Never throws across the boundary.
+ */
+export async function claimExitOfferAction(input: {
+  items: { variantId: string; quantity: number }[]
+}): Promise<
+  | { ok: true; code: string; percent: number; expiresAt: string }
+  | { ok: false; reason: "unavailable" }
+> {
+  const parsed = z
+    .object({ items: z.array(cartItemSchema).min(1) })
+    .safeParse(input)
+  if (!parsed.success) return { ok: false, reason: "unavailable" }
+
+  try {
+    const config = (await getSetting("checkout.exit_offer")) ?? DEFAULT_EXIT_OFFER
+    if (!config.enabled || config.percent <= 0 || config.minutes <= 0) {
+      return { ok: false, reason: "unavailable" }
+    }
+
+    const ip = await getClientIp()
+    if (!tryAcquire(`checkout:exit_offer:ip:${ip}`, 5, 60 * 60 * 1000)) {
+      return { ok: false, reason: "unavailable" }
+    }
+
+    // Authoritative subtotal from the DB — never the client's numbers. Missing
+    // or archived variants simply don't count toward it.
+    const variants = await prisma.productVariant.findMany({
+      where: {
+        id: { in: parsed.data.items.map((i) => i.variantId) },
+        isArchived: false,
+      },
+      select: { id: true, product: { select: { priceFils: true } } },
+    })
+    const priceByVariant = new Map(
+      variants.map((v) => [v.id, v.product.priceFils]),
+    )
+    const subtotalFils = parsed.data.items.reduce(
+      (sum, line) => sum + (priceByVariant.get(line.variantId) ?? 0) * line.quantity,
+      0,
+    )
+    if (subtotalFils <= 0 || subtotalFils < config.minSubtotalFils) {
+      return { ok: false, reason: "unavailable" }
+    }
+
+    const expiresAt = new Date(Date.now() + config.minutes * 60 * 1000)
+    const code = await generateUniqueCode(EXIT_OFFER_CODE_PREFIX)
+    await createCoupon({
+      code,
+      type: CouponType.PERCENT,
+      value: config.percent,
+      minSubtotalFils: config.minSubtotalFils,
+      maxDiscountFils: null,
+      firstOrderOnly: false,
+      // Single use, and NOT phone-gated: the shopper may not have typed their
+      // number yet, and `validateCoupon` rejects phone-gated codes without one.
+      maxRedemptions: 1,
+      perCustomerLimit: null,
+      startsAt: null,
+      expiresAt,
+      isActive: true,
+    })
+
+    return {
+      ok: true,
+      code,
+      percent: config.percent,
+      expiresAt: expiresAt.toISOString(),
+    }
+  } catch (err) {
+    reportError("checkout.claimExitOffer", err)
+    return { ok: false, reason: "unavailable" }
   }
 }
 

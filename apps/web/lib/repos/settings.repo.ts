@@ -95,7 +95,58 @@ export type KnownSettings = {
    * false when unset; also requires STRIPE_SECRET_KEY to be configured.
    */
   "payments.stripe_enabled": boolean;
+  /**
+   * Last-chance discount offered when a shopper looks like they're leaving the
+   * checkout page. `percent` is applied to the item subtotal only (shipping is
+   * added after the discount, so it is never discounted), and `minutes` is the
+   * real validity of the minted single-use coupon — the countdown the customer
+   * sees is that same deadline, not decoration. Defaults to
+   * {@link DEFAULT_EXIT_OFFER} when unset.
+   */
+  "checkout.exit_offer": {
+    enabled: boolean;
+    /** 1–100. Percentage off the subtotal. */
+    percent: number;
+    /** How long the minted coupon stays valid, in minutes. */
+    minutes: number;
+    /** Don't offer below this subtotal (0 = always offer). */
+    minSubtotalFils: number;
+  };
+  /**
+   * Recovery email for a checkout that was started and never paid for. Like the
+   * exit offer the discount lands on the item subtotal only. Defaults to
+   * {@link DEFAULT_ABANDONED_EMAIL} (disabled) when unset.
+   */
+  "checkout.abandoned_email": {
+    enabled: boolean;
+    /** 0–100. Percent off to include; 0 sends a plain reminder with no code. */
+    percent: number;
+    /** How long after the checkout was abandoned to send, in minutes. */
+    delayMinutes: number;
+    /** How long the emailed code stays valid, in hours. */
+    couponHours: number;
+  };
 };
+
+/** Fallback for `checkout.exit_offer` when the setting has never been saved. */
+export const DEFAULT_EXIT_OFFER = {
+  enabled: true,
+  percent: 5,
+  minutes: 15,
+  minSubtotalFils: 0,
+} as const;
+
+/**
+ * Fallback for `checkout.abandoned_email`. Ships **off**: it emails real
+ * customers, so it waits for the shop owner to read the copy and switch it on
+ * in Settings rather than starting the moment this deploys.
+ */
+export const DEFAULT_ABANDONED_EMAIL = {
+  enabled: false,
+  percent: 10,
+  delayMinutes: 60,
+  couponHours: 24,
+} as const;
 
 /**
  * One approved product-copy example used to prime the AI's brand voice.

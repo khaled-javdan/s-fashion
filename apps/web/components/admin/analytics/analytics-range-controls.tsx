@@ -1,10 +1,11 @@
 "use client"
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
-import { useState, useTransition } from "react"
+import { useTransition } from "react"
 
 import { Button } from "@workspace/ui/components/button"
-import { Input } from "@workspace/ui/components/input"
+
+import { DateRangePicker } from "@/components/admin/analytics/date-range-picker"
 
 type Preset = { days: number; label: string }
 
@@ -15,14 +16,14 @@ type Props = {
   /** Resolved window, used to prefill the custom date inputs (YYYY-MM-DD). */
   from: string
   to: string
-  labels: { apply: string; from: string; to: string }
+  labels: { apply: string; pick: string }
   /** URL search-param names. Defaults to range/from/to. Override when
    *  multiple range pickers share the same page to avoid collisions. */
   paramKeys?: { range: string; from: string; to: string }
 }
 
 /**
- * Period selector for the analytics section: 7/30/90-day presets plus a
+ * Period selector for the analytics section: today/7/30/90-day presets plus a
  * custom from–to date range. Selection lives in the URL (`?range=` or
  * `?from=&to=`) so the server re-queries and the view is shareable.
  */
@@ -38,8 +39,6 @@ export function AnalyticsRangeControls({
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const [pending, startTransition] = useTransition()
-  const [fromValue, setFromValue] = useState(from)
-  const [toValue, setToValue] = useState(to)
 
   const navigate = (changes: Record<string, string | null>) => {
     const next = new URLSearchParams(searchParams.toString())
@@ -57,14 +56,12 @@ export function AnalyticsRangeControls({
       [paramKeys.to]: null,
     })
 
-  const applyCustom = () => {
-    if (!fromValue || !toValue) return
+  const applyCustom = (range: { from: string; to: string }) =>
     navigate({
-      [paramKeys.from]: fromValue,
-      [paramKeys.to]: toValue,
+      [paramKeys.from]: range.from,
+      [paramKeys.to]: range.to,
       [paramKeys.range]: null,
     })
-  }
 
   const customActive = activeDays === null
 
@@ -85,34 +82,14 @@ export function AnalyticsRangeControls({
         ))}
       </div>
 
-      <div className="flex items-center gap-1.5">
-        <Input
-          type="date"
-          aria-label={labels.from}
-          value={fromValue}
-          max={toValue || undefined}
-          onChange={(e) => setFromValue(e.target.value)}
-          className="h-7 w-auto px-2 py-0 text-xs"
-        />
-        <span className="text-muted-foreground text-xs">–</span>
-        <Input
-          type="date"
-          aria-label={labels.to}
-          value={toValue}
-          min={fromValue || undefined}
-          onChange={(e) => setToValue(e.target.value)}
-          className="h-7 w-auto px-2 py-0 text-xs"
-        />
-        <Button
-          type="button"
-          size="xs"
-          variant={customActive ? "default" : "outline"}
-          disabled={pending || !fromValue || !toValue}
-          onClick={applyCustom}
-        >
-          {labels.apply}
-        </Button>
-      </div>
+      <DateRangePicker
+        from={from}
+        to={to}
+        active={customActive}
+        disabled={pending}
+        labels={labels}
+        onApply={applyCustom}
+      />
     </div>
   )
 }

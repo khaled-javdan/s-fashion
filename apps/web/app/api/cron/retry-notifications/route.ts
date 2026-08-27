@@ -27,6 +27,7 @@ import { NextResponse } from "next/server";
 import { OrderStatus } from "@workspace/db";
 
 import { reportError } from "@/lib/errors";
+import { purgeExpiredExitOfferCoupons } from "@/lib/repos/coupons.repo";
 import { dispatchOrderNotifications } from "@/lib/services/order-notifications";
 import {
   cancelExpiredStripeOrder,
@@ -120,11 +121,21 @@ export async function GET(request: Request): Promise<Response> {
     }
   }
 
+  // Housekeeping: drop the exit-offer codes that expired without being used.
+  // One is minted every time the offer is shown, so they'd otherwise pile up.
+  let exitOffersPurged = 0;
+  try {
+    exitOffersPurged = await purgeExpiredExitOfferCoupons();
+  } catch (err) {
+    reportError("cron.exit-offer-purge", err);
+  }
+
   return NextResponse.json({
     ok: true,
     found: ids.length,
     processed,
     stripeReconciled,
     stripeCancelled,
+    exitOffersPurged,
   });
 }

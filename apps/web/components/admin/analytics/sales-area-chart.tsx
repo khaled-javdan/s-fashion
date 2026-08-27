@@ -39,6 +39,9 @@ export function SalesAreaChart({ data, locale, labels }: Props) {
   })
   const fmtDate = (iso: string) => dayMonth.format(new Date(`${iso}T00:00:00`))
 
+  // A single-day window plots one point, which an area/line alone can't draw.
+  const singlePoint = data.length === 1
+
   return (
     <div className="h-[260px] w-full" dir="ltr">
       <ResponsiveContainer width="100%" height="100%">
@@ -110,6 +113,7 @@ export function SalesAreaChart({ data, locale, labels }: Props) {
             stroke="var(--chart-1)"
             strokeWidth={2}
             fill="url(#salesFill)"
+            dot={singlePoint}
           />
           <Area
             type="monotone"
@@ -117,6 +121,7 @@ export function SalesAreaChart({ data, locale, labels }: Props) {
             stroke="var(--chart-2)"
             strokeWidth={2}
             fill="url(#collectedFill)"
+            dot={singlePoint}
           />
         </AreaChart>
       </ResponsiveContainer>
