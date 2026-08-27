@@ -1186,6 +1186,7 @@ export async function markOrderPaidBySession(
  */
 export async function cancelExpiredStripeOrder(
   sessionId: string,
+  reason = "payment_expired",
 ): Promise<{ cancelled: boolean; orderId?: string }> {
   const order = await prisma.order.findUnique({
     where: { stripeSessionId: sessionId },
@@ -1198,7 +1199,7 @@ export async function cancelExpiredStripeOrder(
   ) {
     return { cancelled: false, orderId: order?.id };
   }
-  await updateOrderStatus(order.id, OrderStatus.CANCELLED, null, "payment_expired");
+  await updateOrderStatus(order.id, OrderStatus.CANCELLED, null, reason);
   return { cancelled: true, orderId: order.id };
 }
 
@@ -1235,7 +1236,30 @@ export async function markOrderRefundedByPaymentIntent(
 }
 
 /**
- * Stripe orders still AWAITING_PAYMENT well past the 1-hour session expiry —
+ * Unpaid Stripe orders this customer still has in flight. Each one is holding
+ * its lines' stock (Stripe orders reserve on creation), so an abandoned
+ * attempt would otherwise make the customer's own retry fail as "out of
+ * stock" until the 30-minute session expiry. The checkout action releases these
+ * before creating the replacement order.
+ */
+export async function listPendingStripeOrdersForPhone(
+  phone: string,
+  take = 5,
+): Promise<{ id: string; stripeSessionId: string | null }[]> {
+  return prisma.order.findMany({
+    where: {
+      phone,
+      status: OrderStatus.AWAITING_PAYMENT,
+      paymentMethod: PaymentMethod.STRIPE,
+    },
+    orderBy: { createdAt: "desc" },
+    take,
+    select: { id: true, stripeSessionId: true },
+  });
+}
+
+/**
+ * Stripe orders still AWAITING_PAYMENT well past the 30-minute session expiry —
  * their expiry (or completed) webhook was missed. The cron backstop
  * reconciles each against Stripe before cancelling.
  */

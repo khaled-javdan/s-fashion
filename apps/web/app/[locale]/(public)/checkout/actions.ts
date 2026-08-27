@@ -7,6 +7,7 @@ import { z } from "zod"
 import { Emirate, OrderStatus, PaymentMethod, PaymentStatus, Size, prisma } from "@workspace/db"
 
 import { appBaseUrl } from "@/lib/base-url"
+import type { UnavailableLine } from "@/lib/cart-availability"
 import { reportError } from "@/lib/errors"
 import { parseCurrencyConfig, effectiveRate } from "@/lib/currency-config"
 import { COUNTRY_CODES, currencyForCountry } from "@/lib/geo"
@@ -16,9 +17,11 @@ import {
   type CouponInvalidReason,
 } from "@/lib/repos/coupons.repo"
 import {
+  cancelExpiredStripeOrder,
   createOrder,
   CouponExhaustedError,
   InsufficientStockError,
+  listPendingStripeOrdersForPhone,
   setOrderStripeSession,
   updateOrderStatus,
 } from "@/lib/repos/orders.repo"
@@ -118,13 +121,15 @@ async function resolveAndValidateItems(
   items: { variantId: string; quantity: number }[],
 ): Promise<
   | { ok: true; items: ResolvedItem[] }
-  | { ok: false; error: "out_of_stock" | "Invalid request" }
+  | { ok: false; error: "out_of_stock"; unavailable: UnavailableLine[] }
+  | { ok: false; error: "Invalid request" }
 > {
   const maxQtyPerVariant =
     (await getSetting("order.max_qty_per_variant")) ??
     DEFAULT_MAX_QTY_PER_VARIANT
 
   const resolved: ResolvedItem[] = []
+  const unavailable: UnavailableLine[] = []
   for (const line of items) {
     if (line.quantity > maxQtyPerVariant) {
       return { ok: false, error: "Invalid request" }
@@ -133,13 +138,25 @@ async function resolveAndValidateItems(
       where: { id: line.variantId },
       include: { product: true },
     })
-    if (
-      !variant ||
-      variant.isArchived ||
-      !variant.product.isActive ||
-      variant.stock < line.quantity
-    ) {
-      return { ok: false, error: "out_of_stock" }
+    // Gone for good (deleted, archived, or its product was deactivated) — the
+    // customer can only remove it.
+    if (!variant || variant.isArchived || !variant.product.isActive) {
+      unavailable.push({
+        variantId: line.variantId,
+        available: 0,
+        reason: "discontinued",
+      })
+      continue
+    }
+    // Still sold, but not in the quantity this cart wants. `available: 0` is
+    // a plain sell-out; a positive value lets the customer keep what's left.
+    if (variant.stock < line.quantity) {
+      unavailable.push({
+        variantId: line.variantId,
+        available: variant.stock,
+        reason: variant.stock > 0 ? "limited" : "sold_out",
+      })
+      continue
     }
     resolved.push({
       variantId: variant.id,
@@ -153,6 +170,9 @@ async function resolveAndValidateItems(
       unitCostFils: variant.product.costPriceFils ?? 0,
       weightGrams: variant.product.weightGrams ?? 0,
     })
+  }
+  if (unavailable.length > 0) {
+    return { ok: false, error: "out_of_stock", unavailable }
   }
   return { ok: true, items: resolved }
 }
@@ -206,6 +226,65 @@ export async function applyCouponAction(input: {
   return { ok: true, code: result.code, discountFils: result.discountFils }
 }
 
+/**
+ * Release the stock this customer's own abandoned Stripe attempts are holding.
+ *
+ * A Stripe order is born AWAITING_PAYMENT with its stock already reserved, and
+ * only the "back" link on the hosted payment page releases it early — a closed
+ * tab, a browser-back or a declined card leaves the reservation standing until
+ * the 30-minute session expiry. On a low-stock catalogue that makes the customer's
+ * *own* retry fail as "out of stock", which is the bug this exists to kill.
+ *
+ * Placing a new order supersedes those attempts, so we expire each open session
+ * (Stripe then emits `checkout.session.expired`) and cancel the order locally —
+ * crossing into CANCELLED re-credits the stock. Anything Stripe reports as paid
+ * is left strictly alone: the webhook / reconcile owns that order. Best-effort
+ * throughout; a failure here only means the customer waits for the expiry, so
+ * it must never block checkout.
+ */
+async function releaseSupersededReservations(phone: string): Promise<void> {
+  if (!isStripeConfigured()) return
+  let pending: { id: string; stripeSessionId: string | null }[] = []
+  try {
+    pending = await listPendingStripeOrdersForPhone(phone)
+  } catch (err) {
+    reportError("checkout.releaseSuperseded.query", err)
+    return
+  }
+  for (const order of pending) {
+    try {
+      // Session creation failed mid-checkout and the cleanup cancel failed too
+      // — nothing to reconcile against, so just release the stock.
+      if (!order.stripeSessionId) {
+        await updateOrderStatus(
+          order.id,
+          OrderStatus.CANCELLED,
+          null,
+          "superseded_by_retry",
+        )
+        continue
+      }
+      const session = await getStripe().checkout.sessions.retrieve(
+        order.stripeSessionId,
+      )
+      if (session.payment_status === "paid" || session.status === "complete") {
+        continue
+      }
+      if (session.status === "open") {
+        await getStripe().checkout.sessions.expire(order.stripeSessionId)
+      }
+      await cancelExpiredStripeOrder(
+        order.stripeSessionId,
+        "superseded_by_retry",
+      )
+    } catch (err) {
+      reportError("checkout.releaseSuperseded.order", err, {
+        orderId: order.id,
+      })
+    }
+  }
+}
+
 // ─── createOrderAction ──────────────────────────────────────────────────────
 
 /**
@@ -214,6 +293,13 @@ export async function applyCouponAction(input: {
  * fire-and-forget the notifications (COD) or create a hosted Stripe Checkout
  * Session and hand back its URL for redirect (STRIPE — the order starts
  * AWAITING_PAYMENT with stock reserved; the webhook promotes it on payment).
+ *
+ * Before the stock check it releases any reservation this same customer left
+ * behind on an abandoned card attempt (see
+ * {@link releaseSupersededReservations}) — otherwise their own retry is the
+ * thing that reports "out of stock". A genuine shortfall comes back as
+ * `error: "out_of_stock"` with an `unavailable` line list, so the client can
+ * name the items and offer to fix the cart instead of a blind toast.
  */
 export async function createOrderAction(input: {
   name: string
@@ -233,7 +319,13 @@ export async function createOrderAction(input: {
   items: { variantId: string; quantity: number }[]
 }): Promise<
   | { ok: true; orderNumber: string; redirectUrl?: string }
-  | { ok: false; error: string; field?: keyof OrderInput }
+  | {
+      ok: false
+      error: string
+      field?: keyof OrderInput
+      /** Present with `error: "out_of_stock"` — the exact lines to fix. */
+      unavailable?: UnavailableLine[]
+    }
 > {
   // 1. Validate the full payload. `orderCreateSchema` expects `customerName`,
   //    so adapt the client field name (`name`) into the schema's shape.
@@ -301,15 +393,23 @@ export async function createOrderAction(input: {
     return { ok: false, error: "verification_failed" }
   }
 
-  // 3. Re-load + validate each cart line against the DB (active, in stock,
+  // 3. Free the stock this customer's own abandoned Stripe attempts are still
+  //    holding, so a retry isn't blocked by the reservation it left behind.
+  //    Runs before the stock check below (and for COD too — an abandoned card
+  //    attempt must not block the same customer switching to cash).
+  await releaseSupersededReservations(phone)
+
+  // 4. Re-load + validate each cart line against the DB (active, in stock,
   //    within the admin-configured per-variant cap).
   const resolved = await resolveAndValidateItems(data.items)
   if (!resolved.ok) {
-    return { ok: false, error: resolved.error }
+    return resolved.error === "out_of_stock"
+      ? { ok: false, error: resolved.error, unavailable: resolved.unavailable }
+      : { ok: false, error: resolved.error }
   }
   const resolvedItems = resolved.items
 
-  // 4. Compute pricing server-side. Never trust client totals.
+  // 5. Compute pricing server-side. Never trust client totals.
   const subtotalFils = resolvedItems.reduce(
     (sum, item) => sum + item.unitPriceFils * item.quantity,
     0,
@@ -370,7 +470,7 @@ export async function createOrderAction(input: {
   const displayCurrency = currencyForCountry(data.country)
   const fxRate = effectiveRate(currencyConfig, displayCurrency)
 
-  // 5. Create the order. Stock decrement, customer upsert + link, order number,
+  // 6. Create the order. Stock decrement, customer upsert + link, order number,
   //    and the NEW status all happen in one transaction.
   let created: { id: string; orderNumber: string }
   try {
@@ -408,8 +508,21 @@ export async function createOrderAction(input: {
       resolvedItems,
     )
   } catch (err) {
+    // Lost a race between the check above and the reserving transaction: the
+    // error carries the variant + what's actually left, so the client can still
+    // show the customer exactly which line to fix.
     if (err instanceof InsufficientStockError) {
-      return { ok: false, error: "out_of_stock" }
+      return {
+        ok: false,
+        error: "out_of_stock",
+        unavailable: [
+          {
+            variantId: err.variantId,
+            available: err.available,
+            reason: err.available > 0 ? "limited" : "sold_out",
+          },
+        ],
+      }
     }
     // The coupon's global cap was hit between our re-validate and the in-tx
     // redemption guard. Surface a coupon-specific error so the client can clear
@@ -423,7 +536,7 @@ export async function createOrderAction(input: {
     return { ok: false, error: "Something went wrong" }
   }
 
-  // 6a. STRIPE: create the hosted Checkout Session and hand its URL back for
+  // 7a. STRIPE: create the hosted Checkout Session and hand its URL back for
   //     redirect. Amount is charged in base AED — totalFils is already the
   //     integer minor-unit amount Stripe expects for `aed`. One lump line item
   //     avoids per-line rounding drift against our authoritative total; the
@@ -454,7 +567,10 @@ export async function createOrderAction(input: {
         ...(data.email ? { customer_email: data.email } : {}),
         // Stripe Checkout has no Arabic locale; "auto" follows the browser.
         locale: data.locale === "en" ? "en" : "auto",
-        expires_at: Math.floor(Date.now() / 1000) + 3600,
+        // 30 minutes — Stripe's minimum. The session holds the line's stock
+        // until it expires, so the shorter window is what limits how long an
+        // abandoned payment can make an item look sold out to everyone else.
+        expires_at: Math.floor(Date.now() / 1000) + 30 * 60,
         success_url: `${base}/${data.locale}/orders/${created.orderNumber}?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${base}/${data.locale}/checkout?payment=cancelled&order=${created.orderNumber}`,
       })
@@ -489,7 +605,7 @@ export async function createOrderAction(input: {
     }
   }
 
-  // 6b. COD: fire-and-forget side effects. The dispatcher rebuilds payloads
+  // 7b. COD: fire-and-forget side effects. The dispatcher rebuilds payloads
   //     from the persisted order, stamps each channel on success, and is
   //     idempotent — a retry cron re-runs it for any order still missing a
   //     stamp, so a transient Telegram/email failure here is recovered rather
@@ -500,7 +616,7 @@ export async function createOrderAction(input: {
     }),
   )
 
-  // 7. Done.
+  // 8. Done.
   return { ok: true, orderNumber: created.orderNumber }
 }
 
@@ -511,7 +627,7 @@ export async function createOrderAction(input: {
  * "back" link on the hosted payment page. Expiring the Checkout Session makes
  * Stripe emit `checkout.session.expired`, which cancels the order and
  * re-credits its reserved stock through the single webhook code path — so a
- * cancel-and-reorder customer doesn't hold stock twice until the 1h expiry.
+ * cancel-and-reorder customer doesn't hold stock twice until the 30min expiry.
  * Never throws; skipping this only delays the release until expiry/cron.
  */
 export async function cancelPendingPaymentAction(

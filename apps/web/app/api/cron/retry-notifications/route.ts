@@ -9,7 +9,7 @@
  * are skipped — so re-running is safe.
  *
  * Also backstops missed Stripe webhooks: any order stuck AWAITING_PAYMENT
- * well past the 1-hour Checkout Session expiry is reconciled against Stripe —
+ * well past the 30-minute Checkout Session expiry is reconciled against Stripe —
  * marked paid if the completed webhook was lost, otherwise cancelled and its
  * reserved stock re-credited.
  *

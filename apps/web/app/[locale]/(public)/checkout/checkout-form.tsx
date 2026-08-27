@@ -28,6 +28,7 @@ import {
   TurnstileWidget,
   type TurnstileHandle,
 } from "@/app/[locale]/(public)/checkout/turnstile-widget"
+import { UnavailableItemsDialog } from "@/app/[locale]/(public)/checkout/unavailable-items-dialog"
 import {
   applyCouponAction,
   cancelPendingPaymentAction,
@@ -35,6 +36,7 @@ import {
 } from "@/app/[locale]/(public)/checkout/actions"
 import { useCurrency } from "@/components/providers/currency-provider"
 import { beginCheckout } from "@/lib/analytics/data-layer"
+import type { UnavailableLine } from "@/lib/cart-availability"
 import {
   selectItems,
   selectHasHydrated,
@@ -193,6 +195,7 @@ export function CheckoutForm({
 }) {
   const t = useTranslations("checkout")
   const tCoupon = useTranslations("checkout.coupon")
+  const tUnavailable = useTranslations("checkout.unavailable")
   const locale = useLocale() as Locale
   const router = useRouter()
   const { setCountry, currency } = useCurrency()
@@ -203,6 +206,9 @@ export function CheckoutForm({
   const clear = useCartStore((s) => s.clear)
 
   const [submitting, setSubmitting] = useState(false)
+  // Lines the server refused for stock reasons. Non-null opens the dialog that
+  // names them and offers the one-tap fix.
+  const [unavailable, setUnavailable] = useState<UnavailableLine[] | null>(null)
   // Default to online card payment when it's available, otherwise COD.
   const [paymentMethod, setPaymentMethod] = useState<CheckoutPaymentMethod>(
     stripeEnabled ? "STRIPE" : "COD",
@@ -514,7 +520,14 @@ export function CheckoutForm({
 
       if (!result.ok) {
         if (result.error === "out_of_stock") {
-          toast.error(t("error_out_of_stock"))
+          // Name the offending lines and let the customer fix them in place.
+          // The generic toast is only a fallback for a response that somehow
+          // arrives without the detail.
+          if (result.unavailable && result.unavailable.length > 0) {
+            setUnavailable(result.unavailable)
+          } else {
+            toast.error(t("error_out_of_stock"))
+          }
         } else if (result.error === "coupon_unavailable") {
           removeCoupon()
           toast.error(tCoupon("error.coupon_unavailable"))
@@ -887,6 +900,24 @@ export function CheckoutForm({
             </Button>
           </form>
       </div>
+
+      {unavailable ? (
+        <UnavailableItemsDialog
+          lines={unavailable}
+          open
+          onOpenChange={(next) => {
+            if (!next) setUnavailable(null)
+          }}
+          onApplied={() => {
+            setUnavailable(null)
+            toast.success(tUnavailable("toast_updated"))
+          }}
+          onReviewCart={() => {
+            setUnavailable(null)
+            router.push(`/${locale}/cart`)
+          }}
+        />
+      ) : null}
 
       <div className="order-1 min-w-0 lg:order-2">
         <div className="lg:sticky lg:top-20">

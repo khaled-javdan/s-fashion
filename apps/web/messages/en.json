@@ -255,6 +255,21 @@
     "marketing_consent": "Send me offers & new arrivals on WhatsApp",
     "country": "Country",
     "country_placeholder": "Select a country",
+    "unavailable": {
+      "title": "Some items just sold out",
+      "description": "Your order wasn't placed and nothing was charged. These items changed while you were checking out \u2014 update them to continue.",
+      "sold_out": "Sold out",
+      "discontinued": "No longer available",
+      "only_left": "Only {count} left",
+      "remove": "Remove",
+      "keep": "Keep {count}",
+      "removed": "Removed",
+      "updated": "Updated to {count}",
+      "apply": "Update cart",
+      "done": "Continue",
+      "review_cart": "Review cart",
+      "toast_updated": "Cart updated \u2014 you can place your order now."
+    },
     "coupon": {
       "label": "Coupon",
       "placeholder": "Coupon code",
