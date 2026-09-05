@@ -17,6 +17,12 @@
 @source "../**/*.{ts,tsx}";
 
 @theme inline {
+    /* Low-stock urgency motion (see `lib/stock-urgency.ts`). `shine` sweeps a
+       highlight across an "Only N left" pill; `throb` is the breathing dot that
+       marks it as live. Both are decorative and disabled under
+       `prefers-reduced-motion` in the base layer below. */
+    --animate-urgency-shine: urgency-shine 3.4s ease-in-out infinite;
+    --animate-urgency-throb: urgency-throb 1.9s ease-in-out infinite;
     --font-heading: var(--font-heading);
     --font-sans: var(--font-sans);
     /* Brand wordmark only. `--font-heading` leads with Cairo, which carries
@@ -112,4 +118,49 @@
   button:not(:disabled), [role="button"]:not(:disabled) {
     cursor: pointer;
     }
+}
+
+/* The sweeping element is full-width (`inset-0`) and carries a narrow gradient
+   band, so -100%/100% mean exactly "fully clear of the left/right edge" whatever
+   the pill's width. Measuring the travel in the band's own width instead parks
+   it inside narrow pills, where the hold below reads as the sweep getting stuck.
+   The 55%→100% hold and the loop's snap back both happen off the edge, clipped
+   by the pill's `overflow-hidden`, so the cycle looks like one clean pass. */
+@keyframes urgency-shine {
+  0% {
+    transform: translateX(-100%) skewX(-12deg);
+  }
+  55%,
+  100% {
+    transform: translateX(100%) skewX(-12deg);
+  }
+}
+
+@keyframes urgency-throb {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(0.72);
+    opacity: 0.55;
+  }
+}
+
+/* Every urgency cue is decorative — the count itself carries the message — so
+   drop the motion entirely for shoppers who ask for less of it. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-urgency-shine,
+  .animate-urgency-throb,
+  .animate-ping,
+  .animate-pulse {
+    animation: none !important;
+  }
+
+  [class*="animate-in"] {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
 }

@@ -14,9 +14,7 @@ import { Money } from "@/components/currency/money"
 import { getCurrencyContext } from "@/lib/currency-context.server"
 import type { Locale } from "@/lib/locale"
 import type { ProductWithRelations } from "@/lib/repos/products.repo"
-
-/** At or below this aggregate stock we nudge urgency ("Only N left"). */
-const LOW_STOCK_THRESHOLD = 5
+import { stockLevel } from "@/lib/stock-urgency"
 
 const CARD_SIZES = "(min-width: 1024px) 20vw, (min-width: 640px) 33vw, 100vw"
 
@@ -49,8 +47,9 @@ export async function ProductCard({
     : `/${locale}/products/${product.slug}`
 
   const totalStock = product.variants.reduce((sum, v) => sum + v.stock, 0)
-  const outOfStock = totalStock <= 0
-  const lowStock = !outOfStock && totalStock <= LOW_STOCK_THRESHOLD
+  const level = stockLevel(totalStock)
+  const outOfStock = level === "out"
+  const lowStock = level === "critical" || level === "low"
 
   const onSale =
     product.compareAtFils != null && product.compareAtFils > product.priceFils
@@ -153,8 +152,34 @@ export async function ProductCard({
           {t("out_of_stock")}
         </span>
       ) : lowStock ? (
-        <span className="bg-background/90 text-foreground absolute bottom-2 start-2 rounded-sm px-2 py-0.5 text-[11px] font-medium shadow-sm">
-          {t("low_stock_count", { count: totalStock })}
+        <span
+          className={cn(
+            "animate-in fade-in slide-in-from-bottom-1 absolute bottom-2 start-2 inline-flex items-center gap-1.5 overflow-hidden rounded-sm px-2 py-0.5 text-[11px] font-semibold shadow-sm duration-500",
+            level === "critical"
+              ? "bg-destructive text-destructive-foreground"
+              : "bg-background/90 text-foreground",
+          )}
+        >
+          {/* Live dot — throbbing only at the critical level, so a card grid
+              never turns into a wall of blinking badges. */}
+          <span
+            aria-hidden
+            className={cn(
+              "size-1.5 shrink-0 rounded-full",
+              level === "critical"
+                ? "bg-destructive-foreground animate-urgency-throb"
+                : "bg-destructive",
+            )}
+          />
+          <span className="relative tabular-nums">
+            {t("low_stock_count", { count: totalStock })}
+          </span>
+          {level === "critical" ? (
+            <span
+              aria-hidden
+              className="animate-urgency-shine pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent from-35% via-white/40 via-50% to-transparent to-65%"
+            />
+          ) : null}
         </span>
       ) : null}
     </>

@@ -1480,3 +1480,37 @@ export async function listStaleAwaitingPaymentOrders(
     select: { id: true, stripeSessionId: true },
   });
 }
+
+/**
+ * Units of a product sold in the recent past — the number behind the PDP's
+ * "N sold in the last week" line.
+ *
+ * Counts real `OrderItem` quantities across the product's variants, excluding
+ * orders that never became sales (cancelled, refused, unverified, or still
+ * awaiting card payment). Returns 0 when nothing sold, so the caller can hide
+ * the line rather than print a weak number.
+ */
+export async function getRecentSalesCount(
+  productId: string,
+  windowDays: number,
+): Promise<number> {
+  const since = new Date(Date.now() - windowDays * 24 * 60 * 60 * 1000);
+  const agg = await prisma.orderItem.aggregate({
+    _sum: { quantity: true },
+    where: {
+      variant: { productId },
+      order: {
+        createdAt: { gte: since },
+        status: {
+          notIn: [
+            OrderStatus.CANCELLED,
+            OrderStatus.REFUSED,
+            OrderStatus.PENDING_VERIFICATION,
+            OrderStatus.AWAITING_PAYMENT,
+          ],
+        },
+      },
+    },
+  });
+  return agg._sum.quantity ?? 0;
+}

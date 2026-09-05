@@ -169,10 +169,10 @@ export function VariantPicker({
       if (selectedColor && colorKey(v) !== selectedColor) continue
       stockBySize.set(v.size, (stockBySize.get(v.size) ?? 0) + v.stock)
     }
-    return allSizes.map((size) => ({
-      size,
-      available: (stockBySize.get(size) ?? 0) > 0,
-    }))
+    return allSizes.map((size) => {
+      const stock = stockBySize.get(size) ?? 0
+      return { size, available: stock > 0, stock }
+    })
   }, [variants, selectedColor])
 
   function handleSelectSize(size: string) {
@@ -289,6 +289,7 @@ export function VariantPicker({
           options={sizeOptions}
           selected={selectedSize}
           onSelect={handleSelectSize}
+          lowStockLabel={(stock) => t("low_stock_count", { count: stock })}
         />
       </div>
 
@@ -296,11 +297,13 @@ export function VariantPicker({
       <div aria-live="polite">
         {selectedVariant ? (
           <StockBadge
+            key={selectedVariant.id}
             stock={selectedStock}
             labels={{
               inStock: t("in_stock"),
-              lowStock: t("low_stock"),
               outOfStock: t("out_of_stock"),
+              remaining: t("low_stock_count", { count: selectedStock }),
+              almostGone: t("almost_gone"),
             }}
           />
         ) : (
@@ -326,7 +329,13 @@ export function VariantPicker({
       <AddToCartButton item={cartItem} locale={locale} className="w-full" />
 
       {/* Mobile-only sticky bar mirroring the inline button */}
-      <StickyPdpCta item={cartItem} priceFils={product.priceFils} locale={locale} />
+      <StickyPdpCta
+        item={cartItem}
+        priceFils={product.priceFils}
+        locale={locale}
+        stock={selectedVariant ? selectedStock : 0}
+        lowStockLabel={t("low_stock_count", { count: selectedStock })}
+      />
     </div>
   )
 }

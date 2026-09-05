@@ -20,6 +20,7 @@ import { htmlToPlainText } from "@/components/product/rich-text"
 import { RecentlyViewed } from "@/components/product/recently-viewed"
 import { RelatedProducts } from "@/components/product/related-products"
 import { SizeChartModal } from "@/components/product/size-chart-modal"
+import { RecentSalesProof } from "@/components/product/recent-sales-proof"
 import {
   VariantPicker,
   type PickerVariant,
@@ -29,10 +30,15 @@ import { getCurrencyContext } from "@/lib/currency-context.server"
 import { LOCALES, type Locale } from "@/lib/locale"
 import { DEFAULT_MAX_QTY_PER_VARIANT } from "@/lib/order-limits"
 import {
+  MIN_RECENT_SALES_TO_SHOW,
+  RECENT_SALES_WINDOW_DAYS,
+} from "@/lib/stock-urgency"
+import {
   getProductBySlug,
   listSimilarProducts,
   parseProductSizeChart,
 } from "@/lib/repos/products.repo"
+import { getRecentSalesCount } from "@/lib/repos/orders.repo"
 import { getProductRatingSummary } from "@/lib/repos/reviews.repo"
 import { getSetting } from "@/lib/repos/settings.repo"
 
@@ -126,6 +132,7 @@ export default async function ProductPage({
     whatsappNumber,
     similar,
     ratingSummary,
+    recentSales,
   ] = await Promise.all([
     getSetting("order.max_qty_per_variant"),
     getSetting("size_chart.cm"),
@@ -133,6 +140,7 @@ export default async function ProductPage({
     getSetting("contact.whatsapp_number"),
     listSimilarProducts({ excludeId: product.id, priceFils: product.priceFils }),
     getProductRatingSummary(product.id),
+    getRecentSalesCount(product.id, RECENT_SALES_WINDOW_DAYS),
   ])
   const maxQtyPerVariant = maxQtySetting ?? DEFAULT_MAX_QTY_PER_VARIANT
 
@@ -250,6 +258,15 @@ export default async function ProductPage({
             maxQtyPerVariant={maxQtyPerVariant}
             initialColor={initialColor}
           />
+
+          {recentSales >= MIN_RECENT_SALES_TO_SHOW ? (
+            <RecentSalesProof
+              label={t("recent_sales", {
+                count: recentSales,
+                days: RECENT_SALES_WINDOW_DAYS,
+              })}
+            />
+          ) : null}
 
           {ratingSummary.count > 0 ? (
             <div className="flex items-center gap-2">
