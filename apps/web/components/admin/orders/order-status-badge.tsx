@@ -5,7 +5,7 @@ import { Badge } from "@workspace/ui/components/badge"
 import { cn } from "@workspace/ui/lib/utils"
 
 /** Colour treatment for each order status (labels are localised via next-intl). */
-const STATUS_CLASS: Record<OrderStatus, string> = {
+export const STATUS_CLASS: Record<OrderStatus, string> = {
   [OrderStatus.PENDING_VERIFICATION]:
     "border-transparent bg-muted text-muted-foreground",
   [OrderStatus.AWAITING_PAYMENT]:

@@ -650,7 +650,7 @@
     "dashboard": {
       "welcome": "Welcome, {name}",
       "subtitle": "Your store at a glance.",
-      "orders_today": "Orders today",
+      "orders_today": "Valid orders today",
       "pending_orders": "Pending orders",
       "low_stock": "Low stock",
       "tab_orders": "Order Analytics",
@@ -669,6 +669,9 @@
       "net_revenue": "Net revenue",
       "collected": "Collected",
       "orders": "Orders",
+      "valid_orders": "Valid orders",
+      "orders_by_status": "Orders by status",
+      "orders_by_status_hint": "Every order placed in this period by its current status. Cancelled and refused orders are excluded from sales and valid orders.",
       "avg_order_value": "Average order value",
       "units_sold": "Units sold",
       "gross_profit": "Gross profit",

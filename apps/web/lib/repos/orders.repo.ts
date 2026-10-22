@@ -291,9 +291,52 @@ function startOfTodayInUae(): Date {
   return new Date(dayStartUae - OFFSET_MS);
 }
 
+/** Statuses of orders the customer actually placed (excludes unverified / unpaid). */
+export const PLACED_STATUSES: OrderStatus[] = [
+  OrderStatus.NEW,
+  OrderStatus.CONFIRMED,
+  OrderStatus.SHIPPED,
+  OrderStatus.DELIVERED,
+  OrderStatus.REFUSED,
+  OrderStatus.CANCELLED,
+];
+
+/** Placed-order count per current status (every placed status present, zero-filled). */
+export type OrderStatusCounts = Record<
+  (typeof PLACED_STATUSES)[number],
+  number
+>;
+
+/** Count placed orders created in `[since, until)` grouped by their current status. */
+async function countPlacedOrdersByStatus(
+  since: Date,
+  until?: Date,
+): Promise<OrderStatusCounts> {
+  const groups = await prisma.order.groupBy({
+    by: ["status"],
+    where: {
+      status: { in: PLACED_STATUSES },
+      createdAt: { gte: since, ...(until ? { lt: until } : {}) },
+    },
+    _count: { _all: true },
+  });
+  const counts = Object.fromEntries(
+    PLACED_STATUSES.map((s) => [s, 0]),
+  ) as OrderStatusCounts;
+  for (const g of groups) {
+    counts[g.status as keyof OrderStatusCounts] = g._count._all;
+  }
+  return counts;
+}
+
 export type DashboardOrderStats = {
-  /** Verified orders placed since the start of today (UAE). */
+  /**
+   * Valid orders placed since the start of today (UAE) — still progressing or
+   * delivered; cancelled / refused are excluded (see `todayByStatus`).
+   */
   ordersToday: number;
+  /** Today's placed orders split by current status, incl. cancelled / refused. */
+  todayByStatus: OrderStatusCounts;
   /** New orders awaiting confirmation. */
   pendingOrders: number;
 };
@@ -301,21 +344,15 @@ export type DashboardOrderStats = {
 /** Overview counts for the admin dashboard. */
 export async function getDashboardOrderStats(): Promise<DashboardOrderStats> {
   const since = startOfTodayInUae();
-  const [ordersToday, pendingOrders] = await Promise.all([
-    prisma.order.count({
-      where: {
-        createdAt: { gte: since },
-        status: {
-          notIn: [
-            OrderStatus.PENDING_VERIFICATION,
-            OrderStatus.AWAITING_PAYMENT,
-          ],
-        },
-      },
-    }),
+  const [todayByStatus, pendingOrders] = await Promise.all([
+    countPlacedOrdersByStatus(since),
     prisma.order.count({ where: { status: OrderStatus.NEW } }),
   ]);
-  return { ordersToday, pendingOrders };
+  const ordersToday = SALES_STATUSES.reduce(
+    (sum, s) => sum + todayByStatus[s as keyof OrderStatusCounts],
+    0,
+  );
+  return { ordersToday, todayByStatus, pendingOrders };
 }
 
 // Statuses that count as real sales (placed + progressing through fulfilment).
@@ -371,7 +408,10 @@ export type SalesAnalytics = {
   totalCostFils: number;
   /** Gross profit: net revenue (excl. shipping) − total cost of goods. */
   grossProfitFils: number;
+  /** Valid orders (excludes cancelled / refused) — see `statusCounts`. */
   orders: number;
+  /** Every placed order in the window by current status, incl. cancelled / refused. */
+  statusCounts: OrderStatusCounts;
   aovFils: number;
   units: number;
   /**
@@ -444,37 +484,41 @@ function resolveAnalyticsWindow(range: AnalyticsRange): {
  * days, default 30) or an explicit `range.from`/`range.to` (`YYYY-MM-DD`):
  * gross sales, net revenue (excl. shipping), collected (delivered) revenue,
  * order count, AOV, units sold, a daily timeseries (sales vs collected,
- * zero-filled), and the top products by revenue. Counts only real sales
- * (excludes unverified / cancelled / refused). One DB read.
+ * zero-filled), and the top products by revenue. Money/order metrics count
+ * only real sales (excludes unverified / cancelled / refused); `statusCounts`
+ * breaks every placed order down by status so cancellations stay visible.
  */
 export async function getSalesAnalytics(
   range: AnalyticsRange = {},
 ): Promise<SalesAnalytics> {
   const { startKey, endKey, since, until } = resolveAnalyticsWindow(range);
 
-  const orders = await prisma.order.findMany({
-    where: {
-      status: { in: SALES_STATUSES },
-      createdAt: { gte: since, lt: until },
-    },
-    select: {
-      createdAt: true,
-      status: true,
-      totalFils: true,
-      subtotalFils: true,
-      paymentMethod: true,
-      items: {
-        select: {
-          quantity: true,
-          unitPriceFils: true,
-          unitCostFils: true,
-          productNameEn: true,
-          productNameAr: true,
-          variant: { select: { productId: true } },
+  const [orders, statusCounts] = await Promise.all([
+    prisma.order.findMany({
+      where: {
+        status: { in: SALES_STATUSES },
+        createdAt: { gte: since, lt: until },
+      },
+      select: {
+        createdAt: true,
+        status: true,
+        totalFils: true,
+        subtotalFils: true,
+        paymentMethod: true,
+        items: {
+          select: {
+            quantity: true,
+            unitPriceFils: true,
+            unitCostFils: true,
+            productNameEn: true,
+            productNameAr: true,
+            variant: { select: { productId: true } },
+          },
         },
       },
-    },
-  });
+    }),
+    countPlacedOrdersByStatus(since, until),
+  ]);
 
   // Zero-filled daily buckets for the whole window.
   const dailyMap = new Map<
@@ -555,6 +599,7 @@ export async function getSalesAnalytics(
     totalCostFils,
     grossProfitFils: netRevenueFils - totalCostFils,
     orders: orders.length,
+    statusCounts,
     aovFils: orders.length > 0 ? Math.round(totalSalesFils / orders.length) : 0,
     units,
     payment,

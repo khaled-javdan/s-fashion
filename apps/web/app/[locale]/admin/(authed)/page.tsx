@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { getTranslations } from "next-intl/server"
 
+import { OrderStatusBreakdown } from "@/components/admin/orders/order-status-breakdown"
 import { AnalyticsRangeControls } from "@/components/admin/analytics/analytics-range-controls"
 import { MetaCampaignsTable } from "@/components/admin/analytics/meta-campaigns-table"
 import { ProductPerformanceTable } from "@/components/admin/analytics/product-performance-table"
@@ -165,7 +166,7 @@ export default async function AdminDashboardPage({
               : 0
           }%`,
         },
-        { label: tA("orders"), value: String(analytics.orders) },
+        { label: tA("valid_orders"), value: String(analytics.orders) },
         { label: tA("avg_order_value"), value: formatAed(analytics.aovFils, locale) },
         { label: tA("units_sold"), value: String(analytics.units) },
       ]
@@ -279,6 +280,13 @@ export default async function AdminDashboardPage({
             <div className="mt-3 text-3xl font-semibold tabular-nums">
               {card.value}
             </div>
+            {card.key === "orders_today" ? (
+              <OrderStatusBreakdown
+                counts={orderStats.todayByStatus}
+                hideZero
+                className="mt-3"
+              />
+            ) : null}
           </Link>
         ))}
       </section>
@@ -338,6 +346,14 @@ export default async function AdminDashboardPage({
                 </div>
               </div>
             ))}
+          </div>
+
+          <div className="bg-card text-card-foreground rounded-md border p-5">
+            <h3 className="text-sm font-medium">{tA("orders_by_status")}</h3>
+            <p className="text-muted-foreground mt-1 mb-4 text-xs">
+              {tA("orders_by_status_hint")}
+            </p>
+            <OrderStatusBreakdown counts={analytics.statusCounts} />
           </div>
 
           <div className="bg-card text-card-foreground rounded-md border p-5">
