@@ -16,7 +16,8 @@ import { getSetting } from "@/lib/repos/settings.repo"
  *  - Business hours line — read from `contact.business_hours_{ar,en}`,
  *    falling back to the localized copy when unset.
  *  - Bottom strip: copyright, "Made with care in the UAE", and the UAE
- *    compliance details (registered name, VAT TRN) when set.
+ *    compliance details (registered name, VAT TRN) when set, plus the
+ *    "Designed and developed by EYB" credit linking to eyb.ae.
  *
  * Async Server Component — reads contact/company settings; no interactivity.
  */
@@ -206,6 +207,17 @@ export async function Footer() {
               &copy; {year} S Fashion. {t("rights")}.
             </p>
             <p>{t("made_with_care")}</p>
+            <p>
+              {t("designed_by")}{" "}
+              <a
+                href="https://eyb.ae"
+                target="_blank"
+                rel="noopener"
+                className="font-medium text-foreground hover:underline"
+              >
+                EYB
+              </a>
+            </p>
           </div>
         </div>
       </div>
