@@ -6,6 +6,7 @@ import {
   Settings,
   ShoppingBag,
   Star,
+  Tags,
   Ticket,
   UserPlus,
   Users,
@@ -36,6 +37,7 @@ type NavKey =
   | "customers"
   | "leads"
   | "products"
+  | "categories"
   | "reviews"
   | "coupons"
   | "settings"
@@ -75,6 +77,11 @@ export function AdminSidebar() {
       key: "products",
       href: `${root}/products`,
       icon: Package,
+    },
+    {
+      key: "categories",
+      href: `${root}/categories`,
+      icon: Tags,
     },
     {
       key: "reviews",

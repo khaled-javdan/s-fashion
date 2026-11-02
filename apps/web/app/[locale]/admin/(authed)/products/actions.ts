@@ -63,6 +63,8 @@ export type ProductFormPayload = {
    * default"; a value is the per-product chart (measurements in centimetres).
    */
   sizeChart?: SizeChartFormChart | null
+  /** Full set of category ids the product belongs to. */
+  categoryIds?: string[]
   variants: Array<{
     id?: string
     colorNameAr?: string | null
@@ -189,6 +191,7 @@ function toCreateInput(payload: ProductFormPayload): ProductCreateInput {
     isFinalSale: payload.isFinalSale,
     weightGrams: payload.weightGrams,
     sizeChart: payload.sizeChart ?? null,
+    categoryIds: payload.categoryIds ?? [],
     variants: payload.variants.map((v) => ({
       id: v.id,
       colorNameAr: v.colorNameAr ?? null,
@@ -228,6 +231,8 @@ function toUpdateInput(payload: ProductFormPayload): ProductUpdateInput {
     isFinalSale: payload.isFinalSale,
     weightGrams: payload.weightGrams,
     sizeChart: payload.sizeChart ?? null,
+    // Omitted = leave the product's categories untouched (never wipe them).
+    categoryIds: payload.categoryIds,
     variants: payload.variants.map((v) => ({
       id: v.id,
       colorNameAr: v.colorNameAr ?? null,
@@ -278,6 +283,7 @@ export async function createProductAction(
   try {
     const product = await createProduct(input)
     revalidatePath("/admin/products")
+    revalidatePath("/[locale]/admin/(authed)/categories", "layout")
     return { ok: true, data: { id: product.id } }
   } catch (err) {
     return {
@@ -325,6 +331,7 @@ export async function updateProductAction(
   try {
     const product = await updateProduct(id, input)
     revalidatePath("/admin/products")
+    revalidatePath("/[locale]/admin/(authed)/categories", "layout")
     revalidatePath(`/admin/products/${id}`)
     return { ok: true, data: { id: product.id } }
   } catch (err) {

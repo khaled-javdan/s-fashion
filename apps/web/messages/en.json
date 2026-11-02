@@ -634,7 +634,8 @@
       "products": "Products",
       "settings": "Settings",
       "reviews": "Reviews",
-      "coupons": "Coupons"
+      "coupons": "Coupons",
+      "categories": "Categories"
     },
     "login": {
       "title": "Admin sign in",
@@ -842,7 +843,8 @@
         "images": "Images",
         "basics": "Basics",
         "variants": "Variants",
-        "size_chart": "Size chart"
+        "size_chart": "Size chart",
+        "categories": "Categories"
       },
       "form": {
         "new_title": "New product",
@@ -864,7 +866,10 @@
         "active": "Active",
         "active_desc": "Visible to customers",
         "hide": "Hide product",
-        "restore": "Restore product"
+        "restore": "Restore product",
+        "categories_hint": "Tap a category to add or remove this product.",
+        "categories_empty": "No categories yet.",
+        "categories_manage": "Manage categories"
       },
       "variants": {
         "color": "Colour",
@@ -942,6 +947,71 @@
         "hidden": "Product hidden.",
         "now_visible": "Product is now visible to customers.",
         "now_hidden": "Product hidden from customers."
+      }
+    },
+    "categories": {
+      "nav": {
+        "back": "Back to categories"
+      },
+      "list": {
+        "title": "Categories",
+        "summary": "{count, plural, =0 {No categories yet} one {# category} other {# categories}}",
+        "new": "New category",
+        "empty": "No categories yet. Create one (e.g. “Mukhawar” or “Cotton”) and then add products to it."
+      },
+      "table": {
+        "order": "Order",
+        "name": "Name",
+        "slug": "Slug",
+        "products": "Products",
+        "status": "Status",
+        "edit": "Edit",
+        "move_up": "Move up",
+        "move_down": "Move down"
+      },
+      "status": {
+        "active": "Visible",
+        "hidden": "Hidden"
+      },
+      "sections": {
+        "details": "Details",
+        "products": "Products in this category"
+      },
+      "form": {
+        "create_title": "New category",
+        "name_en": "Name (English)",
+        "name_ar": "Name (Arabic)",
+        "name_en_placeholder": "e.g. Mukhawar",
+        "name_ar_placeholder": "مثال: مخور",
+        "slug": "Slug",
+        "active": "Visible",
+        "active_desc": "Hidden categories are kept but not shown to shoppers.",
+        "create": "Create",
+        "cancel": "Cancel",
+        "delete": "Delete category"
+      },
+      "products": {
+        "selected_count": "{count} of {total} products selected",
+        "selected_only": "Show selected only",
+        "search_placeholder": "Search products by name or slug…",
+        "select_visible": "Select all shown",
+        "clear_visible": "Clear all shown",
+        "no_products": "No products yet.",
+        "no_match": "No products match your search."
+      },
+      "validation": {
+        "name_en_required": "English name is required.",
+        "name_ar_required": "Arabic name is required.",
+        "slug_invalid": "Slug must be lowercase letters, digits and dashes (min 2 characters)."
+      },
+      "toast": {
+        "created": "Category created",
+        "saved": "Category saved",
+        "deleted": "Category deleted"
+      },
+      "delete": {
+        "title": "Delete this category?",
+        "body": "{count, plural, =0 {The category will be removed.} one {The category will be removed from # product. The product itself is not deleted.} other {The category will be removed from # products. The products themselves are not deleted.}}"
       }
     },
     "settings": {

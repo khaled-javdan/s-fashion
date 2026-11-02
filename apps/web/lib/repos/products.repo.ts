@@ -4,6 +4,7 @@ import {
   type ProductUpdateInput,
 } from "@/lib/schemas/product.schema";
 import type { ProductSource } from "@/lib/home-sections-config";
+import { setProductCategories } from "@/lib/repos/categories.repo";
 
 // Client-safe types + helpers live in a prisma-free module so that client
 // components can import them without bundling the server-only Prisma client.
@@ -803,6 +804,9 @@ export async function createProduct(
         images: { orderBy: { position: "asc" } },
       },
     });
+    if (input.categoryIds && input.categoryIds.length > 0) {
+      await setProductCategories(product.id, input.categoryIds, tx);
+    }
     return product;
   }, TX_OPTS);
 }
@@ -968,6 +972,10 @@ export async function updateProduct(
           })),
         });
       }
+    }
+
+    if (input.categoryIds !== undefined) {
+      await setProductCategories(id, input.categoryIds, tx);
     }
 
     const updated = await tx.product.findUniqueOrThrow({

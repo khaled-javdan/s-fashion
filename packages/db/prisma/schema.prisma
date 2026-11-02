@@ -44,9 +44,41 @@ model Product {
   variants          ProductVariant[]
   images            ProductImage[]
   reviews           Review[]
+  categories        ProductCategory[]
 
   @@index([isActive, createdAt])
   @@index([isActive, sortOrder])
+}
+
+/**
+ * An admin-defined product grouping (e.g. "Mukhawar", "Cotton"). A product can
+ * sit in any number of categories via `ProductCategory`. `sortOrder` is the
+ * admin's display order (lower first, name breaking ties).
+ */
+model Category {
+  id        String            @id @default(cuid())
+  slug      String            @unique
+  nameAr    String
+  nameEn    String
+  isActive  Boolean           @default(true)
+  sortOrder Int               @default(0)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  products  ProductCategory[]
+
+  @@index([isActive, sortOrder])
+}
+
+/** Many-to-many link between products and categories. */
+model ProductCategory {
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@id([productId, categoryId])
+  @@index([categoryId])
 }
 
 model ProductVariant {

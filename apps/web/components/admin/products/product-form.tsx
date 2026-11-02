@@ -1,6 +1,7 @@
 "use client"
 
 import { useTranslations } from "next-intl"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useMemo, useState, useTransition } from "react"
 import { toast } from "sonner"
@@ -47,8 +48,15 @@ import {
   type ProductWithRelations,
 } from "@/lib/repos/products.shared"
 import type { SizeChartFormChart } from "@/app/[locale]/admin/(authed)/products/actions"
+import type { CategoryOption } from "@/lib/repos/categories.repo"
 
-type Props = { initialAiModel: string } & (
+type Props = {
+  initialAiModel: string
+  /** Every category the product can be assigned to. */
+  categories: CategoryOption[]
+  /** Categories the product already belongs to (edit mode). */
+  initialCategoryIds?: string[]
+} & (
   | { mode: "create"; locale: Locale; product?: undefined }
   | { mode: "edit"; locale: Locale; product: ProductWithRelations }
 )
@@ -72,6 +80,8 @@ type FormState = {
   images: FormImage[]
   /** `null` = use the global default; `{ unit, rows }` = per-product override. */
   sizeChart: SizeChartFormState
+  /** Sorted, so the dirty check is order-independent. */
+  categoryIds: string[]
 }
 
 /** Map a stored size chart into string-backed form state (or null). */
@@ -96,7 +106,11 @@ function toSizeChartFormState(
 }
 
 
-function initialState(product?: ProductWithRelations): FormState {
+function initialState(
+  product: ProductWithRelations | undefined,
+  categoryIds: string[],
+): FormState {
+  const sortedCategoryIds = [...categoryIds].sort()
   if (!product) {
     return {
       slug: "",
@@ -115,6 +129,7 @@ function initialState(product?: ProductWithRelations): FormState {
       variants: [makeEmptyVariant()],
       images: [],
       sizeChart: null,
+      categoryIds: sortedCategoryIds,
     }
   }
   return {
@@ -151,6 +166,7 @@ function initialState(product?: ProductWithRelations): FormState {
       position: i.position,
     })),
     sizeChart: toSizeChartFormState(product),
+    categoryIds: sortedCategoryIds,
   }
 }
 
@@ -210,13 +226,17 @@ function applyDetectedColor(state: FormState, c: DetectedColor): FormState {
 }
 
 export function ProductForm(props: Props) {
-  const { mode, locale, initialAiModel } = props
+  const { mode, locale, initialAiModel, categories } = props
   const t = useTranslations("admin.products")
   const router = useRouter()
   // The active AI model, kept in sync with the inline switcher so the analyze
   // panel can name it when a request fails because the model was busy.
   const [aiModel, setAiModel] = useState(initialAiModel)
-  const initial = useMemo(() => initialState(props.product), [props.product])
+  const initialCategoryIds = props.initialCategoryIds
+  const initial = useMemo(
+    () => initialState(props.product, initialCategoryIds ?? []),
+    [props.product, initialCategoryIds],
+  )
   // Local baseline the form diffs against. Seeded from props, then advanced on
   // each successful save — a server action's revalidatePath/refresh re-derives
   // props (e.g. "30.00" → "30"), which must not read back as unsaved changes.
@@ -383,6 +403,7 @@ export function ProductForm(props: Props) {
     isActive: state.isActive,
     isFinalSale: state.isFinalSale,
     sizeChart: buildSizeChart(),
+    categoryIds: state.categoryIds,
     variants: state.variants.map((v) => ({
       id: v.id,
       colorNameAr: v.colorNameAr?.trim() || null,
@@ -722,6 +743,15 @@ export function ProductForm(props: Props) {
         </div>
       </Section>
 
+      <Section title={t("sections.categories")}>
+        <CategoryPicker
+          categories={categories}
+          selected={state.categoryIds}
+          locale={locale}
+          onChange={(ids) => set("categoryIds", [...ids].sort())}
+        />
+      </Section>
+
       <Section title={t("sections.size_chart")}>
         <ProductSizeChartEditor
           chart={state.sizeChart}
@@ -812,6 +842,75 @@ function ToggleRow({
         <div className="text-sm font-medium">{label}</div>
         <div className="text-muted-foreground text-xs">{description}</div>
       </div>
+    </div>
+  )
+}
+
+function CategoryPicker({
+  categories,
+  selected,
+  locale,
+  onChange,
+}: {
+  categories: CategoryOption[]
+  selected: string[]
+  locale: Locale
+  onChange: (ids: string[]) => void
+}) {
+  const t = useTranslations("admin.products")
+  if (categories.length === 0) {
+    return (
+      <p className="text-muted-foreground text-sm">
+        {t("form.categories_empty")}{" "}
+        <Link
+          href={`/${locale}/admin/categories`}
+          className="text-foreground underline underline-offset-4"
+        >
+          {t("form.categories_manage")}
+        </Link>
+      </p>
+    )
+  }
+  const selectedSet = new Set(selected)
+  const toggle = (id: string) =>
+    onChange(
+      selectedSet.has(id)
+        ? selected.filter((x) => x !== id)
+        : [...selected, id],
+    )
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap gap-2">
+        {categories.map((c) => {
+          const on = selectedSet.has(c.id)
+          return (
+            <button
+              key={c.id}
+              type="button"
+              onClick={() => toggle(c.id)}
+              aria-pressed={on}
+              className={
+                "rounded-full border px-3 py-1.5 text-sm transition-colors " +
+                (on
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "hover:bg-muted") +
+                (c.isActive ? "" : " opacity-60")
+              }
+            >
+              {locale === "ar" ? c.nameAr : c.nameEn}
+            </button>
+          )
+        })}
+      </div>
+      <p className="text-muted-foreground text-xs">
+        {t("form.categories_hint")}{" "}
+        <Link
+          href={`/${locale}/admin/categories`}
+          className="text-foreground underline underline-offset-4"
+        >
+          {t("form.categories_manage")}
+        </Link>
+      </p>
     </div>
   )
 }

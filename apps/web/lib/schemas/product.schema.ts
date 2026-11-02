@@ -91,6 +91,8 @@ const productBase = z.object({
   // Per-product size chart override. `null` (the default) means the storefront
   // falls back to the global `size_chart.cm` setting.
   sizeChart: sizeChartSchema.nullish(),
+  // Full replacement set of category ids. Omitted on update = leave untouched.
+  categoryIds: z.array(z.string().min(1).max(64)).max(200).optional(),
 });
 
 /**
