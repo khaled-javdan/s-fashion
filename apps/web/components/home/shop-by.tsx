@@ -3,8 +3,13 @@ import Image from "next/image"
 import Link from "next/link"
 
 import type { Locale } from "@/lib/locale"
+import { listShoppableCategories } from "@/lib/repos/categories.repo"
 import { getSetting } from "@/lib/repos/settings.repo"
-import { parseShopByConfig, resolveShopByHref } from "@/lib/shop-by-config"
+import {
+  parseShopByConfig,
+  resolveShopByHref,
+  shopByTileCategorySlug,
+} from "@/lib/shop-by-config"
 
 /**
  * Home "Shop by" tiles.
@@ -21,6 +26,22 @@ export async function ShopBy({ locale }: { locale: Locale }) {
 
   if (!config.enabled || config.tiles.length === 0) return null
 
+  // Tiles linking to a category page only show while that category is
+  // shoppable (visible + has visible products). Hiding the category hides its
+  // tile; the tile stays saved and comes back when the category does. A tile
+  // whose category slug no longer exists is hidden too, instead of 404ing.
+  const linksCategory = config.tiles.some(
+    (tile) => shopByTileCategorySlug(tile.href) !== null,
+  )
+  const shoppableSlugs = linksCategory
+    ? new Set((await listShoppableCategories()).map((c) => c.slug))
+    : null
+  const tiles = config.tiles.filter((tile) => {
+    const slug = shopByTileCategorySlug(tile.href)
+    return slug === null || shoppableSlugs!.has(slug)
+  })
+  if (tiles.length === 0) return null
+
   return (
     <section className="mx-auto w-full max-w-7xl px-4 py-12 sm:px-6 sm:py-16 lg:px-0">
       <div className="mb-8 flex flex-col gap-1">
@@ -33,7 +54,7 @@ export async function ShopBy({ locale }: { locale: Locale }) {
       </div>
 
       <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-6 lg:grid-cols-4">
-        {config.tiles.map((tile, index) => {
+        {tiles.map((tile, index) => {
           const label = locale === "ar" ? tile.labelAr : tile.labelEn
           const href = resolveShopByHref(tile.href, locale)
           return (

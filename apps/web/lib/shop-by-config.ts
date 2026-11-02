@@ -78,6 +78,15 @@ export function parseShopByConfig(raw: unknown): ShopByConfig {
 }
 
 /**
+ * The category slug a tile links to (`/collections/<slug>`, optionally with a
+ * query/hash), or null when the tile points anywhere else.
+ */
+export function shopByTileCategorySlug(href: string): string | null {
+  const match = /^\/collections\/([^/?#]+)/.exec(href.trim())
+  return match ? decodeURIComponent(match[1]!) : null
+}
+
+/**
  * Resolve the admin-entered tile path to a locale-aware URL while keeping any
  * query string intact.
  * - "#anchor"  → left as-is (same-page scroll)
