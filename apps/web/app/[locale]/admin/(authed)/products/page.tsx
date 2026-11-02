@@ -32,6 +32,7 @@ export default async function AdminProductsPage({
       slug: p.slug,
       priceFils: p.priceFils,
       isActive: p.isActive,
+      isFabric: p.kind === "FABRIC",
       totalStock: p.variants.reduce((sum, v) => sum + v.stock, 0),
       thumbnailUrl: firstImage?.url ?? null,
       thumbnailAlt: firstImage?.altEn ?? p.nameEn,

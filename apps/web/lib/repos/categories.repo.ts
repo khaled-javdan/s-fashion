@@ -24,12 +24,15 @@ export async function listCategoriesForAdmin(): Promise<CategoryWithCount[]> {
 }
 
 /** Lightweight option list for pickers (e.g. the product form). */
-export type CategoryOption = Pick<Category, "id" | "nameEn" | "nameAr" | "isActive">;
+export type CategoryOption = Pick<
+  Category,
+  "id" | "slug" | "nameEn" | "nameAr" | "isActive"
+>;
 
 export async function listCategoryOptions(): Promise<CategoryOption[]> {
   return prisma.category.findMany({
     orderBy: CATEGORY_ORDER_BY,
-    select: { id: true, nameEn: true, nameAr: true, isActive: true },
+    select: { id: true, slug: true, nameEn: true, nameAr: true, isActive: true },
   });
 }
 
@@ -166,4 +169,64 @@ export async function listProductsForPicker(): Promise<PickerProduct[]> {
     ...p,
     thumbnailUrl: images[0]?.url ?? null,
   }));
+}
+
+/* ------------------------------------------------------------------ */
+/* Storefront                                                          */
+/* ------------------------------------------------------------------ */
+
+/** What the storefront needs to render a category link / chip. */
+export type StorefrontCategory = Pick<
+  Category,
+  "id" | "slug" | "nameEn" | "nameAr"
+>;
+
+const STOREFRONT_SELECT = {
+  id: true,
+  slug: true,
+  nameEn: true,
+  nameAr: true,
+} as const;
+
+/** Visible AND holding at least one visible product — never show an empty category. */
+const SHOPPABLE: Prisma.CategoryWhereInput = {
+  isActive: true,
+  products: { some: { product: { isActive: true } } },
+};
+
+/** Categories offered in the shop-page filter. */
+export async function listShoppableCategories(): Promise<StorefrontCategory[]> {
+  return prisma.category.findMany({
+    where: SHOPPABLE,
+    orderBy: CATEGORY_ORDER_BY,
+    select: STOREFRONT_SELECT,
+  });
+}
+
+/** Categories the admin marked "Show in menu" (header dropdown + mobile menu). */
+export async function listMenuCategories(): Promise<StorefrontCategory[]> {
+  return prisma.category.findMany({
+    where: { ...SHOPPABLE, showInMenu: true },
+    orderBy: CATEGORY_ORDER_BY,
+    select: STOREFRONT_SELECT,
+  });
+}
+
+/** A visible category by slug, for its storefront page. Null when hidden/missing. */
+export async function getVisibleCategoryBySlug(
+  slug: string,
+): Promise<Category | null> {
+  const category = await prisma.category.findUnique({ where: { slug } });
+  return category?.isActive ? category : null;
+}
+
+/** A product's visible categories (product-page chips + related products). */
+export async function listVisibleCategoriesForProduct(
+  productId: string,
+): Promise<StorefrontCategory[]> {
+  return prisma.category.findMany({
+    where: { isActive: true, products: { some: { productId } } },
+    orderBy: CATEGORY_ORDER_BY,
+    select: STOREFRONT_SELECT,
+  });
 }

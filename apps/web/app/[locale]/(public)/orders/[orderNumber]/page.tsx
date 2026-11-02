@@ -22,6 +22,7 @@ import { getOrderByNumber, markOrderPaidBySession } from "@/lib/repos/orders.rep
 import { getSetting } from "@/lib/repos/settings.repo"
 import { dispatchOrderNotifications } from "@/lib/services/order-notifications"
 import { getStripe, isStripeConfigured } from "@/lib/services/stripe"
+import { lineVariantLabel } from "@/lib/fabric"
 
 export async function generateMetadata({
   params,
@@ -217,11 +218,7 @@ export default async function OrderConfirmationPage({
           {order.items.map((item) => {
             const name =
               locale === "ar" ? item.productNameAr : item.productNameEn
-            const colorName =
-              locale === "ar" ? item.colorNameAr : item.colorNameEn
-            const variantLabel = [colorName, item.size]
-              .filter(Boolean)
-              .join(" · ")
+            const variantLabel = lineVariantLabel(item, locale)
             return (
               <li
                 key={item.id}

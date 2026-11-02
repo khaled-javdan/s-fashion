@@ -61,6 +61,12 @@ export type CartItem = {
    */
   weightGrams?: number
   isFinalSale?: boolean
+  /**
+   * FABRIC lines: length of one piece in cm (display-only; the server snapshots
+   * the real value from the DB at checkout). Absent/null for garments and for
+   * carts persisted before fabric existed.
+   */
+  pieceLengthCm?: number | null
   /** 1..maxQtyPerVariant */
   quantity: number
 }

@@ -25,8 +25,14 @@ import {
   useCartStore,
 } from "@/lib/cart-store"
 import type { Locale } from "@/lib/locale"
+import type { StorefrontCategory } from "@/lib/repos/categories.repo"
 
-export function BottomNav() {
+export function BottomNav({
+  menuCategories = [],
+}: {
+  /** Categories the admin marked "Show in menu" (already filtered to shoppable). */
+  menuCategories?: StorefrontCategory[]
+}) {
   const t = useTranslations("header")
   const locale = useLocale() as Locale
   const pathname = usePathname()
@@ -42,6 +48,9 @@ export function BottomNav() {
 
   const isActive = (href: string) =>
     href === root ? pathname === root : pathname.startsWith(href)
+
+  const shopActive =
+    isActive(`${root}/products`) || isActive(`${root}/collections`)
 
   // Shared tab wrapper — column layout, label below the pill.
   const tabClass = "flex flex-col items-center gap-1 py-2 px-2"
@@ -76,10 +85,10 @@ export function BottomNav() {
 
           {/* Shop */}
           <Link href={`${root}/products`} className={tabClass}>
-            <span className={pillClass(isActive(`${root}/products`))}>
+            <span className={pillClass(shopActive)}>
               <LayoutGrid className="size-5" />
             </span>
-            <span className={labelClass(isActive(`${root}/products`))}>{t("nav_shop")}</span>
+            <span className={labelClass(shopActive)}>{t("nav_shop")}</span>
           </Link>
 
           {/* Cart */}
@@ -136,7 +145,25 @@ export function BottomNav() {
             </SheetDescription>
           </SheetHeader>
 
-          <nav className="flex flex-col p-2">
+          <nav className="flex flex-col overflow-y-auto p-2">
+            {menuCategories.length > 0 ? (
+              <>
+                <p className="px-3 pt-2 pb-1 text-[10px] font-semibold tracking-widest text-muted-foreground uppercase">
+                  {t("shop_all")}
+                </p>
+                {menuCategories.map((c) => (
+                  <SheetClose asChild key={c.id}>
+                    <Link
+                      href={`${root}/collections/${c.slug}`}
+                      className="rounded-md px-3 py-3 text-sm font-semibold uppercase tracking-widest text-foreground/80 transition-colors hover:bg-muted hover:text-foreground"
+                    >
+                      {locale === "ar" ? c.nameAr : c.nameEn}
+                    </Link>
+                  </SheetClose>
+                ))}
+                <div className="my-2 border-t border-border" />
+              </>
+            ) : null}
             {moreLinks.map((item) => (
               <SheetClose asChild key={item.key}>
                 <Link

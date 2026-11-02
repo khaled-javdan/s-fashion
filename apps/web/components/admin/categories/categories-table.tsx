@@ -31,6 +31,7 @@ import {
 } from "@/app/[locale]/admin/(authed)/categories/actions"
 import {
   CategoryDetailsFields,
+  toCategoryPayload,
   validateCategoryDetails,
   type CategoryDetailsState,
 } from "@/components/admin/categories/category-details-form"
@@ -41,7 +42,10 @@ const EMPTY: CategoryDetailsState = {
   nameEn: "",
   nameAr: "",
   slug: "",
+  descEn: "",
+  descAr: "",
   isActive: true,
+  showInMenu: false,
 }
 
 export function CategoriesTable({
@@ -79,12 +83,7 @@ export function CategoriesTable({
       return
     }
     startTransition(async () => {
-      const result = await createCategoryAction({
-        nameEn: draft.nameEn.trim(),
-        nameAr: draft.nameAr.trim(),
-        slug: draft.slug.trim(),
-        isActive: draft.isActive,
-      })
+      const result = await createCategoryAction(toCategoryPayload(draft))
       if (result.ok) {
         toast.success(t("toast.created"))
         // Straight to the category so the admin can add its products.
@@ -182,9 +181,14 @@ export function CategoriesTable({
                     {c.productCount}
                   </TableCell>
                   <TableCell className="text-center">
-                    <Badge variant={c.isActive ? "default" : "secondary"}>
-                      {c.isActive ? t("status.active") : t("status.hidden")}
-                    </Badge>
+                    <div className="flex flex-wrap justify-center gap-1">
+                      <Badge variant={c.isActive ? "default" : "secondary"}>
+                        {c.isActive ? t("status.active") : t("status.hidden")}
+                      </Badge>
+                      {c.showInMenu ? (
+                        <Badge variant="outline">{t("status.in_menu")}</Badge>
+                      ) : null}
+                    </div>
                   </TableCell>
                   <TableCell className="text-end">
                     <Button variant="ghost" size="sm" asChild>
@@ -201,7 +205,7 @@ export function CategoriesTable({
       )}
 
       <Dialog open={creating} onOpenChange={(o) => !o && setCreating(false)}>
-        <DialogContent className="sm:max-w-xl">
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle className="font-heading text-xl tracking-wide">
               {t("form.create_title")}

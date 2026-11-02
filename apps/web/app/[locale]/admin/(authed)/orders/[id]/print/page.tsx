@@ -5,6 +5,7 @@ import { AutoPrint } from "@/components/admin/orders/auto-print"
 import { formatDestination } from "@/components/admin/orders/emirate"
 import { formatAed } from "@/lib/money"
 import { getOrderById } from "@/lib/repos/orders.repo"
+import { lineSizeLabel } from "@/lib/fabric"
 
 /**
  * Brand palette — identical to the constants in lib/services/resend.ts so the
@@ -219,7 +220,9 @@ export default async function OrderPrintPage({
                     </div>
                   ) : null}
                 </td>
-                <td style={{ padding: "6px 0", color: C.fg }}>{item.size}</td>
+                <td style={{ padding: "6px 0", color: C.fg }}>
+                  {lineSizeLabel(item, "en")}
+                </td>
                 <td
                   style={{
                     padding: "6px 0",

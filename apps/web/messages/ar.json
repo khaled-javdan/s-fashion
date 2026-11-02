@@ -174,7 +174,15 @@
     "previous_image": "الصورة السابقة",
     "next_image": "الصورة التالية",
     "you_may_also_like": "قد يعجبك أيضاً",
-    "recently_viewed": "شاهدتِها مؤخراً"
+    "recently_viewed": "شاهدتِها مؤخراً",
+    "categories_label": "التصنيفات",
+    "fabric_specs_heading": "تفاصيل القماش",
+    "fabric_material": "الخامة",
+    "fabric_width": "العرض",
+    "fabric_length": "طول القطعة",
+    "fabric_piece_note": "تستلمين قطعة واحدة غير مقصوصة بمقاس {length} × {width}، تكفي عادةً لفستان أو جلابية واحدة.",
+    "per_piece": "للقطعة",
+    "quantity_pieces": "الكمية (قطع)"
   },
   "cart": {
     "empty": "السلة فارغة",
@@ -837,14 +845,16 @@
         "edit": "تعديل",
         "out_of_stock": "نفد",
         "toggle_active": "تبديل الحالة النشطة",
-        "reorder": "اسحب لإعادة الترتيب"
+        "reorder": "اسحب لإعادة الترتيب",
+        "fabric_badge": "قماش"
       },
       "sections": {
         "images": "الصور",
         "basics": "الأساسيات",
         "variants": "المتغيرات",
         "size_chart": "جدول المقاسات",
-        "categories": "التصنيفات"
+        "categories": "التصنيفات",
+        "type": "نوع المنتج"
       },
       "form": {
         "new_title": "منتج جديد",
@@ -869,7 +879,8 @@
         "restore": "استعادة المنتج",
         "categories_hint": "اضغط على التصنيف لإضافة هذا المنتج إليه أو إزالته منه.",
         "categories_empty": "لا توجد تصنيفات بعد.",
-        "categories_manage": "إدارة التصنيفات"
+        "categories_manage": "إدارة التصنيفات",
+        "price_per_piece": "سعر القطعة (درهم)"
       },
       "variants": {
         "color": "اللون",
@@ -887,7 +898,10 @@
         "sync_no_colors": "لا توجد صور موسومة بلون لمزامنتها بعد.",
         "sync_none_added": "جميع ألوان الصور مغطاة بالمتغيرات بالفعل.",
         "sync_added": "تمت إضافة {count} متغير من ألوان الصور.",
-        "sync_added_plural": "تمت إضافة {count} متغيرات من ألوان الصور."
+        "sync_added_plural": "تمت إضافة {count} متغيرات من ألوان الصور.",
+        "unit": "الوحدة",
+        "per_piece": "لكل قطعة",
+        "duplicate_color": "لون مكرر. يجب أن يكون كل لون قماش فريداً."
       },
       "images": {
         "dropzone": "اسحب الصور وأفلتها، أو انقر للتصفح",
@@ -938,7 +952,11 @@
         "variant_unique": "يجب أن يكون كل تركيب من اللون والمقاس فريدًا.",
         "size_chart_empty": "أضف صفًا واحدًا على الأقل لجدول المقاسات، أو استخدم الافتراضي العام.",
         "size_chart_size_required": "كل صف في جدول المقاسات يحتاج إلى اسم مقاس.",
-        "size_chart_length_invalid": "أدخل طولًا صحيحًا للمقاس {size}."
+        "size_chart_length_invalid": "أدخل طولًا صحيحًا للمقاس {size}.",
+        "fabric_material_required": "اختر خامة القماش.",
+        "fabric_width_invalid": "أدخل عرض القماش بالسنتيمتر (50–400).",
+        "fabric_length_invalid": "أدخل طول القطعة بالمتر (0.5–50).",
+        "variant_unique_fabric": "يجب أن يكون كل لون قماش فريداً."
       },
       "toast": {
         "created": "تم إنشاء المنتج.",
@@ -947,6 +965,19 @@
         "hidden": "تم إخفاء المنتج.",
         "now_visible": "أصبح المنتج ظاهرًا للعملاء الآن.",
         "now_hidden": "تم إخفاء المنتج عن العملاء."
+      },
+      "type": {
+        "garment": "ملابس جاهزة",
+        "garment_desc": "يُباع حسب اللون والمقاس (XS–XXL / مقاس حر).",
+        "fabric": "قطعة قماش",
+        "fabric_desc": "طول مقصوص ثابت (مثل 3 م × 147 سم) بسعر واحد للقطعة. لون فقط، بدون مقاسات."
+      },
+      "fabric": {
+        "material": "الخامة",
+        "material_placeholder": "اختر الخامة",
+        "width": "العرض (سم)",
+        "length": "طول القطعة (م)",
+        "hint": "المعتاد: عرض مزدوج 147 سم ← قطعة 3 م؛ عرض عادي 110 سم ← قطعة 3.5 م. المخزون والسعر لكل قطعة."
       }
     },
     "categories": {
@@ -971,7 +1002,8 @@
       },
       "status": {
         "active": "ظاهر",
-        "hidden": "مخفي"
+        "hidden": "مخفي",
+        "in_menu": "في القائمة"
       },
       "sections": {
         "details": "التفاصيل",
@@ -988,7 +1020,12 @@
         "active_desc": "التصنيفات المخفية تبقى محفوظة لكنها لا تظهر للمتسوقين.",
         "create": "إنشاء",
         "cancel": "إلغاء",
-        "delete": "حذف التصنيف"
+        "delete": "حذف التصنيف",
+        "desc_en": "الوصف (بالإنجليزية)",
+        "desc_ar": "الوصف (بالعربية)",
+        "desc_placeholder": "اختياري. يظهر أعلى صفحة التصنيف وفي نتائج Google.",
+        "show_in_menu": "إظهار في القائمة",
+        "show_in_menu_desc": "يظهر في قائمة «تسوق» أعلى الموقع وفي قائمة الجوال."
       },
       "products": {
         "selected_count": "تم اختيار {count} من أصل {total} منتج",
@@ -1078,7 +1115,8 @@
           "newest": "وصل حديثًا",
           "best_selling": "الأكثر مبيعًا",
           "on_sale": "تخفيضات",
-          "in_stock": "متوفّر"
+          "in_stock": "متوفّر",
+          "category": "من تصنيف"
         },
         "section": {
           "value_props": "المزايا",
@@ -1088,7 +1126,12 @@
           "ugc_strip": "شريط إنستغرام",
           "whatsapp_signup": "اشتراك واتساب",
           "recently_viewed": "شوهدت مؤخرًا"
-        }
+        },
+        "category_label": "التصنيف",
+        "category_placeholder": "اختر تصنيفًا",
+        "category_none": "لا توجد تصنيفات بعد. أنشئ تصنيفًا من صفحة التصنيفات أولًا.",
+        "category_hidden": "مخفي",
+        "error_category_required": "اختر تصنيفًا لكل صف من نوع «من تصنيف»."
       },
       "hero": {
         "card_title": "واجهة الصفحة الرئيسية",
@@ -1714,7 +1757,10 @@
     "search_clear": "مسح البحث",
     "search_title": "نتائج البحث عن ”{query}“",
     "search_results": "{count, plural, =0 {لا نتائج لـ ”{query}“} one {نتيجة واحدة لـ ”{query}“} two {نتيجتان لـ ”{query}“} few {# نتائج لـ ”{query}“} many {# نتيجة لـ ”{query}“} other {# نتيجة لـ ”{query}“}}",
-    "search_empty": "لم نعثر على منتجات لـ ”{query}“. جرّبي كلمة أخرى."
+    "search_empty": "لم نعثر على منتجات لـ ”{query}“. جرّبي كلمة أخرى.",
+    "category_label": "التصنيف",
+    "all_products": "كل المنتجات",
+    "material_label": "الخامة"
   },
   "reviews": {
     "pdp_heading": "آراء العملاء",

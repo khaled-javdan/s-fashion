@@ -29,6 +29,7 @@ import {
 } from "@/app/[locale]/admin/(authed)/categories/actions"
 import {
   CategoryDetailsFields,
+  toCategoryPayload,
   validateCategoryDetails,
   type CategoryDetailsState,
 } from "@/components/admin/categories/category-details-form"
@@ -48,7 +49,10 @@ function toState(category: Category & { productIds: string[] }): EditorState {
       nameEn: category.nameEn,
       nameAr: category.nameAr,
       slug: category.slug,
+      descEn: category.descEn ?? "",
+      descAr: category.descAr ?? "",
       isActive: category.isActive,
+      showInMenu: category.showInMenu,
     },
     productIds: [...category.productIds].sort(),
   }
@@ -127,12 +131,10 @@ export function CategoryEditor({
     const snapshot = state
     startTransition(async () => {
       if (detailsDirty) {
-        const result = await updateCategoryAction(category.id, {
-          nameEn: snapshot.details.nameEn.trim(),
-          nameAr: snapshot.details.nameAr.trim(),
-          slug: snapshot.details.slug.trim(),
-          isActive: snapshot.details.isActive,
-        })
+        const result = await updateCategoryAction(
+          category.id,
+          toCategoryPayload(snapshot.details),
+        )
         if (!result.ok) {
           toast.error(result.error)
           return

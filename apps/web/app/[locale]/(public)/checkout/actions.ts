@@ -112,6 +112,8 @@ type ResolvedItem = {
   colorNameAr: string | null
   colorNameEn: string | null
   size: Size
+  /** FABRIC piece length (cm) snapshot; null for garments. */
+  pieceLengthCm: number | null
   unitPriceFils: number
   unitCostFils: number
   /** Product shipping weight in grams (0 when unset) — drives weight pricing. */
@@ -174,6 +176,10 @@ async function resolveAndValidateItems(
       colorNameAr: variant.colorNameAr,
       colorNameEn: variant.colorNameEn,
       size: variant.size,
+      pieceLengthCm:
+        variant.product.kind === "FABRIC"
+          ? variant.product.fabricLengthCm
+          : null,
       unitPriceFils: variant.product.priceFils,
       unitCostFils: variant.product.costPriceFils ?? 0,
       weightGrams: variant.product.weightGrams ?? 0,

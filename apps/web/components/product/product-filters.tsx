@@ -20,7 +20,9 @@ import {
 } from "@workspace/ui/components/select"
 import { cn } from "@workspace/ui/lib/utils"
 
+import { fabricMaterialLabel } from "@/lib/fabric"
 import type { Locale } from "@/lib/locale"
+import type { StorefrontCategory } from "@/lib/repos/categories.repo"
 import type {
   CatalogFacets,
   ColorFacet,
@@ -150,12 +152,18 @@ const SORTS: readonly ProductSort[] = [
 type Props = {
   locale: Locale
   facets: CatalogFacets
+  /** Categories to offer as a filter group (empty = group hidden). */
+  categories: StorefrontCategory[]
   /** Price bounds in AED whole units (derived from the catalogue). */
   priceBounds: { min: number; max: number }
   /** Currently-applied filter state, parsed from the URL by the page. */
   active: {
+    /** Selected category slugs. */
+    categories: string[]
     colors: string[]
     sizes: Size[]
+    /** Selected fabric material keys. */
+    materials: string[]
     minAed: number | null
     maxAed: number | null
     inStockOnly: boolean
@@ -170,16 +178,24 @@ type Props = {
  * applied instantly; the rest are staged locally and committed with "Apply" so
  * a shopper can pick several facets before navigating once.
  */
-export function ProductFilters({ locale, facets, priceBounds, active }: Props) {
+export function ProductFilters({
+  locale,
+  facets,
+  categories,
+  priceBounds,
+  active,
+}: Props) {
   const t = useTranslations("products")
   const tProduct = useTranslations("product")
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
 
+  const [categorySlugs, setCategorySlugs] = useState<string[]>(active.categories)
   const [colors, setColors] = useState<string[]>(active.colors)
   const colorFamilies = useMemo(() => buildColorFamilies(facets.colors), [facets.colors])
   const [sizes, setSizes] = useState<Size[]>(active.sizes)
+  const [materials, setMaterials] = useState<string[]>(active.materials)
   const [minAed, setMinAed] = useState<string>(
     active.minAed != null ? String(active.minAed) : "",
   )
@@ -190,8 +206,10 @@ export function ProductFilters({ locale, facets, priceBounds, active }: Props) {
   const [onSale, setOnSale] = useState(active.onSaleOnly)
 
   const hasFilters =
+    active.categories.length > 0 ||
     active.colors.length > 0 ||
     active.sizes.length > 0 ||
+    active.materials.length > 0 ||
     active.minAed != null ||
     active.maxAed != null ||
     active.inStockOnly ||
@@ -213,16 +231,28 @@ export function ProductFilters({ locale, facets, priceBounds, active }: Props) {
     }
   }
 
+  const toggleCategory = (slug: string) =>
+    setCategorySlugs((prev) =>
+      prev.includes(slug) ? prev.filter((s) => s !== slug) : [...prev, slug],
+    )
+
   const toggleSize = (size: Size) =>
     setSizes((prev) =>
       prev.includes(size) ? prev.filter((s) => s !== size) : [...prev, size],
     )
 
+  const toggleMaterial = (key: string) =>
+    setMaterials((prev) =>
+      prev.includes(key) ? prev.filter((m) => m !== key) : [...prev, key],
+    )
+
   /** Build a query string from the staged controls, preserving sort. */
   const buildQuery = (): string => {
     const params = new URLSearchParams()
+    if (categorySlugs.length > 0) params.set("category", categorySlugs.join(","))
     if (colors.length > 0) params.set("color", colors.join(","))
     if (sizes.length > 0) params.set("size", sizes.join(","))
+    if (materials.length > 0) params.set("material", materials.join(","))
     if (minAed.trim() !== "") params.set("min", minAed.trim())
     if (maxAed.trim() !== "") params.set("max", maxAed.trim())
     if (inStock) params.set("in_stock", "1")
@@ -269,6 +299,35 @@ export function ProductFilters({ locale, facets, priceBounds, active }: Props) {
           </SelectContent>
         </Select>
       </div>
+
+      {categories.length > 0 ? (
+        <fieldset className="flex flex-col gap-2">
+          <legend className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">
+            {t("category_label")}
+          </legend>
+          <div className="flex flex-wrap gap-2">
+            {categories.map((c) => {
+              const selected = categorySlugs.includes(c.slug)
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => toggleCategory(c.slug)}
+                  aria-pressed={selected}
+                  className={cn(
+                    "rounded-md border px-3 py-1.5 text-sm transition",
+                    selected
+                      ? "border-foreground bg-foreground text-background"
+                      : "border-border hover:border-foreground/50",
+                  )}
+                >
+                  {locale === "ar" ? c.nameAr : c.nameEn}
+                </button>
+              )
+            })}
+          </div>
+        </fieldset>
+      ) : null}
 
       {colorFamilies.length > 0 ? (
         <fieldset className="flex flex-col gap-2">
@@ -324,6 +383,35 @@ export function ProductFilters({ locale, facets, priceBounds, active }: Props) {
                   )}
                 >
                   {size}
+                </button>
+              )
+            })}
+          </div>
+        </fieldset>
+      ) : null}
+
+      {facets.materials.length > 0 ? (
+        <fieldset className="flex flex-col gap-2">
+          <legend className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">
+            {t("material_label")}
+          </legend>
+          <div className="flex flex-wrap gap-2">
+            {facets.materials.map((key) => {
+              const selected = materials.includes(key)
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => toggleMaterial(key)}
+                  aria-pressed={selected}
+                  className={cn(
+                    "rounded-md border px-3 py-1.5 text-sm transition",
+                    selected
+                      ? "border-foreground bg-foreground text-background"
+                      : "border-border hover:border-foreground/50",
+                  )}
+                >
+                  {fabricMaterialLabel(key, locale) ?? key}
                 </button>
               )
             })}

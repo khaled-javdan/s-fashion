@@ -12,6 +12,7 @@ import { WhatsappFloat } from "@/components/layout/whatsapp-float"
 import { CurrencyProvider } from "@/components/providers/currency-provider"
 import { getCurrencyContext } from "@/lib/currency-context.server"
 import { DEFAULT_MAX_QTY_PER_VARIANT } from "@/lib/order-limits"
+import { listMenuCategories } from "@/lib/repos/categories.repo"
 import { getSetting } from "@/lib/repos/settings.repo"
 
 const GTM_ID = process.env.NEXT_PUBLIC_GTM_ID
@@ -33,10 +34,12 @@ export default async function PublicLayout({
     { country, currency, rate, enabledCountries },
     maxQtySetting,
     whatsappNumber,
+    menuCategories,
   ] = await Promise.all([
     getCurrencyContext(),
     getSetting("order.max_qty_per_variant"),
     getSetting("contact.whatsapp_number"),
+    listMenuCategories(),
   ])
   const maxQtyPerVariant = maxQtySetting ?? DEFAULT_MAX_QTY_PER_VARIANT
 
@@ -50,11 +53,11 @@ export default async function PublicLayout({
       {GTM_ID ? <GoogleTagManager gtmId={GTM_ID} /> : null}
       <ScrollToTop />
       <div className="flex min-h-svh flex-col">
-        <Header />
+        <Header menuCategories={menuCategories} />
         <main className="flex-1 pb-16 md:pb-0">{children}</main>
         <Footer />
         <WhatsappFloat phoneNumber={whatsappNumber ?? undefined} />
-        <BottomNav />
+        <BottomNav menuCategories={menuCategories} />
         <AnalyticsProvider />
         <CartToasterMount />
         <CartConfigMount maxQtyPerVariant={maxQtyPerVariant} />

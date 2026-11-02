@@ -17,6 +17,7 @@ import * as browser from "../node_modules/.prisma/client/index-browser.js"
 type Enums = typeof import("../node_modules/.prisma/client/index.js")
 
 export const Size = browser.Size as unknown as Enums["Size"]
+export const ProductKind = browser.ProductKind as unknown as Enums["ProductKind"]
 export const Emirate = browser.Emirate as unknown as Enums["Emirate"]
 export const AdminRole = browser.AdminRole as unknown as Enums["AdminRole"]
 export const OrderStatus = browser.OrderStatus as unknown as Enums["OrderStatus"]

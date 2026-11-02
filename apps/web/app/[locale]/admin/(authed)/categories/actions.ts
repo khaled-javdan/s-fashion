@@ -42,10 +42,14 @@ function isUniqueViolation(err: unknown): boolean {
   )
 }
 
-/** Categories + product pages both show category membership. */
+/**
+ * Admin categories + product pages show membership; the storefront shows
+ * categories in the menu, shop filter, category pages and product pages.
+ */
 function revalidateCategories() {
   revalidatePath("/[locale]/admin/(authed)/categories", "layout")
   revalidatePath("/[locale]/admin/(authed)/products", "layout")
+  revalidatePath("/[locale]", "layout")
 }
 
 /** Create a category. Returns the new id so the client can navigate to it. */

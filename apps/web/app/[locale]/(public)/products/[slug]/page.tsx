@@ -1,6 +1,7 @@
 import { hasLocale } from "next-intl"
 import { getTranslations, setRequestLocale } from "next-intl/server"
 import type { Metadata } from "next"
+import Link from "next/link"
 import { notFound } from "next/navigation"
 
 import { buttonVariants } from "@workspace/ui/components/button"
@@ -21,6 +22,7 @@ import { RecentlyViewed } from "@/components/product/recently-viewed"
 import { RelatedProducts } from "@/components/product/related-products"
 import { SizeChartModal } from "@/components/product/size-chart-modal"
 import { RecentSalesProof } from "@/components/product/recent-sales-proof"
+import { FabricSpecs } from "@/components/product/fabric-specs"
 import {
   VariantPicker,
   type PickerVariant,
@@ -40,6 +42,7 @@ import {
 } from "@/lib/repos/products.repo"
 import { getRecentSalesCount } from "@/lib/repos/orders.repo"
 import { getProductRatingSummary } from "@/lib/repos/reviews.repo"
+import { listVisibleCategoriesForProduct } from "@/lib/repos/categories.repo"
 import { getSetting } from "@/lib/repos/settings.repo"
 
 function appBaseUrl(): string {
@@ -133,6 +136,7 @@ export default async function ProductPage({
     similar,
     ratingSummary,
     recentSales,
+    categories,
   ] = await Promise.all([
     getSetting("order.max_qty_per_variant"),
     getSetting("size_chart.cm"),
@@ -141,6 +145,7 @@ export default async function ProductPage({
     listSimilarProducts({ excludeId: product.id, priceFils: product.priceFils }),
     getProductRatingSummary(product.id),
     getRecentSalesCount(product.id, RECENT_SALES_WINDOW_DAYS),
+    listVisibleCategoriesForProduct(product.id),
   ])
   const maxQtyPerVariant = maxQtySetting ?? DEFAULT_MAX_QTY_PER_VARIANT
 
@@ -182,12 +187,15 @@ export default async function ProductPage({
   // Prefer the product's own size chart override; fall back to the global
   // setting when the product has none. The unit travels with the chart so the
   // storefront's INCHES|CM toggle knows what the stored numbers represent.
+  // Fabric pieces have no garment sizes, so never show a size chart for them.
+  const isFabric = product.kind === "FABRIC"
   const productChart = parseProductSizeChart(product.sizeChart)
-  const resolvedChart =
-    productChart ??
-    (sizeChart && sizeChart.rows.length > 0
-      ? { unit: sizeChart.unit, rows: sizeChart.rows }
-      : null)
+  const resolvedChart = isFabric
+    ? null
+    : (productChart ??
+      (sizeChart && sizeChart.rows.length > 0
+        ? { unit: sizeChart.unit, rows: sizeChart.rows }
+        : null))
 
   // Prefilled WhatsApp enquiry referencing the product name + canonical URL.
   const waText = t("share_whatsapp_text", { name, url })
@@ -212,6 +220,22 @@ export default async function ProductPage({
           {/* Details */}
           <div className="flex flex-col gap-6">
           <div className="flex flex-col gap-2">
+            {categories.length > 0 ? (
+              <nav
+                aria-label={t("categories_label")}
+                className="flex flex-wrap gap-x-3 gap-y-1"
+              >
+                {categories.map((c) => (
+                  <Link
+                    key={c.id}
+                    href={`/${typedLocale}/collections/${c.slug}`}
+                    className="text-muted-foreground hover:text-foreground text-xs font-semibold tracking-widest uppercase underline-offset-4 hover:underline"
+                  >
+                    {typedLocale === "ar" ? c.nameAr : c.nameEn}
+                  </Link>
+                ))}
+              </nav>
+            ) : null}
             <h1 className="font-heading text-3xl tracking-wide sm:text-4xl">
               {name}
             </h1>
@@ -223,6 +247,11 @@ export default async function ProductPage({
                 {onSale ? (
                   <span className="text-muted-foreground/70 text-lg">
                     <Money fils={product.compareAtFils!} locale={typedLocale} currency={currency} rate={rate} strikethrough />
+                  </span>
+                ) : null}
+                {isFabric ? (
+                  <span className="text-muted-foreground text-sm">
+                    {t("per_piece")}
                   </span>
                 ) : null}
               </div>
@@ -238,6 +267,15 @@ export default async function ProductPage({
             </div>
           </div>
 
+          {isFabric ? (
+            <FabricSpecs
+              material={product.fabricMaterial}
+              widthCm={product.fabricWidthCm}
+              lengthCm={product.fabricLengthCm}
+              locale={typedLocale}
+            />
+          ) : null}
+
           <VariantPicker
             product={{
               productId: product.id,
@@ -248,6 +286,7 @@ export default async function ProductPage({
               compareAtFils: product.compareAtFils,
               weightGrams: product.weightGrams ?? 0,
               isFinalSale: product.isFinalSale,
+              pieceLengthCm: isFabric ? product.fabricLengthCm : null,
               images: product.images.map((img) => ({
                 url: img.url,
                 colorHex: img.colorHex,

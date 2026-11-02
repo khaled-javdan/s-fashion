@@ -63,6 +63,14 @@ export type ProductFormPayload = {
    * default"; a value is the per-product chart (measurements in centimetres).
    */
   sizeChart?: SizeChartFormChart | null
+  /** GARMENT (colour × size) or FABRIC (fixed pre-cut piece, colour-only). */
+  kind: ProductCreateInput["kind"]
+  /** FABRIC only: material key from FABRIC_MATERIALS. */
+  fabricMaterial?: string | null
+  /** FABRIC only: roll width in cm. */
+  fabricWidthCm?: number | null
+  /** FABRIC only: piece length in cm (300 = 3 m). */
+  fabricLengthCm?: number | null
   /** Full set of category ids the product belongs to. */
   categoryIds?: string[]
   variants: Array<{
@@ -190,7 +198,12 @@ function toCreateInput(payload: ProductFormPayload): ProductCreateInput {
     isActive: payload.isActive,
     isFinalSale: payload.isFinalSale,
     weightGrams: payload.weightGrams,
-    sizeChart: payload.sizeChart ?? null,
+    // Fabric has no garment sizes, so it never carries a size chart.
+    sizeChart: payload.kind === "FABRIC" ? null : (payload.sizeChart ?? null),
+    kind: payload.kind,
+    fabricMaterial: payload.fabricMaterial ?? null,
+    fabricWidthCm: payload.fabricWidthCm ?? null,
+    fabricLengthCm: payload.fabricLengthCm ?? null,
     categoryIds: payload.categoryIds ?? [],
     variants: payload.variants.map((v) => ({
       id: v.id,
@@ -230,7 +243,12 @@ function toUpdateInput(payload: ProductFormPayload): ProductUpdateInput {
     isActive: payload.isActive,
     isFinalSale: payload.isFinalSale,
     weightGrams: payload.weightGrams,
-    sizeChart: payload.sizeChart ?? null,
+    // Fabric has no garment sizes, so it never carries a size chart.
+    sizeChart: payload.kind === "FABRIC" ? null : (payload.sizeChart ?? null),
+    kind: payload.kind,
+    fabricMaterial: payload.fabricMaterial ?? null,
+    fabricWidthCm: payload.fabricWidthCm ?? null,
+    fabricLengthCm: payload.fabricLengthCm ?? null,
     // Omitted = leave the product's categories untouched (never wipe them).
     categoryIds: payload.categoryIds,
     variants: payload.variants.map((v) => ({

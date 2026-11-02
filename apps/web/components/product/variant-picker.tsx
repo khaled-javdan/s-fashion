@@ -41,6 +41,11 @@ export type PickerProduct = {
   /** Shipping weight in grams (0 when unset); snapshotted onto the cart line. */
   weightGrams: number
   isFinalSale: boolean
+  /**
+   * FABRIC products: length of one piece in cm. When set the picker is
+   * colour-only (no size step) and quantity counts pieces. `null` = garment.
+   */
+  pieceLengthCm: number | null
   /** All product images, in display order. The first is the default fallback. */
   images: PickerProductImage[]
 }
@@ -134,7 +139,12 @@ export function VariantPicker({
     }
     return colors[0]?.key ?? null
   })
-  const [selectedSize, setSelectedSize] = useState<string | null>(null)
+  // Fabric is colour-only: every variant carries the same placeholder size
+  // (FREE), so pre-select it and skip the size step entirely.
+  const isFabric = product.pieceLengthCm != null
+  const [selectedSize, setSelectedSize] = useState<string | null>(() =>
+    isFabric ? (variants[0]?.size ?? null) : null,
+  )
   const [quantity, setQuantity] = useState(1)
 
   // Publish the chosen color so the gallery can switch to its photo. Covers
@@ -194,8 +204,10 @@ export function VariantPicker({
   function handleSelectColor(key: string) {
     setSelectedColor(key)
     setQuantity(1)
-    // Clear size if it's no longer in stock for the new color.
-    if (selectedSize) {
+    // Clear size if it's no longer in stock for the new color. Fabric keeps
+    // its fixed placeholder size — there is no size step to fall back to, and
+    // the stock badge already reports an out-of-stock colour.
+    if (selectedSize && !isFabric) {
       const stillAvailable = variants.some(
         (v) => colorKey(v) === key && v.size === selectedSize && v.stock > 0,
       )
@@ -239,6 +251,7 @@ export function VariantPicker({
       compareAtFils: product.compareAtFils,
       weightGrams: product.weightGrams,
       isFinalSale: product.isFinalSale,
+      pieceLengthCm: product.pieceLengthCm,
       quantity: Math.min(quantity, maxQty),
     }
   }, [selectedVariant, product, quantity, maxQty])
@@ -282,16 +295,18 @@ export function VariantPicker({
         </div>
       )}
 
-      {/* Size */}
-      <div className="flex flex-col gap-2">
-        <span className="text-sm font-medium">{t("select_size")}</span>
-        <SizeSelector
-          options={sizeOptions}
-          selected={selectedSize}
-          onSelect={handleSelectSize}
-          lowStockLabel={(stock) => t("low_stock_count", { count: stock })}
-        />
-      </div>
+      {/* Size (garments only; fabric is sold per piece) */}
+      {isFabric ? null : (
+        <div className="flex flex-col gap-2">
+          <span className="text-sm font-medium">{t("select_size")}</span>
+          <SizeSelector
+            options={sizeOptions}
+            selected={selectedSize}
+            onSelect={handleSelectSize}
+            lowStockLabel={(stock) => t("low_stock_count", { count: stock })}
+          />
+        </div>
+      )}
 
       {/* Stock indicator (reactive to selection) */}
       <div aria-live="polite">
@@ -315,7 +330,9 @@ export function VariantPicker({
 
       {/* Quantity */}
       <div className="flex flex-col gap-2">
-        <span className="text-sm font-medium">{t("quantity_label")}</span>
+        <span className="text-sm font-medium">
+          {isFabric ? t("quantity_pieces") : t("quantity_label")}
+        </span>
         <QuantityStepper
           value={quantity}
           min={1}

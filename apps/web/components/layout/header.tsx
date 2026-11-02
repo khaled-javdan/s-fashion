@@ -8,6 +8,7 @@ import { MobileSearch } from "@/components/layout/mobile-search"
 import { SearchBox } from "@/components/layout/search-box"
 import { ShipToSwitcher } from "@/components/layout/ship-to-switcher"
 import type { Locale } from "@/lib/locale"
+import type { StorefrontCategory } from "@/lib/repos/categories.repo"
 
 /**
  * Public header.
@@ -15,7 +16,12 @@ import type { Locale } from "@/lib/locale"
  * - Mobile (<md): brand centered · search icon end.
  * - Desktop (≥md): brand · nav · search + ship-to + locale + cart.
  */
-export function Header() {
+export function Header({
+  menuCategories = [],
+}: {
+  /** Categories the admin marked "Show in menu" (already filtered to shoppable). */
+  menuCategories?: StorefrontCategory[]
+}) {
   const t = useTranslations("header")
   const locale = useLocale() as Locale
 
@@ -42,7 +48,7 @@ export function Header() {
               {t("shop_all")}
             </span>
             <div className="invisible absolute start-1/2 top-full z-50 -translate-x-1/2 pt-3 group-hover:visible rtl:translate-x-1/2">
-              <div className="flex min-w-40 flex-col overflow-hidden rounded-md border border-border bg-background py-1 shadow-md">
+              <div className="flex max-h-[70vh] min-w-40 flex-col overflow-y-auto rounded-md border border-border bg-background py-1 shadow-md">
                 <Link
                   href={`/${locale}/products`}
                   className="px-4 py-2.5 text-xs font-semibold tracking-widest text-foreground/70 uppercase transition hover:bg-muted hover:text-foreground"
@@ -55,6 +61,20 @@ export function Header() {
                 >
                   {t("shop_styles")}
                 </Link>
+                {menuCategories.length > 0 ? (
+                  <>
+                    <div className="my-1 border-t border-border" />
+                    {menuCategories.map((c) => (
+                      <Link
+                        key={c.id}
+                        href={`/${locale}/collections/${c.slug}`}
+                        className="px-4 py-2.5 text-xs font-semibold tracking-widest text-foreground/70 uppercase transition hover:bg-muted hover:text-foreground"
+                      >
+                        {locale === "ar" ? c.nameAr : c.nameEn}
+                      </Link>
+                    ))}
+                  </>
+                ) : null}
               </div>
             </div>
           </div>

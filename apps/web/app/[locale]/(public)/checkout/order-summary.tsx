@@ -21,6 +21,7 @@ import type { CountryCode } from "@/lib/geo"
 import type { Locale } from "@/lib/locale"
 import { resolveShipping, type ShippingConfig } from "@/lib/shipping-config"
 import { Price } from "@/components/currency/price"
+import { lineVariantLabel } from "@/lib/fabric"
 
 /** mm:ss left until `targetMs`, or null when unset / already past. */
 function useCountdown(targetMs: number | null): string | null {
@@ -229,11 +230,7 @@ export function OrderSummary({
     <ul className="space-y-3">
       {items.map((item) => {
         const name = locale === "ar" ? item.nameAr : item.nameEn
-        const colorName =
-          locale === "ar" ? item.colorNameAr : item.colorNameEn
-        const variantLabel = [colorName, item.size]
-          .filter(Boolean)
-          .join(" · ")
+        const variantLabel = lineVariantLabel(item, locale)
         return (
           <li key={item.variantId} className="flex items-center gap-3">
             <div className="relative size-12 shrink-0 overflow-hidden rounded-md bg-muted">

@@ -174,7 +174,15 @@
     "previous_image": "Previous image",
     "next_image": "Next image",
     "you_may_also_like": "You may also like",
-    "recently_viewed": "Recently viewed"
+    "recently_viewed": "Recently viewed",
+    "categories_label": "Categories",
+    "fabric_specs_heading": "Fabric details",
+    "fabric_material": "Material",
+    "fabric_width": "Width",
+    "fabric_length": "Piece length",
+    "fabric_piece_note": "You receive one uncut piece of {length} × {width}, typically enough for one dress.",
+    "per_piece": "per piece",
+    "quantity_pieces": "Quantity (pieces)"
   },
   "cart": {
     "empty": "Your cart is empty",
@@ -837,14 +845,16 @@
         "edit": "Edit",
         "out_of_stock": "Out",
         "toggle_active": "Toggle active",
-        "reorder": "Drag to reorder"
+        "reorder": "Drag to reorder",
+        "fabric_badge": "Fabric"
       },
       "sections": {
         "images": "Images",
         "basics": "Basics",
         "variants": "Variants",
         "size_chart": "Size chart",
-        "categories": "Categories"
+        "categories": "Categories",
+        "type": "Product type"
       },
       "form": {
         "new_title": "New product",
@@ -869,7 +879,8 @@
         "restore": "Restore product",
         "categories_hint": "Tap a category to add or remove this product.",
         "categories_empty": "No categories yet.",
-        "categories_manage": "Manage categories"
+        "categories_manage": "Manage categories",
+        "price_per_piece": "Price per piece (AED)"
       },
       "variants": {
         "color": "Colour",
@@ -887,7 +898,10 @@
         "sync_no_colors": "No colour-tagged images to sync from yet.",
         "sync_none_added": "All image colours are already covered by variants.",
         "sync_added": "Added {count} variant from image colours.",
-        "sync_added_plural": "Added {count} variants from image colours."
+        "sync_added_plural": "Added {count} variants from image colours.",
+        "unit": "Unit",
+        "per_piece": "Per piece",
+        "duplicate_color": "Duplicate colour. Each fabric colour must be unique."
       },
       "images": {
         "dropzone": "Drag & drop images, or click to browse",
@@ -938,7 +952,11 @@
         "variant_unique": "Each colour + size combination must be unique.",
         "size_chart_empty": "Add at least one size-chart row, or use the global default.",
         "size_chart_size_required": "Every size-chart row needs a size label.",
-        "size_chart_length_invalid": "Enter a valid length for size {size}."
+        "size_chart_length_invalid": "Enter a valid length for size {size}.",
+        "fabric_material_required": "Choose the fabric material.",
+        "fabric_width_invalid": "Enter the fabric width in whole cm (50–400).",
+        "fabric_length_invalid": "Enter the piece length in metres (0.5–50).",
+        "variant_unique_fabric": "Each fabric colour must be unique."
       },
       "toast": {
         "created": "Product created.",
@@ -947,6 +965,19 @@
         "hidden": "Product hidden.",
         "now_visible": "Product is now visible to customers.",
         "now_hidden": "Product hidden from customers."
+      },
+      "type": {
+        "garment": "Ready-made garment",
+        "garment_desc": "Sold by colour and size (XS–XXL / Free size).",
+        "fabric": "Fabric piece",
+        "fabric_desc": "A fixed pre-cut length (e.g. 3 m × 147 cm) at one price per piece. Colour only, no sizes."
+      },
+      "fabric": {
+        "material": "Material",
+        "material_placeholder": "Choose material",
+        "width": "Width (cm)",
+        "length": "Piece length (m)",
+        "hint": "Typical: 147 cm double width → 3 m piece; 110 cm single width → 3.5 m piece. Stock and price are per piece."
       }
     },
     "categories": {
@@ -971,7 +1002,8 @@
       },
       "status": {
         "active": "Visible",
-        "hidden": "Hidden"
+        "hidden": "Hidden",
+        "in_menu": "In menu"
       },
       "sections": {
         "details": "Details",
@@ -988,7 +1020,12 @@
         "active_desc": "Hidden categories are kept but not shown to shoppers.",
         "create": "Create",
         "cancel": "Cancel",
-        "delete": "Delete category"
+        "delete": "Delete category",
+        "desc_en": "Description (English)",
+        "desc_ar": "Description (Arabic)",
+        "desc_placeholder": "Optional. Shown at the top of the category page and in Google results.",
+        "show_in_menu": "Show in menu",
+        "show_in_menu_desc": "List it in the header Shop menu and the mobile menu."
       },
       "products": {
         "selected_count": "{count} of {total} products selected",
@@ -1078,7 +1115,8 @@
           "newest": "New arrivals",
           "best_selling": "Best selling",
           "on_sale": "On sale",
-          "in_stock": "In stock"
+          "in_stock": "In stock",
+          "category": "From a category"
         },
         "section": {
           "value_props": "Value props",
@@ -1088,7 +1126,12 @@
           "ugc_strip": "Instagram strip",
           "whatsapp_signup": "WhatsApp signup",
           "recently_viewed": "Recently viewed"
-        }
+        },
+        "category_label": "Category",
+        "category_placeholder": "Choose a category",
+        "category_none": "No categories yet. Create one under Categories first.",
+        "category_hidden": "hidden",
+        "error_category_required": "Choose a category for every “From a category” row."
       },
       "hero": {
         "card_title": "Home hero",
@@ -1714,7 +1757,10 @@
     "search_clear": "Clear search",
     "search_title": "Results for “{query}”",
     "search_results": "{count, plural, =0 {No results for “{query}”} one {# result for “{query}”} other {# results for “{query}”}}",
-    "search_empty": "No products found for “{query}”. Try a different keyword."
+    "search_empty": "No products found for “{query}”. Try a different keyword.",
+    "category_label": "Category",
+    "all_products": "All products",
+    "material_label": "Material"
   },
   "reviews": {
     "pdp_heading": "Customer reviews",

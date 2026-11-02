@@ -19,6 +19,7 @@ import {
 import { useCartStore, type CartItem } from "@/lib/cart-store"
 import { Price } from "@/components/currency/price"
 import type { Locale } from "@/lib/locale"
+import { lineVariantLabel } from "@/lib/fabric"
 
 /**
  * A single cart line item: thumbnail, name + variant label, quantity stepper
@@ -46,8 +47,7 @@ export function CartLineItem({
   const [confirmOpen, setConfirmOpen] = useState(false)
 
   const name = locale === "ar" ? item.nameAr : item.nameEn
-  const colorName = locale === "ar" ? item.colorNameAr : item.colorNameEn
-  const variantLabel = [colorName, item.size].filter(Boolean).join(" · ")
+  const variantLabel = lineVariantLabel(item, locale)
   const lineTotalFils = item.unitPriceFils * item.quantity
 
   const atMax = item.quantity >= maxQtyPerVariant

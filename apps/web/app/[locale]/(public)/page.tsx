@@ -34,6 +34,7 @@ import {
   listProductsForSource,
 } from "@/lib/repos/products.repo"
 import { getRatingSummaries } from "@/lib/repos/reviews.repo"
+import { listShoppableCategories } from "@/lib/repos/categories.repo"
 import { getSetting } from "@/lib/repos/settings.repo"
 import { resolveShopByHref } from "@/lib/shop-by-config"
 
@@ -61,12 +62,16 @@ export default async function HomePage({
   const t = await getTranslations("home")
   const tTrack = await getTranslations("tracking")
   const tProduct = await getTranslations("product")
-  const [heroProducts, gridRaw, layoutRaw, whatsappEnabledRaw] = await Promise.all([
-    listActiveProducts({ take: 60 }),
-    getSetting("home.grid"),
-    getSetting("home.sections"),
-    getSetting("marketing.whatsapp_enabled"),
-  ])
+  const [heroProducts, gridRaw, layoutRaw, whatsappEnabledRaw, categories] =
+    await Promise.all([
+      listActiveProducts({ take: 60 }),
+      getSetting("home.grid"),
+      getSetting("home.sections"),
+      getSetting("marketing.whatsapp_enabled"),
+      listShoppableCategories(),
+    ])
+  // Category rows link "See all" to their category page (by current slug).
+  const categorySlugById = new Map(categories.map((c) => [c.id, c.slug]))
   const whatsappEnabled = (whatsappEnabledRaw as boolean | null) ?? true
   const grid = parseGridConfig(gridRaw)
   const { blocks } = parseHomeLayout(layoutRaw)
@@ -81,7 +86,7 @@ export default async function HomePage({
       const products =
         b.mode === "manual"
           ? await getProductsByIds(b.manualProducts.map((p) => p.id))
-          : await listProductsForSource(b.source, b.limit)
+          : await listProductsForSource(b.source, b.limit, b.categoryId)
       const ratings = await getRatingSummaries(products.map((p) => p.id))
       return [b.id, { products, ratings }] as const
     }),
@@ -169,7 +174,13 @@ export default async function HomePage({
               ratings={data.ratings}
               locale={typedLocale}
               config={grid}
-              ctaHref={resolveShopByHref(productBlockCtaHref(b), typedLocale)}
+              ctaHref={resolveShopByHref(
+                productBlockCtaHref(
+                  b,
+                  b.categoryId ? categorySlugById.get(b.categoryId) : null,
+                ),
+                typedLocale,
+              )}
               viewAllLabel={t("view_all")}
               scope={`row:${b.id}`}
             />

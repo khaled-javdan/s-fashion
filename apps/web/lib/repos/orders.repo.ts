@@ -36,6 +36,8 @@ export type ResolvedOrderItem = OrderItemInput & {
   colorNameAr: string | null;
   colorNameEn: string | null;
   size: OrderItem["size"];
+  /** FABRIC piece length (cm) snapshot; null/omitted for garments. */
+  pieceLengthCm?: number | null;
   unitPriceFils: number;
   /** Unit cost snapshot at order time (fils); 0 when the product has no cost. */
   unitCostFils: number;
@@ -174,6 +176,7 @@ export async function createOrder(
                 colorNameAr: item.colorNameAr,
                 colorNameEn: item.colorNameEn,
                 size: item.size,
+                pieceLengthCm: item.pieceLengthCm ?? null,
                 unitPriceFils: item.unitPriceFils,
                 unitCostFils: item.unitCostFils,
                 quantity: item.quantity,
@@ -1296,6 +1299,8 @@ export type AbandonedCheckout = {
     colorNameAr: string | null;
     colorNameEn: string | null;
     size: string;
+    /** FABRIC piece length (cm) snapshot; null for garments. */
+    pieceLengthCm: number | null;
     quantity: number;
     unitPriceFils: number;
   }[];
@@ -1367,6 +1372,7 @@ export async function listAbandonedCheckouts(
         colorNameAr: item.colorNameAr,
         colorNameEn: item.colorNameEn,
         size: item.size,
+        pieceLengthCm: item.pieceLengthCm,
         quantity: item.quantity,
         unitPriceFils: item.unitPriceFils,
       })),
@@ -1384,6 +1390,8 @@ export type RestorableCartLine = {
   colorNameEn: string | null;
   colorHex: string | null;
   size: string;
+  /** FABRIC piece length (cm) from the live product; null for garments. */
+  pieceLengthCm: number | null;
   imageUrl: string | null;
   unitPriceFils: number;
   compareAtFils: number | null;
@@ -1431,6 +1439,8 @@ export async function listRestorableCartLines(
                   weightGrams: true,
                   isFinalSale: true,
                   isActive: true,
+                  kind: true,
+                  fabricLengthCm: true,
                   images: {
                     orderBy: { position: "asc" },
                     take: 1,
@@ -1462,6 +1472,10 @@ export async function listRestorableCartLines(
         colorNameEn: variant.colorNameEn,
         colorHex: variant.colorHex,
         size: variant.size,
+        pieceLengthCm:
+          variant.product.kind === "FABRIC"
+            ? variant.product.fabricLengthCm
+            : null,
         imageUrl: variant.product.images[0]?.url ?? null,
         unitPriceFils: variant.product.priceFils,
         compareAtFils: variant.product.compareAtFils,

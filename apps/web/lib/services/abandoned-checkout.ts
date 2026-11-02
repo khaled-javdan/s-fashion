@@ -27,6 +27,7 @@ import {
   withDefaults,
 } from "@/lib/repos/settings.repo";
 import { sendAbandonedCheckoutEmail } from "@/lib/services/resend";
+import { lineVariantLabel } from "@/lib/fabric";
 
 /** Prefix for recovery codes, kept distinct from the exit offer's `STAY-`. */
 export const RECOVERY_COUPON_PREFIX = "COMEBACK";
@@ -98,10 +99,7 @@ async function recoverOne(
       customerName: order.customerName,
       items: order.items.map((item) => ({
         productName: locale === "ar" ? item.productNameAr : item.productNameEn,
-        variantLabel:
-          [locale === "ar" ? item.colorNameAr : item.colorNameEn, item.size]
-            .filter(Boolean)
-            .join(" · ") || undefined,
+        variantLabel: lineVariantLabel(item, locale) || undefined,
         quantity: item.quantity,
         unitPriceFils: item.unitPriceFils,
       })),

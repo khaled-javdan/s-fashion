@@ -1,10 +1,11 @@
-import { prisma, Prisma, OrderStatus, Size } from "@workspace/db";
+import { prisma, Prisma, OrderStatus, ProductKind, Size } from "@workspace/db";
 import {
   type ProductCreateInput,
   type ProductUpdateInput,
 } from "@/lib/schemas/product.schema";
 import type { ProductSource } from "@/lib/home-sections-config";
 import { setProductCategories } from "@/lib/repos/categories.repo";
+import { FABRIC_MATERIAL_KEYS } from "@/lib/fabric";
 
 // Client-safe types + helpers live in a prisma-free module so that client
 // components can import them without bundling the server-only Prisma client.
@@ -91,8 +92,10 @@ export const SEARCH_MIN_CHARS = 2;
 export type ProductFilter = {
   /** Variant colour hex values (lowercased) to match — OR within colours. */
   colors?: string[];
-  /** Sizes to match — OR within sizes. */
+  /** Sizes to match — OR within sizes. Garments only (fabric has no sizes). */
   sizes?: Size[];
+  /** Fabric material keys to match — OR within materials. Fabric only. */
+  materials?: string[];
   /** Inclusive price floor in fils. */
   minFils?: number;
   /** Inclusive price ceiling in fils. */
@@ -103,6 +106,10 @@ export type ProductFilter = {
   onSaleOnly?: boolean;
   /** Free-text search across product name/description (Arabic + English). */
   q?: string;
+  /** Category slugs — product must be in ANY of them (visible categories only). */
+  categorySlugs?: string[];
+  /** Category ids — product must be in ANY of them (visible categories only). */
+  categoryIds?: string[];
   sort?: ProductSort;
   take?: number;
   skip?: number;
@@ -159,6 +166,17 @@ function catalogWhere(
   }
   if (sizes.length > 0) {
     variantConds.size = { in: sizes };
+    // Fabric variants all carry size FREE as a placeholder; a size filter is a
+    // garment question, so never let it surface fabric pieces.
+    where.kind = ProductKind.GARMENT;
+  }
+  const materials = filter.materials?.filter(Boolean) ?? [];
+  if (materials.length > 0) {
+    // Material is a fabric attribute. Combined with a size filter this matches
+    // nothing, which is the honest answer (no fabric has a garment size).
+    where.kind =
+      sizes.length > 0 ? { in: [] } : ProductKind.FABRIC;
+    where.fabricMaterial = { in: materials };
   }
   if (filter.inStockOnly) {
     variantConds.stock = { gt: 0 };
@@ -166,6 +184,24 @@ function catalogWhere(
   // Always set; "some non-archived variant matches X" is the right semantic
   // even when X has no narrowing clauses (X = `{ isArchived: false }`).
   where.variants = { some: variantConds };
+
+  // Categories: OR within the selection. Hidden categories never match, so a
+  // stale link to a hidden category shows nothing rather than leaking it.
+  const categorySlugs = filter.categorySlugs?.filter(Boolean) ?? [];
+  const categoryIds = filter.categoryIds?.filter(Boolean) ?? [];
+  if (categorySlugs.length > 0 || categoryIds.length > 0) {
+    where.categories = {
+      some: {
+        category: {
+          isActive: true,
+          OR: [
+            ...(categorySlugs.length > 0 ? [{ slug: { in: categorySlugs } }] : []),
+            ...(categoryIds.length > 0 ? [{ id: { in: categoryIds } }] : []),
+          ],
+        },
+      },
+    };
+  }
 
   return where;
 }
@@ -368,9 +404,15 @@ export async function listProductsFiltered(
 export async function listProductsForSource(
   source: ProductSource,
   limit: number,
+  categoryId?: string,
 ): Promise<ProductWithRelations[]> {
   const base = { take: limit } as const;
   switch (source) {
+    case "category":
+      // No category picked yet → empty row (the storefront hides empty rows).
+      if (!categoryId) return [];
+      return (await listProductsFiltered({ ...base, categoryIds: [categoryId] }))
+        .products;
     case "best_selling":
       return (await listProductsFiltered({ ...base, sort: "best_selling" }))
         .products;
@@ -434,6 +476,8 @@ export type ColorFacet = {
 export type CatalogFacets = {
   colors: ColorFacet[];
   sizes: Size[];
+  /** Material keys present on active fabric products (curated-list order). */
+  materials: string[];
   minFils: number;
   maxFils: number;
 };
@@ -445,7 +489,7 @@ export type CatalogFacets = {
  * zeroed price bounds and empty lists when there are no active products.
  */
 export async function getCatalogFacets(): Promise<CatalogFacets> {
-  const [variants, priceAgg] = await Promise.all([
+  const [variants, priceAgg, materialRows] = await Promise.all([
     prisma.productVariant.findMany({
       where: { product: { isActive: true }, isArchived: false },
       select: {
@@ -453,6 +497,7 @@ export async function getCatalogFacets(): Promise<CatalogFacets> {
         colorNameEn: true,
         colorNameAr: true,
         size: true,
+        product: { select: { kind: true } },
       },
     }),
     prisma.product.aggregate({
@@ -460,12 +505,22 @@ export async function getCatalogFacets(): Promise<CatalogFacets> {
       _min: { priceFils: true },
       _max: { priceFils: true },
     }),
+    prisma.product.findMany({
+      where: {
+        isActive: true,
+        kind: ProductKind.FABRIC,
+        fabricMaterial: { not: null },
+      },
+      distinct: ["fabricMaterial"],
+      select: { fabricMaterial: true },
+    }),
   ]);
 
   const colorMap = new Map<string, ColorFacet>();
   const sizeSet = new Set<Size>();
   for (const v of variants) {
-    sizeSet.add(v.size);
+    // Fabric's placeholder FREE size is not a real size option.
+    if (v.product.kind === ProductKind.GARMENT) sizeSet.add(v.size);
     if (!v.colorHex) continue;
     const key = v.colorHex.toLowerCase();
     const existing = colorMap.get(key);
@@ -486,9 +541,13 @@ export async function getCatalogFacets(): Promise<CatalogFacets> {
   const sizeOrder = Object.values(Size) as Size[];
   const sizes = sizeOrder.filter((s) => sizeSet.has(s));
 
+  const materialSet = new Set(materialRows.map((r) => r.fabricMaterial));
+  const materials = FABRIC_MATERIAL_KEYS.filter((k) => materialSet.has(k));
+
   return {
     colors: [...colorMap.values()].sort((a, b) => a.hex.localeCompare(b.hex)),
     sizes,
+    materials,
     minFils: priceAgg._min.priceFils ?? 0,
     maxFils: priceAgg._max.priceFils ?? 0,
   };
@@ -597,10 +656,10 @@ export async function countLowStockVariants(
 }
 
 /**
- * "You may also like" — active products related to the given one. With no
- * categories in the model, relatedness is price proximity: candidates within
- * ±40% of the price, sorted by closeness, then topped up with newest products
- * so the row is never short. Excludes the current product.
+ * "You may also like" — active products related to the given one. Products
+ * sharing a category come first (closest price first), then candidates within
+ * ±40% of the price sorted by closeness, then newest products so the row is
+ * never short. Excludes the current product.
  */
 export async function listSimilarProducts(opts: {
   excludeId: string;
@@ -608,6 +667,8 @@ export async function listSimilarProducts(opts: {
   take?: number;
 }): Promise<ProductWithRelations[]> {
   const take = opts.take ?? 8;
+  const byPrice = (a: { priceFils: number }, b: { priceFils: number }) =>
+    Math.abs(a.priceFils - opts.priceFils) - Math.abs(b.priceFils - opts.priceFils);
   const lo = Math.floor(opts.priceFils * 0.6);
   const hi = Math.ceil(opts.priceFils * 1.4);
 
@@ -618,10 +679,35 @@ export async function listSimilarProducts(opts: {
   const inStock = {
     variants: { some: { stock: { gt: 0 }, isArchived: false } },
   };
-  const band = await prisma.product.findMany({
+  // 1) Products sharing a visible category with this one, closest in price.
+  //    Resolved via a nested relation filter, so no separate category lookup.
+  const sameCategory = await prisma.product.findMany({
     where: {
       isActive: true,
       id: { not: opts.excludeId },
+      categories: {
+        some: {
+          category: {
+            isActive: true,
+            products: { some: { productId: opts.excludeId } },
+          },
+        },
+      },
+      ...inStock,
+    },
+    orderBy: { createdAt: "desc" },
+    take: take * 3,
+    include: { variants: activeVariantsInclude, images: { orderBy: { position: "asc" } } },
+  });
+  sameCategory.sort(byPrice);
+  const fromCategory = sameCategory.slice(0, take);
+  if (fromCategory.length >= take) return fromCategory;
+
+  // 2) Then the price band, excluding anything already picked.
+  const band = await prisma.product.findMany({
+    where: {
+      isActive: true,
+      id: { notIn: [opts.excludeId, ...fromCategory.map((p) => p.id)] },
       priceFils: { gte: lo, lte: hi },
       ...inStock,
     },
@@ -629,13 +715,9 @@ export async function listSimilarProducts(opts: {
     take: take * 3,
     include: { variants: activeVariantsInclude, images: { orderBy: { position: "asc" } } },
   });
-  band.sort(
-    (a, b) =>
-      Math.abs(a.priceFils - opts.priceFils) -
-      Math.abs(b.priceFils - opts.priceFils),
-  );
+  band.sort(byPrice);
 
-  const picked = band.slice(0, take);
+  const picked = [...fromCategory, ...band].slice(0, take);
   if (picked.length >= take) return picked;
 
   // Top up with the newest other products not already included.
@@ -758,6 +840,26 @@ export async function generateUniqueSlug(
   return `${normalized}-${n}`;
 }
 
+/**
+ * Product-kind columns to persist. Fabric descriptors are only kept for FABRIC
+ * products; switching a product back to GARMENT clears them so stale specs
+ * never surface on a garment page.
+ */
+function fabricData(input: {
+  kind?: ProductKind;
+  fabricMaterial?: string | null;
+  fabricWidthCm?: number | null;
+  fabricLengthCm?: number | null;
+}) {
+  const isFabric = input.kind === ProductKind.FABRIC;
+  return {
+    kind: input.kind ?? ProductKind.GARMENT,
+    fabricMaterial: isFabric ? (input.fabricMaterial ?? null) : null,
+    fabricWidthCm: isFabric ? (input.fabricWidthCm ?? null) : null,
+    fabricLengthCm: isFabric ? (input.fabricLengthCm ?? null) : null,
+  };
+}
+
 /** Create a product + its variants + images in one transaction. */
 export async function createProduct(
   input: ProductCreateInput,
@@ -779,6 +881,7 @@ export async function createProduct(
         isFinalSale: input.isFinalSale,
         weightGrams: input.weightGrams ?? null,
         sizeChart: input.sizeChart ?? Prisma.JsonNull,
+        ...fabricData(input),
         variants: {
           create: input.variants.map((v) => ({
             colorNameAr: v.colorNameAr ?? null,
@@ -843,6 +946,7 @@ export async function updateProduct(
         ...(input.sizeChart === undefined
           ? {}
           : { sizeChart: input.sizeChart ?? Prisma.JsonNull }),
+        ...(input.kind === undefined ? {} : fabricData(input)),
       },
     });
 

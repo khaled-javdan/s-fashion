@@ -45,6 +45,8 @@ export const PRODUCT_SOURCES = [
   "best_selling",
   "on_sale",
   "in_stock",
+  // Products from one admin category (`ProductBlock.categoryId`).
+  "category",
 ] as const
 
 export type ProductSource = (typeof PRODUCT_SOURCES)[number]
@@ -58,6 +60,8 @@ const SOURCE_QUERY: Record<ProductSource, string> = {
   best_selling: "sort=best_selling",
   on_sale: "on_sale=1",
   in_stock: "in_stock=1",
+  // Real target is the category page — see `productBlockCtaHref`.
+  category: "",
 }
 
 /** Default "See all" target for a source — the products page, pre-filtered. */
@@ -121,6 +125,8 @@ export type ProductBlock = {
   titleEn: string
   titleAr: string
   source: ProductSource
+  /** The category to draw from when `source` is "category". */
+  categoryId?: string
   /** Max products shown before the "See all" button. Ignored in "manual" mode. */
   limit: number
   /** Override for the "See all" link; empty → the source default. */
@@ -140,9 +146,21 @@ export type HomeBlock = StaticBlock | ProductBlock
 
 export type HomeLayoutConfig = { blocks: HomeBlock[] }
 
-/** The resolved "See all" href for a product block (override or source default). */
-export function productBlockCtaHref(block: ProductBlock): string {
-  return block.ctaHref?.trim() || productSourceHref(block.source)
+/**
+ * The resolved "See all" href for a product block: the admin override, else the
+ * category page for a category row (when its slug is known), else the source's
+ * pre-filtered products page.
+ */
+export function productBlockCtaHref(
+  block: ProductBlock,
+  categorySlug?: string | null,
+): string {
+  const override = block.ctaHref?.trim()
+  if (override) return override
+  if (block.source === "category" && categorySlug) {
+    return `/collections/${categorySlug}`
+  }
+  return productSourceHref(block.source)
 }
 
 /* ------------------------------------------------------------------ */
@@ -224,6 +242,7 @@ const productBlockSchema = z.object({
   titleEn: z.string().trim().max(60).default(""),
   titleAr: z.string().trim().max(60).default(""),
   source: z.string(),
+  categoryId: z.string().max(64).optional(),
   limit: z.number().int().min(1).max(48).default(8),
   ctaHref: z.string().trim().max(200).optional(),
   visible: z.boolean().default(true),
@@ -320,6 +339,7 @@ export function parseHomeLayout(raw: unknown): HomeLayoutConfig {
         titleEn: b.titleEn,
         titleAr: b.titleAr,
         source: SOURCE_SET.has(b.source) ? (b.source as ProductSource) : "all",
+        ...(b.categoryId ? { categoryId: b.categoryId } : {}),
         limit: b.limit,
         ...(b.ctaHref ? { ctaHref: b.ctaHref } : {}),
         visible: b.visible,

@@ -21,6 +21,7 @@ import {
 } from "@workspace/ui/components/table"
 
 import { formatAed } from "@/lib/money"
+import { lineSizeLabel } from "@/lib/fabric"
 
 function ImagePreview({ src, alt }: { src: string; alt: string }) {
   const [open, setOpen] = useState(false)
@@ -111,7 +112,7 @@ export function OrderItemsTable({ items }: { items: OrderItemWithImage[] }) {
                   </div>
                 ) : null}
               </TableCell>
-              <TableCell>{item.size}</TableCell>
+              <TableCell>{lineSizeLabel(item, "en")}</TableCell>
               <TableCell className="text-end tabular-nums">
                 {item.quantity}
               </TableCell>

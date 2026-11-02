@@ -1,4 +1,5 @@
 import { htmlToPlainText } from "@/components/product/rich-text"
+import { fabricMaterialLabel } from "@/lib/fabric"
 import type { Locale } from "@/lib/locale"
 import { filsToAed } from "@/lib/money"
 import type { ProductWithRelations } from "@/lib/repos/products.repo"
@@ -29,6 +30,20 @@ export function ProductJsonLd({ product, locale, url }: Props) {
     name,
     ...(description ? { description } : {}),
     image: product.images.map((image) => image.url),
+    // Fabric pieces: expose the material + piece size to search engines.
+    ...(product.kind === "FABRIC" && product.fabricMaterial
+      ? { material: fabricMaterialLabel(product.fabricMaterial, "en") }
+      : {}),
+    ...(product.kind === "FABRIC" && product.fabricLengthCm
+      ? {
+          size: [
+            product.fabricLengthCm ? `${product.fabricLengthCm / 100} m` : null,
+            product.fabricWidthCm ? `${product.fabricWidthCm} cm wide` : null,
+          ]
+            .filter(Boolean)
+            .join(" × "),
+        }
+      : {}),
     offers: {
       "@type": "Offer",
       priceCurrency: "AED",

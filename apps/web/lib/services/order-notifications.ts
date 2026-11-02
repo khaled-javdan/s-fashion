@@ -24,6 +24,7 @@ import { sendOrderConfirmationEmail } from "@/lib/services/resend";
 import { sendOrderConfirmationSms } from "@/lib/services/order-sms";
 import { sendOrderNotification } from "@/lib/services/telegram";
 import { parseShippingConfig, resolveShipping } from "@/lib/shipping-config";
+import { lineVariantLabel } from "@/lib/fabric";
 
 function absoluteAdminOrderUrl(locale: Locale, orderId: string): string {
   return `${appBaseUrl()}/${locale}/admin/orders/${orderId}`;
@@ -173,12 +174,7 @@ export async function dispatchOrderNotifications(
         customerName: order.customerName,
         items: order.items.map((i) => ({
           productName: locale === "ar" ? i.productNameAr : i.productNameEn,
-          variantLabel: [
-            locale === "ar" ? i.colorNameAr : i.colorNameEn,
-            i.size,
-          ]
-            .filter(Boolean)
-            .join(" · "),
+          variantLabel: lineVariantLabel(i, locale),
           quantity: i.quantity,
           unitPriceFils: i.unitPriceFils,
           imageUrl: itemImageUrl(i),

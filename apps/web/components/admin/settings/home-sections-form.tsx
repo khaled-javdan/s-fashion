@@ -53,7 +53,7 @@ import { useAdminLocale } from "@/components/admin/use-admin-locale"
 import {
   emptyProductBlock,
   PRODUCT_SOURCES,
-  productSourceHref,
+  productBlockCtaHref,
   STATIC_SECTION_LIMITS,
   staticSectionSupportsLimit,
   type HomeBlock,
@@ -64,6 +64,7 @@ import {
   type StaticBlock,
 } from "@/lib/home-sections-config"
 import { localeDirection } from "@/lib/locale"
+import type { CategoryOption } from "@/lib/repos/categories.repo"
 
 /**
  * Home-page layout organiser. Reorder + show/hide every block, and add/remove
@@ -72,7 +73,14 @@ import { localeDirection } from "@/lib/locale"
  * "See all" override. Static widgets are singletons (toggle + reorder only). The
  * hero is always pinned to the top and isn't listed here.
  */
-export function HomeSectionsForm({ initial }: { initial: HomeLayoutConfig }) {
+export function HomeSectionsForm({
+  initial,
+  categories = [],
+}: {
+  initial: HomeLayoutConfig
+  /** Categories a "From a category" row can draw from. */
+  categories?: CategoryOption[]
+}) {
   const t = useTranslations("admin.settings")
   const dir = localeDirection(useAdminLocale())
   const [saved, setSaved] = useState<HomeLayoutConfig>(initial)
@@ -120,6 +128,17 @@ export function HomeSectionsForm({ initial }: { initial: HomeLayoutConfig }) {
     )
     if (blank) {
       toast.error(t("home_sections.error_title_required"))
+      return
+    }
+    const noCategory = blocks.find(
+      (b) =>
+        b.type === "products" &&
+        b.mode === "auto" &&
+        b.source === "category" &&
+        !b.categoryId,
+    )
+    if (noCategory) {
+      toast.error(t("home_sections.error_category_required"))
       return
     }
     const payload = snapshot
@@ -222,6 +241,7 @@ export function HomeSectionsForm({ initial }: { initial: HomeLayoutConfig }) {
               <ProductRowFields
                 dir={dir}
                 block={block}
+                categories={categories}
                 onPatch={(partial) => patchProduct(index, partial)}
               />
             ) : staticSectionSupportsLimit(block.key) ? (
@@ -277,14 +297,24 @@ function StaticLimitField({
 function ProductRowFields({
   dir,
   block,
+  categories,
   onPatch,
 }: {
   dir: "ltr" | "rtl"
   block: ProductBlock
+  categories: CategoryOption[]
   onPatch: (partial: Partial<ProductBlock>) => void
 }) {
   const t = useTranslations("admin.settings")
-  const defaultHref = productSourceHref(block.source)
+  const adminLocale = useAdminLocale()
+  const pickedCategory =
+    block.source === "category"
+      ? categories.find((c) => c.id === block.categoryId)
+      : undefined
+  const defaultHref = productBlockCtaHref(
+    { ...block, ctaHref: undefined },
+    pickedCategory?.slug,
+  )
 
   return (
     <div dir={dir} className="space-y-3 ps-7 text-start">
@@ -362,7 +392,39 @@ function ProductRowFields({
             />
           </div>
         </div>
-      ) : (
+      ) : null}
+
+      {block.mode === "auto" && block.source === "category" ? (
+        <div className="grid gap-1.5">
+          <Label className="text-xs">
+            {t("home_sections.category_label")}
+          </Label>
+          {categories.length === 0 ? (
+            <p className="text-muted-foreground text-xs">
+              {t("home_sections.category_none")}
+            </p>
+          ) : (
+            <Select
+              value={block.categoryId ?? ""}
+              onValueChange={(v) => onPatch({ categoryId: v })}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder={t("home_sections.category_placeholder")} />
+              </SelectTrigger>
+              <SelectContent>
+                {categories.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {adminLocale === "ar" ? c.nameAr : c.nameEn}
+                    {c.isActive ? "" : ` (${t("home_sections.category_hidden")})`}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
+      ) : null}
+
+      {block.mode === "auto" ? null : (
         <ManualProductPicker
           blockId={block.id}
           products={block.manualProducts}

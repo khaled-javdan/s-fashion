@@ -50,6 +50,8 @@ export type ProductRow = {
   slug: string
   priceFils: number
   isActive: boolean
+  /** FABRIC product (sold per pre-cut piece) — badged in the list. */
+  isFabric: boolean
   totalStock: number
   thumbnailUrl: string | null
   thumbnailAlt: string
@@ -200,7 +202,12 @@ function ProductTableRow({
         </div>
       </TableCell>
       <TableCell>
-        <div className="font-medium">{product.nameEn}</div>
+        <div className="flex items-center gap-2 font-medium">
+          {product.nameEn}
+          {product.isFabric ? (
+            <Badge variant="secondary">{t("table.fabric_badge")}</Badge>
+          ) : null}
+        </div>
         <div className="text-muted-foreground text-xs" dir="rtl">
           {product.nameAr}
         </div>

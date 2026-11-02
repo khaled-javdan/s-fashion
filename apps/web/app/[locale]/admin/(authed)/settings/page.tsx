@@ -20,6 +20,10 @@ import { CompanyForm } from "@/components/admin/settings/company-form"
 import { ContactForm } from "@/components/admin/settings/contact-form"
 import { GridForm } from "@/components/admin/settings/grid-form"
 import { HeroForm } from "@/components/admin/settings/hero-form"
+import {
+  listCategoryOptions,
+  type CategoryOption,
+} from "@/lib/repos/categories.repo"
 import { HomeSectionsForm } from "@/components/admin/settings/home-sections-form"
 import { CurrencyForm } from "@/components/admin/settings/currency-form"
 import { MarketModeForm } from "@/components/admin/settings/market-mode-form"
@@ -82,6 +86,7 @@ function buildShopByPresets(
   tEn: ShopByTranslator,
   tAr: ShopByTranslator,
   facets: CatalogFacets,
+  categories: CategoryOption[],
 ): ShopByPreset[] {
   const fixed = [
     { value: "/products", key: "preset_all" },
@@ -109,7 +114,15 @@ function buildShopByPresets(
     labelEn: tEn("preset_size", { size: s }),
     labelAr: tAr("preset_size", { size: s }),
   }))
-  return [...base, ...colors, ...sizes]
+  // Visible categories link to their own category page.
+  const categoryPresets: ShopByPreset[] = categories
+    .filter((c) => c.isActive)
+    .map((c) => ({
+      value: `/collections/${c.slug}`,
+      labelEn: c.nameEn,
+      labelAr: c.nameAr,
+    }))
+  return [...base, ...categoryPresets, ...colors, ...sizes]
 }
 
 /** Read a setting from the map with a typed fallback. */
@@ -182,16 +195,23 @@ export default async function AdminSettingsPage() {
   const grid = parseGridConfig(read(all, "home.grid", DEFAULT_GRID))
   const shopBy = parseShopByConfig(all["home.shop_by"])
   const homeLayout = parseHomeLayout(all["home.sections"])
-  const [productLinks, productFacets, tEnShopBy, tArShopBy] = await Promise.all([
+  const [productLinks, productFacets, tEnShopBy, tArShopBy, categoryOptions] =
+    await Promise.all([
     listPopularProducts(10),
     getCatalogFacets(),
     getTranslations({ locale: "en", namespace: "admin.settings.shop_by" }),
     getTranslations({ locale: "ar", namespace: "admin.settings.shop_by" }),
+    listCategoryOptions(),
   ])
   // Build the shop-by target presets with BOTH locale labels here on the server
   // (a client component only has the active locale), so picking a preset can
   // pre-fill a tile's empty English/Arabic labels.
-  const shopByPresets = buildShopByPresets(tEnShopBy, tArShopBy, productFacets)
+  const shopByPresets = buildShopByPresets(
+    tEnShopBy,
+    tArShopBy,
+    productFacets,
+    categoryOptions,
+  )
 
   return (
     <div className="space-y-6">
@@ -245,7 +265,7 @@ export default async function AdminSettingsPage() {
             title={t("home_sections.card_title")}
             description={t("home_sections.card_description")}
           >
-            <HomeSectionsForm initial={homeLayout} />
+            <HomeSectionsForm initial={homeLayout} categories={categoryOptions} />
           </SettingsCard>
         </TabsContent>
 

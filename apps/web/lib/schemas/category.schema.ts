@@ -12,7 +12,10 @@ export const categoryWriteSchema = z.object({
     .regex(slugRegex, "lowercase, digits, and dashes only"),
   nameEn: z.string().trim().min(1).max(80),
   nameAr: z.string().trim().min(1).max(80),
+  descEn: z.string().trim().max(2000).nullish(),
+  descAr: z.string().trim().max(2000).nullish(),
   isActive: z.boolean().default(true),
+  showInMenu: z.boolean().default(false),
 });
 export type CategoryWriteInput = z.infer<typeof categoryWriteSchema>;
 export type CategoryWriteSchemaInput = z.input<typeof categoryWriteSchema>;

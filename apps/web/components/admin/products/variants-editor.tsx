@@ -41,12 +41,13 @@ const SIZE_VALUES = [
   "FREE",
 ] as const satisfies readonly Size[]
 
-export function makeEmptyVariant(): FormVariant {
+export function makeEmptyVariant(opts?: { fabric?: boolean }): FormVariant {
   return {
     colorNameAr: "",
     colorNameEn: "",
     colorHex: "#C97B84",
-    size: "M",
+    // Fabric pieces have no garment size — every variant is colour-only.
+    size: opts?.fabric ? "FREE" : "M",
     stock: 0,
     sku: "",
   }
@@ -57,9 +58,19 @@ type Props = {
   /** Form images — used to seed variants from colour-tagged photos. */
   images?: FormImage[]
   onChange: (variants: FormVariant[]) => void
+  /**
+   * Fabric products are colour-only: the size picker is replaced by a fixed
+   * "per piece" label and every variant is stored with size FREE.
+   */
+  fabric?: boolean
 }
 
-export function VariantsEditor({ variants, images, onChange }: Props) {
+export function VariantsEditor({
+  variants,
+  images,
+  onChange,
+  fabric = false,
+}: Props) {
   const t = useTranslations("admin.products")
   const update = (index: number, patch: Partial<FormVariant>) => {
     onChange(variants.map((v, i) => (i === index ? { ...v, ...patch } : v)))
@@ -70,7 +81,7 @@ export function VariantsEditor({ variants, images, onChange }: Props) {
   }
 
   const add = () => {
-    onChange([...variants, makeEmptyVariant()])
+    onChange([...variants, makeEmptyVariant({ fabric })])
   }
 
   /**
@@ -120,7 +131,7 @@ export function VariantsEditor({ variants, images, onChange }: Props) {
       )
       i = 1
     }
-    const baseSize = next[0]?.size ?? "M"
+    const baseSize = fabric ? "FREE" : (next[0]?.size ?? "M")
     for (; i < missing.length; i++) {
       next.push({ ...makeEmptyVariant(), size: baseSize, colorHex: missing[i]! })
     }
@@ -146,8 +157,9 @@ export function VariantsEditor({ variants, images, onChange }: Props) {
         .filter((v) => (v.colorHex ?? "").toLowerCase() === colorKey)
         .map((v) => v.size),
     )
-    const nextSize =
-      SIZE_VALUES.find((s) => !usedSizes.has(s)) ?? source.size
+    const nextSize = fabric
+      ? "FREE"
+      : (SIZE_VALUES.find((s) => !usedSizes.has(s)) ?? source.size)
 
     const clone: FormVariant = {
       colorNameAr: source.colorNameAr,
@@ -256,8 +268,15 @@ export function VariantsEditor({ variants, images, onChange }: Props) {
 
               <div className="sm:col-span-2">
                 <div className="flex min-h-7 items-center">
-                  <Label className="text-xs">{t("variants.size")}</Label>
+                  <Label className="text-xs">
+                    {fabric ? t("variants.unit") : t("variants.size")}
+                  </Label>
                 </div>
+                {fabric ? (
+                  <p className="text-muted-foreground mt-1 flex h-9 items-center text-sm">
+                    {t("variants.per_piece")}
+                  </p>
+                ) : (
                 <Select
                   value={v.size}
                   onValueChange={(value) =>
@@ -275,6 +294,7 @@ export function VariantsEditor({ variants, images, onChange }: Props) {
                     ))}
                   </SelectContent>
                 </Select>
+                )}
               </div>
 
               <div className="sm:col-span-1">
@@ -335,7 +355,7 @@ export function VariantsEditor({ variants, images, onChange }: Props) {
 
               {isDuplicate ? (
                 <p className="text-destructive sm:col-span-12 text-xs">
-                  {t("variants.duplicate")}
+                  {fabric ? t("variants.duplicate_color") : t("variants.duplicate")}
                 </p>
               ) : null}
             </div>

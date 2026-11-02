@@ -33,6 +33,17 @@ model Product {
   // back to the global `size_chart.cm` setting. Shape mirrors that setting:
   // { unit: "cm", rows: [{ size, bust, waist, hips, length }] }.
   sizeChart         Json?
+  // GARMENT = ready-made piece picked by colour + size. FABRIC = a fixed,
+  // pre-cut length of fabric (e.g. 3 m × 147 cm, enough for one dress) sold
+  // per piece; its variants are colour-only (size FREE) and the fabric* fields
+  // below describe what the customer receives.
+  kind              ProductKind      @default(GARMENT)
+  // Material key from `FABRIC_MATERIALS` (lib/fabric.ts), e.g. "silk". FABRIC only.
+  fabricMaterial    String?
+  // Fabric roll width in cm (e.g. 110 single width, 147 double width). FABRIC only.
+  fabricWidthCm     Int?
+  // Length of one piece in cm (e.g. 300 = 3 m). FABRIC only.
+  fabricLengthCm    Int?
   isActive          Boolean          @default(true)
   isFinalSale       Boolean          @default(false)
   // Admin-controlled manual display order (lower shows first). Ties break by
@@ -48,6 +59,7 @@ model Product {
 
   @@index([isActive, createdAt])
   @@index([isActive, sortOrder])
+  @@index([kind, fabricMaterial])
 }
 
 /**
@@ -56,15 +68,20 @@ model Product {
  * admin's display order (lower first, name breaking ties).
  */
 model Category {
-  id        String            @id @default(cuid())
-  slug      String            @unique
-  nameAr    String
-  nameEn    String
-  isActive  Boolean           @default(true)
-  sortOrder Int               @default(0)
-  createdAt DateTime          @default(now())
-  updatedAt DateTime          @updatedAt
-  products  ProductCategory[]
+  id         String            @id @default(cuid())
+  slug       String            @unique
+  nameAr     String
+  nameEn     String
+  // Optional intro shown on the storefront category page + its meta description.
+  descAr     String?           @db.Text
+  descEn     String?           @db.Text
+  isActive   Boolean           @default(true)
+  // Listed in the header "Shop" dropdown + mobile menu (when it has products).
+  showInMenu Boolean           @default(false)
+  sortOrder  Int               @default(0)
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+  products   ProductCategory[]
 
   @@index([isActive, sortOrder])
 }
@@ -241,6 +258,9 @@ model OrderItem {
   colorNameAr   String?
   colorNameEn   String?
   size          Size
+  // Snapshot of the fabric piece length (cm) for FABRIC products, so the line
+  // reads "3 m piece" forever even if the product is edited. Null for garments.
+  pieceLengthCm Int?
   unitPriceFils Int
   // Unit cost snapshot at order time (fils). Defaults to 0 for orders placed
   // before cost tracking existed / products with no cost set.
@@ -365,6 +385,11 @@ model CouponRedemption {
   createdAt DateTime @default(now())
 
   @@index([couponId, phone])
+}
+
+enum ProductKind {
+  GARMENT
+  FABRIC
 }
 
 enum Size {

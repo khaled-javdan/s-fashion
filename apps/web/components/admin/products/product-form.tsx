@@ -11,6 +11,13 @@ import { Button } from "@workspace/ui/components/button"
 import { Input } from "@workspace/ui/components/input"
 import { Label } from "@workspace/ui/components/label"
 import { Switch } from "@workspace/ui/components/switch"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@workspace/ui/components/select"
 
 import {
   createProductAction,
@@ -41,6 +48,11 @@ import {
   ProductSizeChartEditor,
   type SizeChartFormState,
 } from "@/components/admin/products/product-size-chart-editor"
+import {
+  COMMON_FABRIC_WIDTHS_CM,
+  FABRIC_MATERIALS,
+  FABRIC_VARIANT_SIZE,
+} from "@/lib/fabric"
 import { filsToAed } from "@/lib/money"
 import type { Locale } from "@/lib/locale"
 import {
@@ -82,6 +94,14 @@ type FormState = {
   sizeChart: SizeChartFormState
   /** Sorted, so the dirty check is order-independent. */
   categoryIds: string[]
+  /** GARMENT (colour × size) or FABRIC (fixed pre-cut piece, colour-only). */
+  kind: "GARMENT" | "FABRIC"
+  /** FABRIC: material key ("" = not chosen). */
+  fabricMaterial: string
+  /** FABRIC: roll width in cm (string-backed input). */
+  fabricWidthCm: string
+  /** FABRIC: piece length in metres, e.g. "3" or "3.5" (stored as cm). */
+  fabricLengthM: string
 }
 
 /** Map a stored size chart into string-backed form state (or null). */
@@ -130,6 +150,10 @@ function initialState(
       images: [],
       sizeChart: null,
       categoryIds: sortedCategoryIds,
+      kind: "GARMENT",
+      fabricMaterial: "",
+      fabricWidthCm: "",
+      fabricLengthM: "",
     }
   }
   return {
@@ -167,6 +191,12 @@ function initialState(
     })),
     sizeChart: toSizeChartFormState(product),
     categoryIds: sortedCategoryIds,
+    kind: product.kind,
+    fabricMaterial: product.fabricMaterial ?? "",
+    fabricWidthCm:
+      product.fabricWidthCm == null ? "" : String(product.fabricWidthCm),
+    fabricLengthM:
+      product.fabricLengthCm == null ? "" : String(product.fabricLengthCm / 100),
   }
 }
 
@@ -261,6 +291,29 @@ export function ProductForm(props: Props) {
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setState((s) => ({ ...s, [key]: value }))
 
+  const isFabric = state.kind === "FABRIC"
+
+  /**
+   * Switch product type. Fabric is colour-only, so every variant collapses to
+   * size FREE and any size-chart override is dropped (fabric has no sizes).
+   */
+  const setKind = (kind: FormState["kind"]) =>
+    setState((s) =>
+      s.kind === kind
+        ? s
+        : kind === "FABRIC"
+          ? {
+              ...s,
+              kind,
+              sizeChart: null,
+              variants: s.variants.map((v) => ({
+                ...v,
+                size: FABRIC_VARIANT_SIZE,
+              })),
+            }
+          : { ...s, kind },
+    )
+
   const onNameEnChange = (value: string) => {
     setState((s) => ({
       ...s,
@@ -342,11 +395,33 @@ export function ProductForm(props: Props) {
     const weight = Number(state.weightGrams)
     if (state.weightGrams.trim() === "" || !Number.isInteger(weight) || weight < 0)
       return t("validation.weight_invalid")
+    if (isFabric) {
+      if (!state.fabricMaterial) return t("validation.fabric_material_required")
+      const width = Number(state.fabricWidthCm)
+      if (
+        state.fabricWidthCm.trim() === "" ||
+        !Number.isInteger(width) ||
+        width < 50 ||
+        width > 400
+      )
+        return t("validation.fabric_width_invalid")
+      const lengthM = Number(state.fabricLengthM)
+      if (
+        state.fabricLengthM.trim() === "" ||
+        !Number.isFinite(lengthM) ||
+        lengthM < 0.5 ||
+        lengthM > 50
+      )
+        return t("validation.fabric_length_invalid")
+    }
     if (state.variants.length < 1) return t("validation.variants_required")
     const seen = new Set<string>()
     for (const v of state.variants) {
       const key = `${(v.colorHex ?? "").toLowerCase()}::${v.size}`
-      if (seen.has(key)) return t("validation.variant_unique")
+      if (seen.has(key))
+        return isFabric
+          ? t("validation.variant_unique_fabric")
+          : t("validation.variant_unique")
       seen.add(key)
     }
     if (state.sizeChart !== null) {
@@ -402,14 +477,20 @@ export function ProductForm(props: Props) {
     weightGrams: Number(state.weightGrams),
     isActive: state.isActive,
     isFinalSale: state.isFinalSale,
-    sizeChart: buildSizeChart(),
+    sizeChart: isFabric ? null : buildSizeChart(),
     categoryIds: state.categoryIds,
+    kind: state.kind,
+    fabricMaterial: isFabric ? state.fabricMaterial : null,
+    fabricWidthCm: isFabric ? Number(state.fabricWidthCm) : null,
+    fabricLengthCm: isFabric
+      ? Math.round(Number(state.fabricLengthM) * 100)
+      : null,
     variants: state.variants.map((v) => ({
       id: v.id,
       colorNameAr: v.colorNameAr?.trim() || null,
       colorNameEn: v.colorNameEn?.trim() || null,
       colorHex: v.colorHex || null,
-      size: v.size,
+      size: isFabric ? FABRIC_VARIANT_SIZE : v.size,
       stock: v.stock,
       sku: v.sku?.trim() || null,
     })),
@@ -500,6 +581,21 @@ export function ProductForm(props: Props) {
 
   return (
     <form onSubmit={onSubmit} className="space-y-8">
+      <Section title={t("sections.type")}>
+        <ProductTypePicker value={state.kind} onChange={setKind} />
+        {isFabric ? (
+          <FabricSpecsFields
+            locale={locale}
+            material={state.fabricMaterial}
+            widthCm={state.fabricWidthCm}
+            lengthM={state.fabricLengthM}
+            onMaterial={(v) => set("fabricMaterial", v)}
+            onWidth={(v) => set("fabricWidthCm", v)}
+            onLength={(v) => set("fabricLengthM", v)}
+          />
+        ) : null}
+      </Section>
+
       {/* Images first: once uploaded, the admin can run AI analysis on demand
           (one request per image, with a progress bar) and pick which suggested
           copy and colours to apply. Nothing is analyzed automatically. */}
@@ -540,6 +636,7 @@ export function ProductForm(props: Props) {
           variants={state.variants}
           images={state.images}
           onChange={(variants) => set("variants", variants)}
+          fabric={isFabric}
         />
       </Section>
 
@@ -685,7 +782,7 @@ export function ProductForm(props: Props) {
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label={t("form.price")}>
+          <Field label={isFabric ? t("form.price_per_piece") : t("form.price")}>
             <Input
               type="number"
               min={0}
@@ -752,12 +849,15 @@ export function ProductForm(props: Props) {
         />
       </Section>
 
-      <Section title={t("sections.size_chart")}>
-        <ProductSizeChartEditor
-          chart={state.sizeChart}
-          onChange={(chart) => set("sizeChart", chart)}
-        />
-      </Section>
+      {/* Fabric has no garment sizes, so no size chart. */}
+      {isFabric ? null : (
+        <Section title={t("sections.size_chart")}>
+          <ProductSizeChartEditor
+            chart={state.sizeChart}
+            onChange={(chart) => set("sizeChart", chart)}
+          />
+        </Section>
+      )}
 
       {error ? (
         <p className="text-destructive text-sm font-medium whitespace-pre-line">
@@ -911,6 +1011,133 @@ function CategoryPicker({
           {t("form.categories_manage")}
         </Link>
       </p>
+    </div>
+  )
+}
+
+function ProductTypePicker({
+  value,
+  onChange,
+}: {
+  value: FormState["kind"]
+  onChange: (kind: FormState["kind"]) => void
+}) {
+  const t = useTranslations("admin.products")
+  const options = [
+    {
+      kind: "GARMENT" as const,
+      label: t("type.garment"),
+      desc: t("type.garment_desc"),
+    },
+    {
+      kind: "FABRIC" as const,
+      label: t("type.fabric"),
+      desc: t("type.fabric_desc"),
+    },
+  ]
+  return (
+    <div role="radiogroup" className="grid gap-3 sm:grid-cols-2">
+      {options.map((o) => {
+        const on = value === o.kind
+        return (
+          <button
+            key={o.kind}
+            type="button"
+            role="radio"
+            aria-checked={on}
+            onClick={() => onChange(o.kind)}
+            className={
+              "rounded-md border p-3 text-start transition-colors " +
+              (on ? "border-primary bg-primary/5 ring-primary ring-1" : "hover:bg-muted")
+            }
+          >
+            <div className="text-sm font-medium">{o.label}</div>
+            <div className="text-muted-foreground mt-0.5 text-xs">{o.desc}</div>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+function FabricSpecsFields({
+  locale,
+  material,
+  widthCm,
+  lengthM,
+  onMaterial,
+  onWidth,
+  onLength,
+}: {
+  locale: Locale
+  material: string
+  widthCm: string
+  lengthM: string
+  onMaterial: (v: string) => void
+  onWidth: (v: string) => void
+  onLength: (v: string) => void
+}) {
+  const t = useTranslations("admin.products")
+  return (
+    <div className="space-y-3">
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Field label={t("fabric.material")}>
+          <Select value={material || undefined} onValueChange={onMaterial}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder={t("fabric.material_placeholder")} />
+            </SelectTrigger>
+            <SelectContent>
+              {FABRIC_MATERIALS.map((m) => (
+                <SelectItem key={m.key} value={m.key}>
+                  {locale === "ar" ? `${m.ar} · ${m.en}` : `${m.en} · ${m.ar}`}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field label={t("fabric.width")}>
+          <Input
+            type="number"
+            min={50}
+            max={400}
+            step="1"
+            inputMode="numeric"
+            value={widthCm}
+            onChange={(e) => onWidth(e.target.value)}
+            placeholder="147"
+          />
+          <div className="flex flex-wrap gap-1.5">
+            {COMMON_FABRIC_WIDTHS_CM.map((w) => (
+              <button
+                key={w}
+                type="button"
+                onClick={() => onWidth(String(w))}
+                className={
+                  "rounded-full border px-2 py-0.5 text-xs transition-colors " +
+                  (widthCm === String(w)
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "hover:bg-muted")
+                }
+              >
+                {w} cm
+              </button>
+            ))}
+          </div>
+        </Field>
+        <Field label={t("fabric.length")}>
+          <Input
+            type="number"
+            min={0.5}
+            max={50}
+            step="0.25"
+            inputMode="decimal"
+            value={lengthM}
+            onChange={(e) => onLength(e.target.value)}
+            placeholder="3"
+          />
+        </Field>
+      </div>
+      <p className="text-muted-foreground text-xs">{t("fabric.hint")}</p>
     </div>
   )
 }

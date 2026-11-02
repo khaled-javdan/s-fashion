@@ -12,6 +12,7 @@ import {
 import { StarRating } from "@/components/reviews/star-rating"
 import { Money } from "@/components/currency/money"
 import { getCurrencyContext } from "@/lib/currency-context.server"
+import { fabricMaterialLabel, pieceLabel } from "@/lib/fabric"
 import type { Locale } from "@/lib/locale"
 import type { ProductWithRelations } from "@/lib/repos/products.repo"
 import { stockLevel } from "@/lib/stock-urgency"
@@ -45,6 +46,19 @@ export async function ProductCard({
   const href = preselectedColor
     ? `/${locale}/products/${product.slug}?color=${encodeURIComponent(preselectedColor)}`
     : `/${locale}/products/${product.slug}`
+
+  // Fabric pieces: "Silk · 3 m piece" so shoppers see what one unit is.
+  const fabricLine =
+    product.kind === "FABRIC"
+      ? [
+          fabricMaterialLabel(product.fabricMaterial, locale),
+          product.fabricLengthCm
+            ? pieceLabel(product.fabricLengthCm, locale)
+            : null,
+        ]
+          .filter(Boolean)
+          .join(" · ") || null
+      : null
 
   const totalStock = product.variants.reduce((sum, v) => sum + v.stock, 0)
   const level = stockLevel(totalStock)
@@ -204,6 +218,10 @@ export async function ProductCard({
 
         {colorLabel ? (
           <p className="text-muted-foreground text-xs">{colorLabel}</p>
+        ) : null}
+
+        {fabricLine ? (
+          <p className="text-muted-foreground text-xs">{fabricLine}</p>
         ) : null}
 
         {rating && rating.count > 0 ? (

@@ -1,5 +1,7 @@
 import { z } from "zod";
-import { Size } from "@workspace/db/enums";
+import { ProductKind, Size } from "@workspace/db/enums";
+import type { ProductKind as ProductKindT, Size as SizeT } from "@workspace/db";
+import { FABRIC_MATERIAL_KEYS } from "@/lib/fabric";
 
 /** Hex color, 3 or 6 digits, leading #. */
 const hexColor = z
@@ -91,6 +93,14 @@ const productBase = z.object({
   // Per-product size chart override. `null` (the default) means the storefront
   // falls back to the global `size_chart.cm` setting.
   sizeChart: sizeChartSchema.nullish(),
+  // GARMENT (colour × size) or FABRIC (fixed pre-cut piece, colour-only).
+  kind: z.nativeEnum(ProductKind).default(ProductKind.GARMENT),
+  // FABRIC-only descriptors; required when kind is FABRIC (see refineFabric).
+  fabricMaterial: z.enum(FABRIC_MATERIAL_KEYS).nullish(),
+  // Roll width in cm. 50–400 covers every realistic loom width.
+  fabricWidthCm: z.number().int().min(50).max(400).nullish(),
+  // Piece length in cm (300 = 3 m). 50 cm–50 m.
+  fabricLengthCm: z.number().int().min(50).max(5000).nullish(),
   // Full replacement set of category ids. Omitted on update = leave untouched.
   categoryIds: z.array(z.string().min(1).max(64)).max(200).optional(),
 });
@@ -117,12 +127,48 @@ function refineCompareAt(
   }
 }
 
+/**
+ * A FABRIC product must describe the piece (material, width, length) and its
+ * variants are colour-only, so every variant must use size FREE. Only checked
+ * when `kind` is present on the payload (always true for the admin form).
+ */
+function refineFabric(
+  val: {
+    kind?: ProductKindT;
+    fabricMaterial?: string | null;
+    fabricWidthCm?: number | null;
+    fabricLengthCm?: number | null;
+    variants?: { size: SizeT }[];
+  },
+  ctx: z.RefinementCtx,
+): void {
+  if (val.kind !== ProductKind.FABRIC) return;
+  const required = [
+    ["fabricMaterial", val.fabricMaterial, "Choose the fabric material."],
+    ["fabricWidthCm", val.fabricWidthCm, "Enter the fabric width."],
+    ["fabricLengthCm", val.fabricLengthCm, "Enter the piece length."],
+  ] as const;
+  for (const [path, value, message] of required) {
+    if (value == null) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: [path], message });
+    }
+  }
+  if (val.variants?.some((v) => v.size !== Size.FREE)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["variants"],
+      message: "Fabric variants are colour-only (size must be FREE).",
+    });
+  }
+}
+
 export const productCreateSchema = productBase
   .extend({
     variants: z.array(productVariantSchema).min(1),
     images: z.array(productImageSchema).default([]),
   })
-  .superRefine(refineCompareAt);
+  .superRefine(refineCompareAt)
+  .superRefine(refineFabric);
 export type ProductCreateInput = z.infer<typeof productCreateSchema>;
 
 /** Update allows partial top-level fields; variants/images supplied in full when present. */
@@ -132,5 +178,6 @@ export const productUpdateSchema = productBase
     variants: z.array(productVariantSchema).min(1).optional(),
     images: z.array(productImageSchema).optional(),
   })
-  .superRefine(refineCompareAt);
+  .superRefine(refineCompareAt)
+  .superRefine(refineFabric);
 export type ProductUpdateInput = z.infer<typeof productUpdateSchema>;

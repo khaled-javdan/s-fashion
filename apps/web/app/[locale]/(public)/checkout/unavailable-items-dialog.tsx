@@ -21,6 +21,7 @@ import {
   type UnavailableLine,
 } from "@/lib/cart-availability"
 import { useCartStore } from "@/lib/cart-store"
+import { lineVariantLabel } from "@/lib/fabric"
 import type { Locale } from "@/lib/locale"
 
 /**
@@ -104,11 +105,7 @@ export function UnavailableItemsDialog({
         <ul className="-my-1 max-h-[45vh] divide-y divide-border overflow-y-auto">
           {rows.map(({ line, item }) => {
             const name = locale === "ar" ? item.nameAr : item.nameEn
-            const colorName =
-              locale === "ar" ? item.colorNameAr : item.colorNameEn
-            const variantLabel = [colorName, item.size]
-              .filter(Boolean)
-              .join(" · ")
+            const variantLabel = lineVariantLabel(item, locale)
             const done = handled[line.variantId]
             const keepSome = line.available > 0
 
